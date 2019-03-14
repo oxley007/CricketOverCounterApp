@@ -7,6 +7,9 @@ import wicket from './wicket';
 import stopwatch from './stopwatch';
 import reset from './reset';
 import partnership from './partnership';
+import partnerships from './partnerships';
+import wicketBall from './wicketball';
+import settings from './settings';
 
 
 export default combineReducers({
@@ -17,4 +20,7 @@ export default combineReducers({
   stopwatch,
   reset,
   partnership,
+  partnerships,
+  wicketBall,
+  settings,
 });

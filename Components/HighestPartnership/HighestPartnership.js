@@ -5,7 +5,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H1, H3, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux Imports
@@ -19,11 +19,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 10,
+    fontWeight: '300',
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 22,
   },
   textDesc: {
     color: '#eee',
     fontWeight: '100',
-    lineHeight: -50,
     marginTop: 0,
   },
   colCenter: {
@@ -34,6 +35,11 @@ const styles = StyleSheet.create({
     borderRightWidth: 0.5,
     height: '100%',
   },
+  currentPartnershipNumber: {
+    fontSize: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+    color: '#fff',
+    lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+  },
 });
 
 class HighestPartnerhsip extends Component {
@@ -42,6 +48,7 @@ class HighestPartnerhsip extends Component {
     partnerships: this.props.partnership.partnerships || [],
     associatedWith: this.props.partnership.associatedWith || '',
     currentPartnership: this.props.partnership.currentPartnership || 0,
+    avgWicket: this.props.partnership.avgWicket || 0,
   };
 
   handleChange = ( partnership ) => {
@@ -57,7 +64,7 @@ class HighestPartnerhsip extends Component {
               <H3 style={styles.textHeader}>Highest Partnership</H3>
             </Row>
             <Row>
-              <H1 style={{fontSize: 40, lineHeight: 40, color: '#fff'}}>
+              <H1 style={styles.currentPartnershipNumber}>
                 {this.props.partnership.highestPartnership}
               </H1>
             </Row>

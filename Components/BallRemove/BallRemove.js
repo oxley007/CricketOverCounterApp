@@ -17,15 +17,17 @@ const styles = StyleSheet.create({
       height: 50,
       width: 50,
       backgroundColor: '#fff',
-      marginLeft: 'auto',
-      marginRight: 'auto'
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     smallIcon: {
       color: '#c471ed',
-      marginTop: 5,
-      marginRight: 'auto',
-      marginBottom: 'auto',
+      alignItems: 'center',
+      justifyContent: 'center',
       marginLeft: 'auto',
+      marginRight: 'auto',
+      marginTop: 5,
+      marginBottom: 'auto',
       fontSize: 30
     },
 });

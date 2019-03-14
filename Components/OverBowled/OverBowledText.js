@@ -5,7 +5,7 @@ React Native and Native Base imports
 */
 import { Container, Footer, Text } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux imports
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     textOver: {
       color: '#fff',
       textAlign: 'center',
-      fontSize: 25,
+      fontSize: PixelRatio.get() === 1 ? 12 : PixelRatio.get() === 1.5 ? 14 : PixelRatio.get() === 2 ? 18 : PixelRatio.get() === 3.5 ? 20 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 18 : 20,
       marginTop: "auto",
       marginBottom: "auto",
     }

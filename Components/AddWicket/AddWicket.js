@@ -8,7 +8,12 @@ Native base and react native
 */
 import { Container, Footer, H2, Text, Icon, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Vibration, PixelRatio } from 'react-native';
+
+/*
+vibrate import
+*/
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 /*
 Redux imports
@@ -17,6 +22,18 @@ import { connect } from "react-redux";
 import { updateWicket } from '../../Reducers/wicket';
 import { updateOver } from '../../Reducers/over';
 import { updatePartnership } from '../../Reducers/partnership';
+import { updatePartnerships } from '../../Reducers/partnerships';
+import { updateStopwatch } from '../../Reducers/stopwatch';
+import { updateWicketBall } from '../../Reducers/wicketball';
+
+const formattedSeconds = (sec) =>
+  Math.floor(sec / 60) +
+    '.' +
+  ('0' + sec % 60).slice(-2)
+
+  //contasnts for vibration.
+  //const DURATION = 10000;
+  //const PATTERN = [500, 100, 1000];
 
 class AddWickets extends Component {
   state = {
@@ -25,64 +42,108 @@ class AddWickets extends Component {
     ball: this.props.ball.ball || 0,
     over: this.props.ball.over || 0,
     highestPartnership: this.props.partnership.highestPartnership || 0,
-    partnerships: this.props.partnership.partnerships || [],
+    partnerships: this.props.partnerships.partnerships || [],
     currentPartnership: this.props.partnership.currentPartnership || 0,
     avgWicket: this.props.partnership.avgWicket || 0,
+    wicketBall: this.props.wicketBall.wicketBall || false,
   };
 
-  handleChange = ( ball, wicket, partnership ) => {
+  handleChange = ( ball, wicket, partnership, partnerships, wicketBall ) => {
     this.setState({ ball });
     this.setState({ wicket });
     this.setState({ partnership });
+    this.setState({ partnerships });
+    this.setState({ wicketBall });
   };
 
 
 
   addWicket = () => {
+
+    //Vibration.vibrate(PATTERN);
+    ReactNativeHapticFeedback.trigger('notificationSuccess', true);
+
+    let wicketBallFlag = true;
+    this.setState({
+      wicketBall: wicketBallFlag,
+    }, function () {
+      //console.log(this.state.over  + ' over');
+      const { wicketBall } = this.state
+      this.props.dispatch(updateWicketBall(this.state.wicketBall));
+    })
+
+    let over = this.props.ball.over;
+    let ball = this.props.ball.ball;
+
+    //this.stopwatch();
+
+    console.log(ball);
+    if (ball <= 5) {
+    ball++;
+    }
+    else if (ball === 6) {
+      ball = 0;
+      over++;
+    }
+
+    let wicketBall = `${over}.${ball}`;
+
+
     let wickets = this.props.wicket.wicket;
     wickets++;
 
     this.setState({
-      wicket: wickets,
-      wicketBalls: wicketBalls,
+      ball: ball,
+      over: over,
     }, function () {
-      console.log(this.props.wicket.wicket  + ' wicket');
-      const { wicket, wicketBalls } = this.state
-      this.props.dispatch(updateWicket(this.state.wicket, this.state.wicketBalls));
+      console.log(this.state.ball  + ' ball');
+      console.log(this.state.over  + ' over');
+      const { ball, over } = this.state
+      this.props.dispatch(updateOver(this.state.ball, this.state.over));
     })
 
-    /*
-    ******* TO ADD TO ONCE MORE REDUCERS SETUP *********
-    */
-
-    let over = this.props.ball.over;
-    let ball = this.props.ball.ball;
-    let wicketBall = `${over}.${ball}`;
-    console.log(wicketBall + ' Wicket Ball form addWicket()');
-
-    //******** TO DO *********
+    //call highest partnership
     let clickFrom = 'wicket';
+
+    console.log(wickets);
+    console.log(ball);
+    console.log(over);
+    console.log(wicketBall);
+    console.log(clickFrom);
     this.highestPartnership(wickets, ball, over, wicketBall, clickFrom);
-    console.log('back in addWicket');
+
 
     let wicketBalls = this.props.wicket.wicketBalls.slice();
     wicketBalls.push(wicketBall);
+
+
     this.setState({
       wicketBalls: wicketBalls,
       wicket: wickets,
     }, function () {
-      console.log(this.props.wicket.wicketBalls  + ' wicketBalls');
       const { wicket, wicketBalls } = this.state
       this.props.dispatch(updateWicket(this.state.wicket, this.state.wicketBalls));
     });
 
-    //******** TO DO *********
+    //call average partnership
     this.averagePartnerhsip(wickets, ball, over);
+
+
+
+    console.log(this.props.wicket.wicket);
+    console.log(this.props.wicket.wicketBalls);
+    console.log(this.props.ball.ball);
+    console.log(this.props.ball.over);
+    console.log(this.props.partnership.highestPartnership);
+    console.log(this.props.partnerships.partnerships);
+    console.log(this.props.partnership.currentPartnership);
+    console.log(this.props.partnership.avgWicket);
+    console.log(this.props.wicketBall.wicketBall);
+
+
   }
 
   highestPartnership = (wickets, ball, over, wicketBall, clickFrom) => {
-
-    console.log('hit hightestPartnership');
     //workout the balls between each wicket
     //the first wicket is just the over so far
     let highestPartnership;
@@ -91,45 +152,42 @@ class AddWickets extends Component {
     let partnershipOver;
 
     //let partnerships = this.props.partnership.partnerships.slice();
-    let partnerships = this.props.partnership.partnerships;
+    let partnerships = this.props.partnerships.partnerships;
     console.log(partnerships);
 
     let wicketBalls = this.props.wicket.wicketBalls;
 
+    console.log(wickets + ' ' + clickFrom);
+
     if (wickets === 1 && clickFrom === 'wicket') {
+      console.log('hit if wickets 1 and click form wicket.');
       highestPartnership = wicketBall;
       latestPartnership = wicketBall;
     }
-    else if (wickets > 1 || (wickets >= 1 && clickFrom === 'addBall')) {
+    else {
       //the second wicket and more needs to take the current over minus the previous wicket over
       latestPartnership = BallCalc.getOverDiff(wicketBalls, partnershipOver, over, ball, partnershipBall);
     }
-    else {
-      //nothng.
-    }
 
 
-    if (clickFrom === 'wicket') {
-
-      console.log('hit clickFrom = wicket');
-      console.log(latestPartnership);
+    console.log(latestPartnership);
+    console.log();
     // we then store this into an array partershipTotals
       partnerships.push(latestPartnership);
-      console.log(partnerships);
 
       this.setState({
-        highestPartnership: this.props.partnership.highestPartnership,
         partnerships: partnerships,
-        currentPartnership: this.props.partnership.currentPartnership,
-        avgWicket: this.props.partnership.avgWicket,
       }, function () {
-        console.log(this.props.partnership.partnerships  + ' partnerships');
-        const { highestPartnership, partnerships, currentPartnership, avgWicket } = this.state
-        this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
+        const { partnerships } = this.state
+        this.props.dispatch(updatePartnerships(this.state.partnerships ));
       });
+
+      console.log(partnerships);
 
       //then use max to find highest partenership and store in state.
       let highPartnership = Math.max.apply(null, partnerships);
+
+      console.log(highPartnership);
 
       // get the highest partnership and strip into sperate overs and ball variables.
       let highestPartnershipDiff = BallDiff.getOverAndBallSeperation(highPartnership);
@@ -141,85 +199,28 @@ class AddWickets extends Component {
         highPartnership = highPartnersipOver + 1;
     }
 
+    console.log(highPartnership);
+    console.log(latestPartnership);
+    console.log(wickets);
+
+    if (wickets === 1) {
+      console.log('Wickets = 1 Addwicket');
+      this.setState({
+        highestPartnership: highPartnership,
+        currentPartnership: latestPartnership,
+      }, function () {
+        const { highestPartnership, currentPartnership } = this.state
+        this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.currentPartnership, this.state.avgWicket));
+      });
+    }
+    else {
     this.setState({
       highestPartnership: highPartnership,
-      partnerships: this.props.partnership.partnerships,
-      currentPartnership: this.props.partnership.currentPartnership,
-      avgWicket: this.props.partnership.avgWicket,
+      currentPartnership: 0.0,
     }, function () {
-      console.log(this.props.partnership.highestPartnership  + ' highestPartnership');
-      const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-      this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
+      const { highestPartnership, currentPartnership } = this.state
+      this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.currentPartnership, this.state.avgWicket));
     });
-
-  }
-  else if (clickFrom === 'addBall') {
-    //let currentBall = `${over}.${ball}`
-    if (latestPartnership > this.state.highestPartnership) {
-      this.setState({
-        highestPartnership: latestPartnership,
-        partnerships: this.props.partnership.partnerships,
-        currentPartnership: latestPartnership,
-        avgWicket: this.props.partnership.avgWicket,
-      }, function () {
-        console.log(this.props.partnership.partnerships  + ' partnerships');
-        const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-        this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
-      });
-    }
-    else {
-      //let latestPartnershipInt = parseInt(latestPartnership, 10);
-      if (latestPartnership < 0) {
-        wicketBalls.pop();
-        latestPartnership = 0;
-        let currentBallOver = `${over}.${ball}`;
-
-        wicketBalls.push(currentBallOver);
-        this.setState({wicketBalls: wicketBalls});
-
-        this.setState({
-          highestPartnership: this.props.partnership.highestPartnership,
-          partnerships: this.props.partnership.partnerships,
-          currentPartnership: latestPartnership,
-          avgWicket: this.props.partnership.avgWicket,
-        }, function () {
-          console.log(this.props.partnership.partnerships  + ' partnerships');
-          const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-          this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
-        });
-
-      }
-      else if (ball != 0) {
-
-      this.setState({
-        highestPartnership: this.props.partnership.highestPartnership,
-        partnerships: this.props.partnership.partnerships,
-        currentPartnership: latestPartnership,
-        avgWicket: this.props.partnership.avgWicket,
-      }, function () {
-        console.log(this.props.partnership.partnerships  + ' partnerships');
-        const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-        this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
-      });
-
-    }
-    else {
-      latestPartnership = this.state.currentPartnership;
-
-      this.setState({
-        highestPartnership: this.props.partnership.highestPartnership,
-        partnerships: this.props.partnership.partnerships,
-        currentPartnership: latestPartnership,
-        avgWicket: this.props.partnership.avgWicket,
-      }, function () {
-        console.log(this.props.partnership.partnerships  + ' partnerships');
-        const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-        this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
-      });
-
-    }
-    }
-
   }
 
   }
@@ -263,32 +264,57 @@ class AddWickets extends Component {
         let avgWicket = `${quotientBalls}.${remainderAvg}${remainderExtra}`;
 
         this.setState({
-          highestPartnership: this.props.partnership.highestPartnership,
-          partnerships: this.props.partnership.partnerships,
-          currentPartnership: this.props.partnership.currentPartnership,
           avgWicket: avgWicket,
         }, function () {
-          console.log(this.props.partnership.avgWicket  + ' avgWicket');
-          const { highestPartnership, partnerships, associatedWith, currentPartnership, avgWicket } = this.state
-          this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
+          const { avgWicket } = this.state
+          this.props.dispatch(updatePartnership( this.state.highestPartnership, this.state.currentPartnership, this.state.avgWicket ));
         });
     }
 
   }
 
-  render() {
+  checkFrom() {
+    if (this.props.fromWicket === true) {
+    return (
+      <Button rounded style={{backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0}} onPress={this.addWicket} title="Click me" >
+    <Icon style={styles.wicketAdd} name='add' />
+    </Button>
+  )
+  }
+  else {
     return (
       <Button rounded light onPress={this.addWicket}>
         <Text style={{color: 'red'}}>W+</Text>
       </Button>
-    );
+  )
   }
+  }
+
+
+render() {
+  return (
+    <Grid>
+      {this.checkFrom()}
+    </Grid>
+  );
+}
 }
 
 const mapStateToProps = state => ({
+  wicketBall: state.wicketBall,
   wicket: state.wicket,
   ball: state.ball,
   partnership: state.partnership,
+  partnerships: state.partnerships,
 });
 
 export default connect(mapStateToProps)(AddWickets);
+
+// Custom Styles
+const styles = StyleSheet.create({
+  wicketAdd: {
+    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : 18,
+    //color: '#fff',
+    //lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+  },
+});

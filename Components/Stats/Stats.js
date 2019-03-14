@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-//import CurrentPartnership from '../CurrentPartnership/CurrentPartnership.js';
+import CurrentPartnership from '../CurrentPartnership/CurrentPartnership.js';
 import AveragePartnership from '../CurrentPartnership/AveragePartnership.js';
 import HighestPartnership from '../HighestPartnership/HighestPartnership.js';
 
@@ -33,7 +33,7 @@ class AdviceBatting extends Component {
     return (
       <Col>
         <Col size={1}>
-
+          <CurrentPartnership navigation={this.props.navigation} />
           <View style={styles.horizontalRule} />
         </Col>
       <Row>

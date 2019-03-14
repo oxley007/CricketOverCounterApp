@@ -1,0 +1,2 @@
+include ':app', ':lvl_sample', ':lvl_library', ':cricketandovercounter', ':cricketovercounter'
+project(':cricketovercounter').projectDir = new File('android/app')

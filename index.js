@@ -6,9 +6,22 @@ import { Provider } from "react-redux";
 import { store, persistor } from "./Store/store";
 import { PersistGate } from 'redux-persist/integration/react'
 
-import App from './Components/App/App.js';
+import App from './App.js';
 //import App from './App.js';
 
+/*
+import SideBar from "./Components/SideBar/SideBar.js";
+import { DrawerNavigator } from "react-navigation";
+const HomeScreenRouter = DrawerNavigator(
+  {
+    Home: { screen: App },
+  },
+  {
+    contentComponent: props => <SideBar {...props} />
+  }
+);
+
+*/
 
 class CricketOverCounterApp extends Component {
 
@@ -24,3 +37,5 @@ render() {
       }
 
 AppRegistry.registerComponent('CricketOverCounterApp', () => CricketOverCounterApp);
+
+//export default HomeScreenRouter;

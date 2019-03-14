@@ -9,6 +9,7 @@ import rootReducer from '../Reducers';
 const persistConfig = {
   key: 'root2',
   storage: AsyncStorage
+
 }
 
 const middlewares = [];
@@ -26,3 +27,4 @@ export const store = createStore(
 );
 
 export const persistor = persistStore(store);
+//persistor.purge()

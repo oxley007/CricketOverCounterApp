@@ -7,7 +7,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H2, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux imports
@@ -20,6 +20,8 @@ import { updateOver } from '../../Reducers/over';
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 20 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
+    lineHeight: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 20 :PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
   },
   colCenter: {
     alignItems: 'center',
@@ -101,17 +103,17 @@ addToRedux = (balls, overs) => {
           </Col>
         </Row>
         <Row size={12}>
-          <Col style={styles.colCenter}>
-              <Row>
-              <Button style={{backgroundColor: 'transparent', marginTop: 'auto', marginBottom: 'auto'}} onPress={this.removeOver} title="Click me">
+              <Col style={{flexDirection: 'row-reverse'}}>
+              <Button style={{backgroundColor: 'transparent', marginTop: 'auto', marginBottom: 'auto', elevation: 0, shadowOpacity: 0 }} onPress={this.removeOver} title="Click me">
               <Icon name='remove' />
               </Button>
+              </Col>
                 <OverCount />
-                <Button style={{backgroundColor: 'transparent', marginTop: 'auto', marginBottom: 'auto'}} onPress={this.addOver} title="Click me">
+                  <Col>
+                <Button style={{backgroundColor: 'transparent', marginTop: 'auto', marginBottom: 'auto', elevation: 0, shadowOpacity: 0 }} onPress={this.addOver} title="Click me">
               <Icon name='add' />
               </Button>
-          </Row>
-          </Col>
+              </Col>
         </Row>
       </Grid>
     );

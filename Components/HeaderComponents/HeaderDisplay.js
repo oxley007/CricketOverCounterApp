@@ -6,9 +6,9 @@ import Reset from './Reset';
 /*
 Native base and react native
 */
-import { Container, Footer, H2, Text, Icon, Button } from 'native-base';
+import { Container, Footer, H2, Text, Icon, Button, Left, Right } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Image, PixelRatio } from 'react-native';
 
 /*
 Redux Imports:
@@ -24,6 +24,9 @@ import { updateToggle } from '../../Reducers/toggle';
 const styles = StyleSheet.create({
  colVerticleAlign: {
    marginTop: 10,
+ },
+ upgradeStyle: {
+   fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : 16,
  }
 });
 
@@ -122,71 +125,72 @@ class HeaderIndex extends Component {
  headerDisplay() {
    //console.log(this.props.purchase);
    //console.log(this.props.over);
-   if (this.props.reset.reset === 1) {
-   return (
-     <Row>
-       <Col size={1}>
-         <Text>Are you sure?</Text>
-       </Col>
-       <Col size={1}>
-         <Reset />
-       </Col>
-       <Col size={1}>
-         <Button light onPress={this.displaySet}>
-           <Text>Cancel</Text>
-         </Button>
-       </Col>
-     </Row>
-   )
- }
- else if (this.props.reset.reset === 0 && this.props.toggle.toggle === true && this.props.ball.over >= 10) {
+ if (this.props.toggle.toggle === false && this.props.ball.over >= 10) {
  return (
      <Row>
        <Col size={1}>
-         <Button rounded danger onPress={this.resetSet()}>
-           <Text>Reset</Text>
-         </Button>
+         <Image
+          source={require('../../assets/4dot6logo-transparent.png')}
+          style={{ marginTop: 'auto', marginBottom: 'auto', height: '75%', width: 'auto' }}
+         />
        </Col>
-       <Col size={1}>
-         <Text style={{textAlign: 'center', marginTop: 'auto', marginBottom: 'auto', color: '#fff'}}>4DOT6</Text>
-       </Col>
-       <Col size={1} style={styles.colVerticleAlign}>
-           <Row style={{height: 28}}>
-             <Button rounded success >
-               <Text>Upgrade</Text>
+       <Right size={1} style={styles.colVerticleAlign}>
+           <Row style={{height: 60}}>
+             <Button rounded success onPress={() => this.props.navigation.navigate('Upgrade')} >
+               <Text style={styles.upgradeStyle}>Upgrade</Text>
              </Button>
            </Row>
-         </Col>
+         </Right>
      </Row>
  )
 }
  else {
    return (
-     <Row>
-       <Col size={1}>
-         <Button rounded danger onPress={this.resetDisplaySet}>
-           <Text>Reset</Text>
-         </Button>
-       </Col>
-       <Col size={1}>
-         <Text style={{textAlign: 'center', marginTop: 'auto', marginBottom: 'auto', color: '#fff'}}>4DOT6</Text>
-       </Col>
-       <Col size={1} style={{}}>
-           <Row style={{height: 28}}>
+     <Row style={{alignItems: 'center'}}>
+      <Col size={1}>
+      <Image
+        source={require('../../assets/4dot6logo-transparent.png')}
+        style={{ marginTop: 'auto', marginBottom: 'auto', height: '75%', width: 'auto' }}
+      />
+      </Col>
+       <Col>
+           <Row>
              <Col>
                  <Stopwatch />
                </Col>
-               <Col style={{marginTop: 16}}>
-                 <AvgSecondsDisplay />
+               <Col style={{marginTop: 16, padding: 0, margin: 0, height: 0}}>
+                 <AvgSecondsDisplay style={{padding: 0, margin: 0, height: 0}} />
              </Col>
            </Row>
-           <Row style={{}}>
+           <Row>
              <Text style={{fontSize: 8, height: 30, color: '#fff'}}>since last ball</Text>
            </Row>
          </Col>
      </Row>
    )
  }
+ }
+
+ /*
+ <Col size={1}>
+     <Row size={1} style={{height: 1, marginBottom: 0, paddingBottom: 0 }}>
+       <Col size={1} style={{marginBottom: 0, height: 1}}>
+           <Stopwatch />
+         </Col>
+         <Col size={1} style={{marginTop: 16}}>
+           <AvgSecondsDisplay />
+       </Col>
+     </Row>
+     <Row size={1}>
+       <Text style={{fontSize: 8, height: 30, color: '#fff'}}>since last ball</Text>
+     </Row>
+   </Col>
+   */
+
+ static navigationOptions = {
+   drawerIcon : ({tintColor}) => (
+     <Icon name="home" style={{fontSize: 24, color: tintColor}} />
+   )
  }
 
  render() {

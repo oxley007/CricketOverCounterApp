@@ -5,17 +5,15 @@ import {AsyncStorage} from 'react-native';
 
 export const ADD_PARTNERSHIP = 'ADD_PARTNERSHIP';
 
-export const updatePartnership = ( highestPartnership, partnerships, currentPartnership, avgWicket ) => ({
+export const updatePartnership = ( highestPartnership, currentPartnership, avgWicket ) => ({
   type: ADD_PARTNERSHIP,
   highestPartnership,
-  partnerships,
   currentPartnership,
   avgWicket,
 });
 
 const initialState = {
   highestPartnership: 0,
-  partnerships: [],
   currentPartnership: 0,
   avgWicket: 0,
 };
@@ -28,11 +26,11 @@ export default (state = initialState, action) => {
   switch (action.type) {
     case ADD_PARTNERSHIP:
     console.log(action.highestPartnership  + ' highestPartnership');
-    console.log(action.partnerships  + ' partnerships');
+    console.log(action.currentPartnership  + ' currentPartnership');
+    console.log(action.avgWicket  + ' avgWicket');
     return {
       ...state,
       highestPartnership: action.highestPartnership,
-      partnerships: action.partnerships,
       currentPartnership: action.currentPartnership,
       avgWicket: action.avgWicket,
     };

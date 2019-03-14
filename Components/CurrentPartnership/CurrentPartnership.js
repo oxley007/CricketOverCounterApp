@@ -4,42 +4,41 @@ import React, { Component } from 'react';
 Redux imports
 */
 import { connect } from "react-redux";
-import { addPurchase } from "../../Actions/index";
-import { addOver } from "../../Actions/index";
+import { updatePartnership } from '../../Reducers/partnership';
+import { updateToggle } from '../../Reducers/toggle';
+import { updateOver } from '../../Reducers/over';
 
 /*
 Native base and react native
 */
 import { Container, Footer, H2, H1, Text, Icon, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
-/*
-Redux constants
-*/
-const mapDispatchToProps = dispatch => {
-  return {
-    addPurchase: purchase => dispatch(addPurchase(purchase)),
-    addOver: over => dispatch(addOver(over))
-  };
-};
-
-const mapStateToProps = state => {
-  return { over: state.over.over, ball: state.over.ball, purchase: state.purchase.purchase };
-};
+console.log(PixelRatio.get());
 
 // Custom Styles
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
+    fontWeight: '300',
+    //fontSize: 9 * PixelRatio.get(),
+    //fontSize: Platform.OS === 'ios' ? 9 * PixelRatio.get() : 15 * PixelRatio.get(),
+    //fontSize: PixelRatio.get() === 1.5 ? 20 : 24,
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 20 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 24 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 24,
+    //fontSize: Platform.OS === 'ios' ? 24 : 12,
+    //lineHeight: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 20 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 24 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 24,
   },
   textDesc: {
     color: '#eee',
     fontWeight: '100',
+    //fontSize: 5 * PixelRatio.get()
+    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : PixelRatio.get() === 3.5 ? 14 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 14 : 16,
   },
   textHeaderNumber: {
     color: '#fff',
-    fontSize: 40,
+    //fontSize: 40,
+    fontSize: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 ? 34 : PixelRatio.get() === 3.5 ? 38 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 34 : 40,
     lineHeight: 40,
   },
   colCenter: {
@@ -55,35 +54,39 @@ const styles = StyleSheet.create({
   colVerticleAlign: {
     marginTop: 'auto',
     marginBottom: 'auto',
+  },
+  rowPadding :{
+    paddingTop: 15,
+  },
+  upgradeStyle: {
+    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : PixelRatio.get() === 3.5 ? 16 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 14 : 16,
   }
 });
 
 class currentPartnership extends Component {
-  constructor(props) {
-    super(props);
-      this.state = {
-        over: 0,
-        ball: 0,
-        purchase: false
-      };
+  state = {
+    toggle: this.props.toggle.toggle || 0,
+    ball: this.props.ball.ball || 0,
+    over: this.props.ball.over || 0,
+    highestPartnership: this.props.partnership.highestPartnership || 0,
+    partnerships: this.props.partnership.partnerships || [],
+    currentPartnership: this.props.partnership.currentPartnership || 0,
+    avgWicket: this.props.partnership.avgWicket || 0,
+  };
 
-    this.currentPartnershipDispay = this.currentPartnershipDispay.bind(this);
-
-  }
-
-  componentWillMount() {
-    const { purchase, over } = this.state;
-    this.props.addPurchase({ purchase });
-    this.props.addOver({ over });
-  }
+  handleChange = ( ball, wicket, partnership ) => {
+    this.setState({ ball });
+    this.setState({ toggle });
+    this.setState({ partnership });
+  };
 
 currentPartnershipDispay() {
-  if (this.props.purchase === true && this.props.over >= 10) {
+  if (this.props.toggle.toggle === false && this.props.ball.over >= 10) {
   return (
   <Row>
     <Col size={4} style={styles.colVerticleAlign}>
-      <Button rounded success >
-        <Text>Upgrade</Text>
+      <Button rounded success onPress={() => this.props.navigation.navigate('Upgrade')} >
+        <Text style={styles.upgradeStyle}>Upgrade</Text>
       </Button>
     </Col>
     <Col size={8} style={styles.colCenter}>
@@ -94,6 +97,7 @@ currentPartnershipDispay() {
 )
 }
 else {
+  console.log(this.props.partnership.currentPartnership);
   return (
   <Row>
     <Col size={9}>
@@ -102,7 +106,7 @@ else {
     </Col>
     <Col size={3} style={styles.colCenter}>
       <Row>
-        <H1 style={styles.textHeaderNumber}>{this.props.currentPartnership}</H1>
+        <H1 style={styles.textHeaderNumber}>{this.props.partnership.currentPartnership}</H1>
       </Row>
       <Row>
         <Text style={styles.textDesc}>Overs</Text>
@@ -115,11 +119,17 @@ else {
 
   render() {
     return (
-      <Grid>
+      <Grid style={styles.rowPadding}>
         {this.currentPartnershipDispay()}
       </Grid>
     );
   }
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(currentPartnership);
+const mapStateToProps = state => ({
+  toggle: state.toggle,
+  ball: state.ball,
+  partnership: state.partnership,
+});
+
+export default connect(mapStateToProps)(currentPartnership);

@@ -1,12 +1,13 @@
 import React, { Component } from 'react';
 import WicketsDisplay from './WicketsDisplay';
+import AddWicket from '../AddWicket/AddWicket.js';
 
 /*
 Native base and react native
 */
 import { Container, Footer, H2, H1, Text, Icon, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux Nariveimports
@@ -19,10 +20,13 @@ import { updateOver } from '../../Reducers/over';
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
+    fontWeight: '300',
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 20 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 24 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 24,
   },
   textDesc: {
     color: '#eee',
     fontWeight: '100',
+    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : PixelRatio.get() === 3.5 ? 14 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 14 : 16,
   },
   colCenter: {
     alignItems: 'center',
@@ -33,7 +37,12 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 15,
     marginBottom: 15,
-  }
+  },
+  wicketRemove: {
+    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : 18,
+    //color: '#fff',
+    //lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+  },
 });
 
 class Wickets extends Component {
@@ -114,6 +123,7 @@ class Wickets extends Component {
 
 
   render() {
+    const fromWicket = true;
     return (
       <Grid style={{width: '100%' }}>
         <Row>
@@ -123,13 +133,11 @@ class Wickets extends Component {
           </Col>
           <Col size={4}>
             <Row>
-            <Button rounded style={{backgroundColor: 'transparent'}} onPress={this.removeWicket} title="Click me">
-            <Icon name='remove' />
+            <Button rounded style={{backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0}} onPress={this.removeWicket} title="Click me">
+            <Icon style={styles.wicketRemove} name='remove' />
             </Button>
             <WicketsDisplay wickets={this.props.wickets} />
-              <Button rounded style={{backgroundColor: 'transparent'}} onPress={this.addWicket} title="Click me">
-            <Icon name='add' />
-            </Button>
+            <AddWicket fromWicket={fromWicket} />
             </Row>
           </Col>
         </Row>

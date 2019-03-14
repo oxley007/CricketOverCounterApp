@@ -5,7 +5,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H1, H2, H3, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux imports
@@ -23,11 +23,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 10,
+    fontWeight: '300',
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 22,
   },
   textDesc: {
     color: '#eee',
     fontWeight: '100',
-    lineHeight: -50,
     marginTop: 0,
   },
   colCenter: {
@@ -37,6 +38,11 @@ const styles = StyleSheet.create({
     borderRightColor: '#fff',
     borderRightWidth: 0.5,
     height: '100%',
+  },
+  currentPartnershipNumber: {
+    fontSize: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 35 : 40,
+    color: '#fff',
+    lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 35 : 40,
   },
 });
 
@@ -59,7 +65,18 @@ class averagePartnership extends Component {
   };
 
 currentPartnershipDisplay = () => {
-  const { classes } = this.props;
+  console.log(this.props.partnership.avgWicket);
+  console.log(this.props.wicket.wicket);
+  let avgPartnership = this.props.partnership.avgWicket;
+  let avgPartnershipOneDecimal = parseFloat(avgPartnership).toFixed(1);
+
+    if (this.props.partnership.avgWicket === 0.0 || this.props.partnership.avgWicket === 0 || this.props.partnership.avgWicket === undefined) {
+        return (<H1 style={styles.currentPartnershipNumber}>~</H1>)
+    }
+    else {
+      return (<H1 style={styles.currentPartnershipNumber}>{avgPartnershipOneDecimal}</H1>)
+    }
+  /*
   if (this.props.partnership.avgWicket < 10 && this.props.wicket.wicket > 1) {
     let avgPartnership = this.props.partnership.avgWicket;
     let remainderAvg = avgPartnership % 1;
@@ -67,6 +84,7 @@ currentPartnershipDisplay = () => {
     let remainderAvgSecondDecimal = remainderAvg % 1;
     remainderAvgSecondDecimal *= 10;
     let decimalRound = Math.round(remainderAvgSecondDecimal * 100) / 100;
+    let avgWicket
     if (decimalRound === 5) {
       return (
     <H1 style={{fontSize: 40, lineHeight: 40, color: '#fff'}}>{this.props.partnership.avgWicket}</H1>
@@ -98,6 +116,7 @@ currentPartnershipDisplay = () => {
     <H1 style={{fontSize: 40, lineHeight: 40, color: '#fff'}}>{this.props.partnership.avgWicket}</H1>
   )
   }
+  */
 }
   render() {
     return (
@@ -108,8 +127,8 @@ currentPartnershipDisplay = () => {
                     <H3 style={styles.textHeader}>Average Partnership</H3>
                   </Row>
                   <Row>
-                    <Text style={{fontSize: 55, color: '#fff'}}>
-                      {this.currentPartnershipDisplay}
+                    <Text style={styles.currentPartnershipNumber}>
+                      {this.currentPartnershipDisplay()}
                     </Text>
                   </Row>
                   <Row>

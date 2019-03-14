@@ -3,7 +3,11 @@ package com.cricketovercounterapp;
 import android.app.Application;
 
 import com.facebook.react.ReactApplication;
+import org.devio.rn.splashscreen.SplashScreenReactPackage;
 import com.BV.LinearGradient.LinearGradientPackage;
+import com.dooboolab.RNIap.RNIapPackage;
+import com.mkuczera.RNReactNativeHapticFeedbackPackage;
+import com.swmansion.gesturehandler.react.RNGestureHandlerPackage;
 import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
@@ -24,7 +28,11 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
-            new LinearGradientPackage()
+            new SplashScreenReactPackage(),
+            new LinearGradientPackage(),
+            new RNIapPackage(),
+            new RNReactNativeHapticFeedbackPackage(),
+            new RNGestureHandlerPackage()
       );
     }
 

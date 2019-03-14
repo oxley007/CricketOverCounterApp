@@ -1,11 +1,12 @@
-import React, { Component } from 'react';
+import React, { Component, applyMiddleware, createStore } from 'react';
+import { persistStore } from 'redux-persist';
 
 /*
 Native base and react native
 */
 import { Container, Footer, H2, Text, Icon, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, PixelRatio } from 'react-native';
 
 /*
 Redux imports
@@ -16,25 +17,34 @@ import { updateStopwatch } from '../../Reducers/stopwatch';
 import { updateOver } from '../../Reducers/over';
 import { updateWicket } from '../../Reducers/wicket';
 import { updatePartnership } from '../../Reducers/partnership';
+import { updatePartnerships } from '../../Reducers/partnerships';
 
 
 class Reset extends Component {
   state = {
-    secondsElapsed: this.props.stopwatch.secondsElapsed || 0,
-    laps: this.props.stopwatch.laps || [],
-    lastClearedIncrementer: this.props.stopwatch.lastClearedIncrementer || null,
-    incrementer: this.props.stopwatch.incrementer || null,
-    avgBall: this.props.stopwatch.avgBall || [],
-    avgSeconds: this.props.stopwatch.avgSeconds || 0,
-    ball: this.props.ball.ball || 0,
-    over: this.props.ball.over || 0,
-    wicket: this.props.wicket.wicket || 0,
+    secondsElapsed: 0,
+    laps: [],
+    lastClearedIncrementer: null,
+    incrementer: null,
+    avgBall: [],
+    avgSeconds: 0,
+    ball: 0,
+    over: 0,
+    wicket: 0,
+    wicketBalls: [],
+    highestPartnership: 0,
+    partnerships: [],
+    currentPartnership: 0,
+    avgWicket: 0,
   };
 
-  handleChange = ( ball, stopwatch ) => {
+  handleChange = ( ball, stopwatch, wicket, partnership, partnerships, reset ) => {
     this.setState({ ball });
     this.setState({ stopwatch });
     this.setState({ wicket });
+    this.setState({ partnership });
+    this.setState({ partnerships });
+    this.setState({ reset });
   };
 
 incrementer = () => {
@@ -54,8 +64,16 @@ handleStopClick = () => {
       let laps = this.props.stopwatch.laps;
       let incrementer = this.props.stopwatch.incrementer;
 
+      let highestPartnership = this.props.highestPartnership;
+      let partnerships = this.props.partnerships;
+      let currentPartnership = this.props.currentPartnership;
+      let avgWicket = this.props.avgWicket;
+
+
       this.props.addStopwatch({ secondsElapsed, laps, lastClearedIncrementer, incrementer });
       console.log(this.props.addStopwatch({ secondsElapsed, laps, lastClearedIncrementer, incrementer }));
+      this.props.updatePartnership({highestPartnership, partnerships, currentPartnership, avgWicket});
+      console.log(this.props.updatePartnership({highestPartnership, partnerships, currentPartnership, avgWicket}));
     this.resetBuilder();
   }
 
@@ -66,11 +84,54 @@ handleStopClick = () => {
       });
     }
 
+/*
     resetBuilder = () => {
       let reset = 0;
       this.setState({reset: reset}
         , function () {
-          console.log(this.props.reset.reset  + ' wicket');
+          console.log(this.props.reset.reset  + ' reset');
+          const { reset } = this.state
+          this.props.dispatch(updateReset(this.state.reset))
+        });
+        console.log(this.props);
+
+          //let { allProps } = this.props;
+
+        //this.props.dispatch(persistStore(allProps).purge());
+
+        //const middlewares = [];
+
+        const persistedReducer = persistStore(this.props).purge().then(this.props.dispatch(persistStore(persistedReducer)));
+
+        console.log(persistedReducer);
+
+        //this.props.dispatch(persistStore(persistedReducer));
+
+        /*
+        const store = createStore(
+          persistedReducer,
+          undefined,
+        );
+
+        const persistor = persistStore(store);
+        persistor.purge()
+
+
+        //let ball = this.props.ball.ball
+
+      //console.log({this.props.ball});
+      //persistStore().purge();
+      console.log('hit reset build');
+    }
+
+*/
+
+
+    resetBuilder = () => {
+      let reset = 2;
+      this.setState({reset: reset}
+        , function () {
+          console.log(this.props.reset.reset  + ' reset');
           const { reset } = this.state
           this.props.dispatch(updateReset(this.state.reset))
         });
@@ -80,6 +141,32 @@ handleStopClick = () => {
         let over = 0;
         let ball = 0;
         this.props.dispatch(updateOver(ball, over));
+
+
+        let highestPartnership = 0;
+        let partnerships = [0.8];
+        let currentPartnership = 0;
+        let avgWicket = 0;
+        this.props.dispatch(updatePartnership( highestPartnership, currentPartnership, avgWicket ));
+        this.props.dispatch(updatePartnerships( partnerships ));
+
+        //this.props.dispatch(updatePartnership( 0, [], 0, 0 ));
+
+
+        /*
+        this.setState({
+          highestPartnership: 0,
+          partnerships: [],
+          currentPartnership: 0,
+          avgWicket: 0,
+        }, function () {
+          console.log(this.props.partnership.partnerships  + ' partnerships');
+          const { highestPartnership, partnerships, currentPartnership, avgWicket } = this.state
+          console.log(this.state.partnerships + ' state partnerships');
+          this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.partnerships, this.state.currentPartnership, this.state.avgWicket ));
+        });
+        */
+
 
         let secondsElapsed = 0;
         let laps = [];
@@ -94,18 +181,15 @@ handleStopClick = () => {
         let wicketBalls = [];
         this.props.dispatch(updateWicket( wickets, wicketBalls ));
 
-        let highestPartnership = 0;
-        let partnerships = [];
-        let currentPartnership = 0;
-        let avgWicket = 0;
-        this.props.dispatch(updatePartnership( highestPartnership, partnerships, currentPartnership ));
+        reset = 2;
+        this.props.dispatch(updateReset(reset))
     }
 
 
   render() {
     return (
-        <Button warning onPress={this.resetBuilder}>
-          <Text>Yes</Text>
+        <Button rounded large warning style={styles.largeButton} onPress={this.resetBuilder}>
+          <Text style={styles.buttonTextBack}>Yes</Text>
         </Button>
     );
   }
@@ -116,6 +200,39 @@ const mapStateToProps = state => ({
   reset: state.reset,
   stopwatch: state.stopwatch,
   wicket: state.wicket,
+  partnership: state.partnership,
+  partnerships: state.partnerships,
 });
 
 export default connect(mapStateToProps)(Reset);
+
+// Custom Styles
+const styles = StyleSheet.create({
+    largeButton: {
+      width: '100%',
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonText: {
+      fontSize: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 ? 36 : 40,
+      color: '#c471ed',
+      marginTop: 'auto',
+      marginRight: 'auto',
+      marginBottom: 'auto',
+      marginLeft: 'auto',
+      fontWeight: '200',
+    },
+    buttonTextBack: {
+      fontSize: 20,
+      color: '#c471ed',
+      marginTop: 'auto',
+      marginRight: 'auto',
+      marginBottom: 'auto',
+      marginLeft: 'auto',
+      fontWeight: '200',
+    },
+    rowPadding :{
+      paddingTop: 20,
+    }
+});
