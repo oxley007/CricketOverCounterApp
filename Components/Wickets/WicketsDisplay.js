@@ -5,7 +5,7 @@ Native base and react native
 */
 import { Container, Footer, H2, Text } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform, Dimensions } from 'react-native';
 
 /*
 Redux imports
@@ -45,10 +45,12 @@ const mapStateToProps = state => ({
 export default connect(mapStateToProps)(WicketsDisplay);
 
 // Custom Styles
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   wicketNumber: {
-    fontSize: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 ? 34 : PixelRatio.get() === 3.5 ? 38 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 34 : 40,
+    fontSize: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 && (width < 414) ? 34 : PixelRatio.get() === 2 && (width === 414) ? 40 : PixelRatio.get() === 3.5 ? 38 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 34 : 40,
     color: '#fff',
-    lineHeight: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 ? 34 : PixelRatio.get() === 3.5 ? 38 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 34 : 40,
+    lineHeight: PixelRatio.get() === 1 ? 28 : PixelRatio.get() === 1.5 ? 32 : PixelRatio.get() === 2 && (width < 414) ? 34 : PixelRatio.get() === 2 && (width === 414) ? 40 : PixelRatio.get() === 3.5 ? 38 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 34 : 40,
   },
 });

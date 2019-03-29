@@ -5,7 +5,7 @@ Native base and react native
 */
 import { Container, Footer, H2 } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, Text, PixelRatio } from 'react-native';
+import { StyleSheet, View, Text, PixelRatio, Dimensions } from 'react-native';
 
 /*
 animation prackage
@@ -65,6 +65,8 @@ const mapStateToProps = state => ({
 export default connect(mapStateToProps)(OverCount);
 
 // Custom Styles
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
@@ -74,6 +76,6 @@ const styles = StyleSheet.create({
   },
   overCountStyling: {
     color: '#fff',
-    fontSize: PixelRatio.get() === 1 ? 35 : PixelRatio.get() === 1.5 ? 40 : PixelRatio.get() === 2 ? 40 : 55,
+    fontSize: PixelRatio.get() === 1 ? 35 : PixelRatio.get() === 1.5 ? 40 : PixelRatio.get() === 2 && (width < 414) ? 40 : PixelRatio.get() === 2 && (width === 414) ? 55 : 55,
   },
 });

@@ -5,7 +5,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H1, H2, H3, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform, Dimensions } from 'react-native';
 
 /*
 Redux imports
@@ -18,13 +18,16 @@ import { updateOver } from '../../Reducers/over';
 
 
 // Custom Styles
+//const dimen = Dimensions.get('window');
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
     textAlign: 'center',
     marginBottom: 10,
     fontWeight: '300',
-    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 22,
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 && (width < 414) ? 22 : PixelRatio.get() === 2 && (width === 414) ? 24 : PixelRatio.get() === 3.5 ? 24 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : PixelRatio.get() === 3 && (width === 414) && Platform.OS === 'ios' ? 24 : 22,
   },
   textDesc: {
     color: '#eee',

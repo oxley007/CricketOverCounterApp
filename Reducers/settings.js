@@ -13,7 +13,7 @@ export const updateSettings= ( settings ) => ({
 });
 
 const initialState = {
-  settings: 33,
+  settings: '33',
 };
 
 console.log('hitting rootReducer');

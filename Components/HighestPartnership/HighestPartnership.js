@@ -5,7 +5,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H1, H3, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform, Dimensions } from 'react-native';
 
 /*
 Redux Imports
@@ -14,13 +14,15 @@ import { connect } from "react-redux";
 import { updatePartnership } from '../../Reducers/partnership';
 
 // Custom Styles
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
     textAlign: 'center',
     marginBottom: 10,
     fontWeight: '300',
-    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 22 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : 22,
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 && (width < 414) ? 22 : PixelRatio.get() === 2 && (width === 414) ? 24 : PixelRatio.get() === 3.5 ? 24 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 20 : PixelRatio.get() === 3 && (width === 414) && Platform.OS === 'ios' ? 24 : 22,
   },
   textDesc: {
     color: '#eee',
@@ -36,9 +38,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   currentPartnershipNumber: {
-    fontSize: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+    fontSize: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 && (width < 414) ? 30 : PixelRatio.get() === 2 && (width === 414) ? 36 : 40,
     color: '#fff',
-    lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 ? 30 : 40,
+    lineHeight: PixelRatio.get() === 1 ? 24 : PixelRatio.get() === 1.5 ? 30 : PixelRatio.get() === 2 && (width < 414) ? 30 : PixelRatio.get() === 2 && (width === 414) ? 36 : 40,
   },
 });
 

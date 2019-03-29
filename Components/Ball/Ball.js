@@ -166,8 +166,39 @@ addBall = () => {
 
   //call average partnership
 
-  if (this.props.wicket.wicket >= 1) {
-    this.averagePartnerhsip(this.props.wicket.wicket, balls, overs);
+  if (this.props.wicket.wicket >= 2) {
+    let avgPartGet = this.averagePartnerhsip(this.props.wicket.wicket, balls, overs);
+    console.log(avgPartGet);
+    let angWicketGet = avgPartGet[0];
+    console.log(angWicketGet);
+    //console.log(this.props.partnership.avgWicket);
+    this.setState({
+      avgWicket: angWicketGet,
+    }, function () {
+      console.log(this.props.partnership.avgWicket  + ' avgWicket');
+      const { avgWicket } = this.state
+      this.props.dispatch(updatePartnership( this.state.avgWicket ));
+    });
+  }
+  else if (this.props.wicket.wicket === 1) {
+    console.log(this.props.partnerships.partnerships[0]);
+    const avgWicket = this.props.partnerships.partnerships[0];
+    //let avgWicketDiff = BallDiff.getOverAndBallSeperation(avgWicket);
+    //let avgWicketOver = avgWicketDiff[0];
+    //console.log(avgWicketOver);
+    //let avgWicketBall = avgWicketDiff[1];
+    //console.log(avgWicketBall);
+
+    //let avgWicketCurrentBallOver = `${avgWicketOver}.${avgWicketBall}`;
+    //console.log(avgWicketCurrentBallOver);
+
+    this.setState({
+      avgWicket: avgWicket,
+    }, function () {
+      console.log(this.props.partnership.avgWicket  + ' avgWicket');
+      const { avgWicket } = this.state
+      this.props.dispatch(updatePartnership( this.state.avgWicket ));
+    });
   }
   else {
     console.log('hit when ball = 0?');
@@ -194,6 +225,17 @@ console.log(this.props.wicket.wicket);
 else if (this.props.ball.ball === 6 && this.props.wicket.wicket <= 0 ) {
   console.log('is this hit for latest partnerhsip when wicket 0 and ball 6');
   const latestPartnership = `${this.props.ball.over}.${this.props.ball.ball}`
+  this.setState({
+    currentPartnership: latestPartnership,
+  }, function () {
+    console.log(this.props.partnership.partnerships  + ' partnerships');
+    const { highestPartnership, currentPartnership } = this.state
+    this.props.dispatch(updatePartnership(this.state.highestPartnership, this.state.currentPartnership, this.state.avgWicket ));
+  });
+}
+else {
+  console.log(this.props.partnership.currentPartnership);
+  const latestPartnership = this.props.partnership.currentPartnership
   this.setState({
     currentPartnership: latestPartnership,
   }, function () {
@@ -466,12 +508,13 @@ handleStopClick = () => {
   }
 
   averagePartnerhsip = (wickets, ball, over) => {
-      if (ball != 0) {
+      //if (ball != 0) {
         /*
         Work out the average overs per/partnerhsip:
         */
         let getpartnershipDiff = BallDiff.getpartnershipDiff(ball, over);
         let totalBalls = getpartnershipDiff[1];
+        console.log(totalBalls);
 
         //divide totalballs by Wickets (70 / 2 = 35)
         let quotient;
@@ -482,11 +525,16 @@ handleStopClick = () => {
           quotient = 0;
           }
 
+          console.log(quotient);
+
 
         //divide the above by 6 and the remainder are the balls (35 goes into 6 5 times with 5 balls remoainder - i.e 5.5)
         let getpartnershipDiffTotal = BallDiff.getpartnershipDiffTotal(quotient);
         let quotientBalls = getpartnershipDiffTotal[0];
         let remainderAvg = getpartnershipDiffTotal[1];
+
+        console.log(quotientBalls);
+        console.log(remainderAvg);
 
         let remainderExtra;
         if (ball <= 2) {
@@ -499,7 +547,10 @@ handleStopClick = () => {
           remainderExtra = '';
         }
 
+        console.log(remainderExtra);
+
         let avgWicket;
+        console.log(avgWicket);
 
         if (wickets > 1 || wickets === 0) {
           console.log('wickets 0 or more than 1 hit');
@@ -512,14 +563,22 @@ handleStopClick = () => {
         avgWicket = overBall;
       }
 
+      console.log(avgWicket);
+
+/*
         this.setState({
           avgWicket: avgWicket,
         }, function () {
           console.log(this.props.partnership.avgWicket  + ' avgWicket');
           const { avgWicket } = this.state
-          this.props.dispatch(updatePartnership( this.state.highestPartnership, this.state.currentPartnership, this.state.avgWicket ));
+          this.props.dispatch(updatePartnership( this.state.avgWicket ));
         });
-    }
+        */
+        return [avgWicket];
+      //}
+
+      //return [null];
+
 
   }
 

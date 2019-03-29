@@ -7,7 +7,7 @@ Native base and React native
 */
 import { Container, Footer, Text, Icon, H2, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, PixelRatio, Platform } from 'react-native';
+import { StyleSheet, View, PixelRatio, Platform, Dimensions } from 'react-native';
 
 /*
 Redux imports
@@ -17,11 +17,13 @@ import { updateOver } from '../../Reducers/over';
 
 
 // Custom Styles
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   textHeader: {
     color: '#fff',
-    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 20 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
-    lineHeight: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 ? 20 :PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
+    fontSize: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 && (width < 414) ? 20 : PixelRatio.get() === 2 && (width === 414) ? 24 : PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
+    lineHeight: PixelRatio.get() === 1 ? 16 : PixelRatio.get() === 1.5 ? 18 : PixelRatio.get() === 2 && (width < 414) ? 20 : PixelRatio.get() === 2 && (width === 414) ? 24 :PixelRatio.get() === 3.5 ? 22 : PixelRatio.get() === 3 && Platform.OS === 'android' ? 16 : 24,
   },
   colCenter: {
     alignItems: 'center',

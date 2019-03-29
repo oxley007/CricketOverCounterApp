@@ -16,7 +16,7 @@ import { toggle } from '../../Reducers/toggle';
 class Iap extends Component {
 
   state = {
-    toggle: this.props.toggle.toggle || 0,
+    toggle: this.props.toggle.togglePremium || true,
   };
 
 

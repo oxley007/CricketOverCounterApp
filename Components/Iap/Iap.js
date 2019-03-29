@@ -39,7 +39,7 @@ class Iap extends Component {
   }
 
   state = {
-    toggle: this.props.toggle.toggle || 0,
+    toggle: this.props.toggle.togglePremium || false,
   };
 
 
@@ -102,12 +102,12 @@ class Iap extends Component {
     let coins = CoinStore.getCount();
     purchases.forEach(purchase => {
       if (purchase.productId == '4dot6OVER01') {
-        this.setState({ premium: true });
+        this.setState({ togglePremium: true });
         restoredTitles += 'Premium Version';
       }
       else if (purchase.productId == 'android.test.purchased') {
         console.log(purchase.productId);
-        this.setState({ premium: true });
+        this.setState({ togglePremium: true });
         restoredTitles += 'Premium Version';
       }
     })
@@ -144,7 +144,7 @@ class Iap extends Component {
     }
 
     render() {
-      const purchase = this.props.toggle.toggle;
+      const purchase = this.props.toggle.togglePremium;
       const { productList, receipt, availableItemsMessage } = this.state;
       const receipt100 = receipt.substring(0, 100);
         return (

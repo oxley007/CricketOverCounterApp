@@ -6,6 +6,7 @@ import {
     PixelRatio,
     Image,
     Platform,
+    Linking,
 } from "react-native";
 import {Header,Left,Right,Icon,Content,Grid,Row,Col,Container,H1,Button,Footer} from 'native-base';
 import LinearGradient from 'react-native-linear-gradient';
@@ -13,6 +14,32 @@ import LinearGradient from 'react-native-linear-gradient';
 
 class FeedbackHome extends Component {
 
+
+    thresholdInput = () => {
+      /*
+      const backslash = '\\'
+      console.log(backslash);
+      const appleUrl = 'itms-apps://itunes.apple.com/app/id'+backslash+'1448840478?action=write-review&mt=8'
+      console.log(appleUrl);
+      */
+      if (Platform.OS === 'ios') {
+      return (
+        <Row style={styles.rowPadding}>
+        <Button rounded large light style={styles.largeButton} title="Feedback" onPress={ ()=>{ Linking.openURL('http://tinyurl.com/y3lhbpgk')}}>
+          <Text style={styles.buttonTextBack}><Icon name='md-arrow-dropright' style={styles.buttonTextBack} />  Place feedback</Text>
+        </Button>
+    </Row>
+
+      )
+    }
+    else {
+      <Row style={styles.rowPadding}>
+      <Button rounded large light style={styles.largeButton} title="Feedback" onPress={ ()=>{ Linking.openURL('https://play.google.com/store/apps/details?id=com.cricketovercounterapp')}}>
+        <Text style={styles.buttonTextBack}><Icon name='md-arrow-dropright' style={styles.buttonTextBack} />  Place feedback</Text>
+      </Button>
+  </Row>
+    }
+    }
 
     static navigationOptions = {
       drawerIcon : ({tintColor}) => (
@@ -43,13 +70,9 @@ class FeedbackHome extends Component {
                 <Col style={styles.container}>
                       <Row style={styles.rowPadding}><H1 style={styles.textHeader}>Place feedback</H1></Row>
                       <Row><Text style={styles.textDesc}>We would love to hear from anyone using the app about improvements, general comments, or bugs. We look forward to hearing from you.</Text></Row>
-                      <Row style={styles.rowPadding}>
-                      <Button rounded large light style={styles.largeButton} title="Reset" onPress={this.resetDisplaySet}>
-                        <Text style={styles.buttonTextBack}><Icon name='md-arrow-dropright' style={styles.buttonTextBack} />  Place feedback</Text>
-                      </Button>
-                  </Row>
+                      {this.thresholdInput()}
                   <Row style={styles.rowPadding}>
-                  <Button rounded large light style={styles.largeButton} title="Reset" onPress={this.resetDisplaySet}>
+                  <Button rounded large light style={styles.largeButton} title="Comments-bugs" onPress={ ()=>{ Linking.openURL('https://www.4dot6digital.com/contact-4dot6')}}>
                     <Text style={styles.buttonTextBack}><Icon name='md-add' style={styles.buttonTextBack} />  Comments / Bugs</Text>
                   </Button>
               </Row>

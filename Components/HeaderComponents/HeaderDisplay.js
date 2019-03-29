@@ -42,7 +42,7 @@ class HeaderIndex extends Component {
     avgSeconds: this.props.stopwatch.avgSeconds || 0,
     over: this.props.ball.over || 0,
     ball: this.props.ball.ball || 0,
-    purchase: this.props.toggle.toggle || false,
+    toggle: this.props.toggle.togglePremium || false,
   };
 
   incrementer = () => {
@@ -54,7 +54,10 @@ class HeaderIndex extends Component {
 
   handleChange = ( reset, stopwatch, ball, toggle ) => {
     console.log({ reset, stopwatch, ball, toggle });
-    this.setState({ reset, stopwatch, ball, toggle });
+    this.setState({ reset });
+    this.setState({ ball });
+    this.setState({ toggle });
+    this.setState({ stopwatch });
   };
 
 
@@ -125,7 +128,7 @@ class HeaderIndex extends Component {
  headerDisplay() {
    //console.log(this.props.purchase);
    //console.log(this.props.over);
- if (this.props.toggle.toggle === false && this.props.ball.over >= 10) {
+ if (this.props.toggle.togglePremium === false && this.props.ball.over >= 10) {
  return (
      <Row>
        <Col size={1}>

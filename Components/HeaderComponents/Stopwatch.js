@@ -16,6 +16,10 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 Redux Imports*/
 import { connect } from "react-redux";
 import { updateStopwatch } from '../../Reducers/stopwatch';
+import { updateSettings } from '../../Reducers/settings';
+import { updateToggle } from '../../Reducers/toggle';
+import { updateOver } from '../../Reducers/over';
+import { updateToggleVibrate } from '../../Reducers/toggleVibrate';
 //import { updateSettings } from '../../Reducers/settings';
 
 /*
@@ -53,8 +57,12 @@ class Stopwatch extends Component {
     avgBall: this.props.stopwatch.avgBall || [],
     avgSeconds: this.props.stopwatch.avgSeconds || 0,
     incrementer: this.props.stopwatch.incrementer || null,
-    //settings_threshold: this.props.settings.settings_threshold || 33,
-    //settings_vibrate: this.props.settings.settings_vibrate || 'on',
+    settings: this.props.settings.settings || '33',
+    togglePremium: this.props.toggle.togglePremium || true,
+    toggleVibrate: this.props.toggleVibrate.toggleVibrate || true,
+    over: this.props.ball.over || 0,
+    settings: this.props.settings.settings || '33',
+
   };
 
   incrementer = () => {
@@ -63,9 +71,14 @@ class Stopwatch extends Component {
   }
 
   //handleChange = ( stopwatch, settings_threshold, settings_vibrate ) => {
-  handleChange = stopwatch => {
+  handleChange = ( stopwatch, toggle, ball, toggleVibrate, settings ) => {
     console.log(stopwatch);
     this.setState({ stopwatch });
+    this.setState({ toggle });
+    this.setState({ ball });
+    this.setState({ toggleVibrate });
+    this.setState({ settings });
+
     //this.setState({ settings_threshold });
     //this.setState({ settings_vibrate });
   };
@@ -76,16 +89,40 @@ class Stopwatch extends Component {
     //turn latestPartnership and this.props.partnership.highestPartnership into numeric values
     let avgSecondsNum = Number(this.props.stopwatch.avgSeconds);
     let secElapsedNum = Number(this.props.stopwatch.secondsElapsed);
+    let thresholdNum = Number(this.props.settings.settings);
+    let overNum = Number(this.props.ball.over);
 
-    avgSecondsNum *= 1.33;
+    let thresholdDividedNum = thresholdNum / 100;
+    thresholdDividedNum+=1
 
-    console.log(avgSecondsNum);
+    let thresholdTotalNum = avgSecondsNum * thresholdDividedNum;
+    thresholdTotalNum = thresholdTotalNum.toFixed(1);
+
+    //avgSecondsNum *= 1.33;
+
+    console.log(this.props.toggle.togglePremium);
 
     console.log(this.props.stopwatch.secondsElapsed);
     console.log(this.props.stopwatch.avgSeconds);
     console.log(avgSecondsNum);
-    if (secElapsedNum > avgSecondsNum) {
+    console.log(this.props.toggle.togglePremium === true);
+    let vib = false;
+    if (this.props.toggle.togglePremium === true || this.props.ball.over < 10) {
+      vib = true;
+    }
+
+    console.log(secElapsedNum);
+    console.log(thresholdTotalNum);
+    console.log(this.props.toggleVibrate.toggleVibrate);
+    console.log(vib);
+
+    let toggleVibrate = this.props.toggleVibrate.toggleVibrate;
+
+    console.log(toggleVibrate);
+
+    if (secElapsedNum > thresholdTotalNum && (toggleVibrate === 'true' || toggleVibrate === true) && vib === true ) {
       this.animatedTextRefThree.startAnimation(500,() => {})
+      console.log('is this hit? vibrate/animation for time.');
 
       if (vibrateCount <= 2) {
         //Vibration.vibrate(PATTERN);
@@ -111,7 +148,11 @@ class Stopwatch extends Component {
 
 const mapStateToProps = state => ({
   stopwatch: state.stopwatch,
-  //settings: state.settings,
+  settings: state.settings,
+  toggle: state.toggle,
+  ball: state.ball,
+  toggleVibrate: state.toggleVibrate,
+  settings: state.settings,
 });
 
 export default connect(mapStateToProps)(Stopwatch);

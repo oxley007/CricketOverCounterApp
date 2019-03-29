@@ -18,6 +18,7 @@ import { updateOver } from '../../Reducers/over';
 import { updateWicket } from '../../Reducers/wicket';
 import { updatePartnership } from '../../Reducers/partnership';
 import { updatePartnerships } from '../../Reducers/partnerships';
+//import { updateToggle } from '../../Reducers/toggle';
 
 
 class Reset extends Component {
@@ -36,15 +37,17 @@ class Reset extends Component {
     partnerships: [],
     currentPartnership: 0,
     avgWicket: 0,
+    //togglePremium: false,
   };
 
-  handleChange = ( ball, stopwatch, wicket, partnership, partnerships, reset ) => {
+  handleChange = ( ball, stopwatch, wicket, partnership, partnerships, reset, toggle ) => {
     this.setState({ ball });
     this.setState({ stopwatch });
     this.setState({ wicket });
     this.setState({ partnership });
     this.setState({ partnerships });
     this.setState({ reset });
+    //this.setState({ toggle });
   };
 
 incrementer = () => {
@@ -144,7 +147,7 @@ handleStopClick = () => {
 
 
         let highestPartnership = 0;
-        let partnerships = [0.8];
+        let partnerships = [];
         let currentPartnership = 0;
         let avgWicket = 0;
         this.props.dispatch(updatePartnership( highestPartnership, currentPartnership, avgWicket ));
@@ -183,6 +186,10 @@ handleStopClick = () => {
 
         reset = 2;
         this.props.dispatch(updateReset(reset))
+
+        //let toggle = false;
+        //this.props.dispatch(updateToggle(toggle))
+
     }
 
 
@@ -202,6 +209,7 @@ const mapStateToProps = state => ({
   wicket: state.wicket,
   partnership: state.partnership,
   partnerships: state.partnerships,
+  //toggle: state.toggle,
 });
 
 export default connect(mapStateToProps)(Reset);

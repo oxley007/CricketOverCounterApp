@@ -2,6 +2,7 @@ import { combineReducers } from 'redux';
 
 import user from './user';
 import toggle from './toggle';
+import toggleVibrate from './toggleVibrate';
 import ball from './over';
 import wicket from './wicket';
 import stopwatch from './stopwatch';
@@ -15,6 +16,7 @@ import settings from './settings';
 export default combineReducers({
   user,
   toggle,
+  toggleVibrate,
   ball,
   wicket,
   stopwatch,
