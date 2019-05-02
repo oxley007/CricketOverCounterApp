@@ -172,7 +172,7 @@ hasPurchased = () => {
               <Footer style={{ height: 100, backgroundColor: 'transparent', borderTopWidth: 0, backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0 }}>
               <Button rounded large warning style={styles.largeButton}
                   onPress={() => this.props.navigation.navigate('Home')} >
-                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to over counter</Text>
+                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to run counter</Text>
                 </Button>
               </Footer>
               </LinearGradient>

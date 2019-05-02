@@ -11,7 +11,7 @@ import {
 import {Header,Left,Right,Icon,Content,Grid,Row,Col,Container,H1,H3,Button,Footer} from 'native-base';
 import { Switch } from 'react-native-switch';
 import LinearGradient from 'react-native-linear-gradient';
-import Reset from '../HeaderComponents/Reset';
+import Reset from '../Reset/Reset';
 
 /*
 Redux Imports:
@@ -197,7 +197,7 @@ class Settings extends Component {
               <Footer style={{ height: 100, backgroundColor: 'transparent', borderTopWidth: 0, backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0 }}>
               <Button rounded large warning style={styles.largeButton}
                   onPress={() => this.props.navigation.navigate('Home')} >
-                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to over counter</Text>
+                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to run counter</Text>
                 </Button>
                 <H1 style={{color:'#fff'}}>
                 </H1>

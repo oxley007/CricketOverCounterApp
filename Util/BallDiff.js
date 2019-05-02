@@ -13,6 +13,38 @@ getpartnershipDiffTotal(quotient) {
   return [quotientBalls, remainderAvg];
 },
 
+getLegitBall(ball, runEvents) {
+  const ballTotal = runEvents.map(acc => {
+    console.log(acc);
+  if (acc.runsType.includes('NO-BALL') || acc.runsType.includes('WIDE')) {
+    console.log('Hit as an extra');
+    return ball = 0;
+    //dont add a ball
+  }
+  else if (acc.runsType.includes('deleted')) {
+    //ignore.
+    console.log('hit as a deleted ball');
+    return ball = 0;
+  }
+  else {
+    console.log(ball + 'hit as a legit ball');
+    return ball = 1;
+    console.log(ball);
+  }
+});
+
+return [ballTotal];
+
+},
+
+getWicketCount(runEvents) {
+  const countWickets = runEvents.filter(wickets => wickets.wicketEvent === true);
+  const totalWickets = countWickets.length;
+  console.log(totalWickets);
+
+  return [totalWickets];
+},
+
 getOverAndBallSeperation(currentPartnership) {
   let ballSumTruncOver = Math.trunc(currentPartnership);
   console.log(ballSumTruncOver);

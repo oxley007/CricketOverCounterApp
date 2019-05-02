@@ -1,14 +1,14 @@
 import React, { Component } from 'react';
 import Stopwatch from './Stopwatch';
 import AvgSecondsDisplay from './AvgSecondsDisplay';
-import Reset from './Reset';
+import Reset from '../Reset/Reset';
 
 /*
 Native base and react native
 */
 import { Container, Footer, H2, Text, Icon, Button, Left, Right } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, Image, PixelRatio } from 'react-native';
+import { StyleSheet, View, Image, PixelRatio, Platform } from 'react-native';
 
 /*
 Redux Imports:
@@ -27,7 +27,15 @@ const styles = StyleSheet.create({
  },
  upgradeStyle: {
    fontSize: PixelRatio.get() === 1 ? 10 : PixelRatio.get() === 1.5 ? 12 : PixelRatio.get() === 2 ? 14 : 16,
+ },
+ imageStyle: {
+   marginTop: 'auto',
+   marginBottom: 'auto',
+   height: PixelRatio.get() === 1.5 && Platform.OS === 'android' ? '60%' :
+   PixelRatio.get() === 2 && Platform.OS === 'android' ? '60%' : '75%',
+   width: 'auto',
  }
+
 });
 
 
@@ -134,7 +142,7 @@ class HeaderIndex extends Component {
        <Col size={1}>
          <Image
           source={require('../../assets/4dot6logo-transparent.png')}
-          style={{ marginTop: 'auto', marginBottom: 'auto', height: '75%', width: 'auto' }}
+          style={styles.imageStyle}
          />
        </Col>
        <Right size={1} style={styles.colVerticleAlign}>
@@ -153,7 +161,7 @@ class HeaderIndex extends Component {
       <Col size={1}>
       <Image
         source={require('../../assets/4dot6logo-transparent.png')}
-        style={{ marginTop: 'auto', marginBottom: 'auto', height: '75%', width: 'auto' }}
+        style={styles.imageStyle}
       />
       </Col>
        <Col>

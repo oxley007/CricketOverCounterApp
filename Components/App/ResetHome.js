@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import {Header,Left,Right,Icon,Content,Grid,Row,Col,Container,H1,Button,Footer} from 'native-base';
 import LinearGradient from 'react-native-linear-gradient';
-import Reset from '../HeaderComponents/Reset';
+import Reset from '../Reset/Reset';
 
 /*
 Redux Imports:
@@ -87,7 +87,7 @@ class ResetHome extends Component {
           <Row><Text style={styles.textDesc}>All values have been set to 0</Text></Row>
           <Row style={styles.rowPadding}>
           <Button rounded large light style={styles.largeButton} onPress={this.displayBack}>
-            <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to over counter</Text>
+            <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to run counter</Text>
           </Button>
       </Row>
     </Col>
@@ -96,7 +96,7 @@ class ResetHome extends Component {
   else {
     return (
       <Col style={styles.container}>
-            <Row style={styles.rowPadding}><H1 style={styles.textHeader}>Reset the over counter?</H1></Row>
+            <Row style={styles.rowPadding}><H1 style={styles.textHeader}>Reset the run counter?</H1></Row>
             <Row><Text style={styles.textDesc}>Clear all data to start a new innings</Text></Row>
             <Row style={styles.rowPadding}>
 
@@ -147,7 +147,7 @@ class ResetHome extends Component {
               <Footer style={{ height: 100, backgroundColor: 'transparent', borderTopWidth: 0, backgroundColor: 'transparent', elevation: 0, shadowOpacity: 0 }}>
               <Button rounded large warning style={styles.largeButton}
                   onPress={this.displayBack} >
-                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to over counter</Text>
+                  <Text style={styles.buttonTextBack}><Icon name='ios-arrow-back' style={styles.buttonTextBack} /> Back to run counter</Text>
                 </Button>
               </Footer>
               </LinearGradient>

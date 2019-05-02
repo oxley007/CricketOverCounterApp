@@ -11,6 +11,8 @@ import partnership from './partnership';
 import partnerships from './partnerships';
 import wicketBall from './wicketball';
 import settings from './settings';
+import runs from './runs';
+import stoptimer from './stoptimer';
 
 
 export default combineReducers({
@@ -25,4 +27,6 @@ export default combineReducers({
   partnerships,
   wicketBall,
   settings,
+  runs,
+  stoptimer,
 });

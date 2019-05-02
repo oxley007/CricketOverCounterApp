@@ -15,7 +15,7 @@ import {
       DrawerItems
     } from 'react-navigation';
 //import LoginScreen from './Components/App/LoginScreen.js';
-import AppHome from './Components/App/HomeApp.js';
+import Scorebook from './Components/App/Scorebook.js';
 import ResetHome from './Components/App/ResetHome.js';
 import FeedbackHome from './Components/App/FeedbackHome.js';
 import ProHome from './Components/App/ProHome.js';
@@ -55,7 +55,7 @@ const CustomDrawerComponent = (props) => (
 const RootStack = createDrawerNavigator(
   {
     Home: {
-      screen: AppHome,
+      screen: Scorebook,
     },
     Reset: {
       screen: ResetHome,

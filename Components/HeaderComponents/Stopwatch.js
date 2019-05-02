@@ -5,7 +5,7 @@ Native base and react native
 */
 import { Container, Footer, H2, H1, Text, Icon, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
-import { StyleSheet, View, Vibration, PixelRatio } from 'react-native';
+import { StyleSheet, View, Vibration, PixelRatio, Dimensions, Platform } from 'react-native';
 
 /*
 vibrate import
@@ -158,11 +158,13 @@ const mapStateToProps = state => ({
 export default connect(mapStateToProps)(Stopwatch);
 
 // Custom Styles
+//const width = Dimensions.get('window').width;
+//const height = Dimensions.get('window').height;
 const styles = StyleSheet.create({
   button_text: {
-  fontSize: PixelRatio.get() === 1 ? 22 : PixelRatio.get() === 1.5 ? 25 : PixelRatio.get() === 2 ? 26 : 28,
+  fontSize: PixelRatio.get() === 2 && Platform.OS === 'ios' && (height <= 568) ? 20 : PixelRatio.get() === 1 ? 22 : PixelRatio.get() === 1.5 ? 25 : PixelRatio.get() === 2 ? 26 : 28,
   color: '#ffffff',
   margin: 0,
-  padding: 0
+  padding: 0,
 },
 });
