@@ -2,24 +2,33 @@
   "expo": {
     "name": "cricket-umpire-ball-counter",
     "slug": "cricket-umpire-ball-counter",
-    "version": "1.0.0",
+    "version": "5.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cricketumpireballcounter",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "expo-router": {
+      "source": "src/app"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.4dot6.cricketballandovercounter",
+      "buildNumber": "5.0.4",
+      "icon": "./assets/ios-icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#12c2e9",
+        "foregroundImage": "./assets/ios-icon.png",
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.cricketovercounterapp",
+      "versionCode": 45
     },
     "web": {
       "output": "static",
@@ -30,19 +39,25 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-icon-4dot6.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#12c2e9",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#12c2e9"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "01f25192-0a2a-4868-a640-b12a9dd6b98d"
+      }
     }
   }
 }
