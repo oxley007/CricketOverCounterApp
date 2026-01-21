@@ -11,12 +11,12 @@ export type CircleItem =
 
 export function buildCurrentOverCircles(
   events: (BallEvent | WicketEvent)[],
-  legalBallsPerOver = LEGAL_BALLS,
-  maxCircles = MAX_CIRCLES
+  legalBallsPerOver = 6,
+  maxCircles = 10
 ): { circles: CircleItem[]; isFirstBall: boolean } {
   let legalBallCount = 0;
-  let lastBoundaryIndex = 0;
-  let latestBoundaryIndex = 0;
+  let lastBoundaryIndex = 0; // end of previous over
+  let latestBoundaryIndex = 0; // end of most recent over
 
   // STEP 1: track over boundaries
   for (let i = 0; i < events.length; i++) {
@@ -34,57 +34,58 @@ export function buildCurrentOverCircles(
   const overStartIndex = hasStartedNextOver ? latestBoundaryIndex : lastBoundaryIndex;
 
   // STEP 3: slice current over events
-  const overEvents = events.slice(overStartIndex);
+  let overEvents = events.slice(overStartIndex);
 
-  // STEP 4: build circles array
-  const circles: CircleItem[] = [];
-  let actualLegalCount = 0;
+  // STEP 4: count legal balls
+  let legalCount = 0;
+  for (const e of overEvents) {
+    if (e && e.countsAsBall) legalCount++;
+    if (legalCount === legalBallsPerOver) break;
+  }
 
-  overEvents.forEach((e) => {
-    if (!e) return;
+  // STEP 5: initial circles array
+  let circles = overEvents.slice(0, legalCount + (overEvents.length - legalCount));
 
-    const isExtraDisplay =
-      e.isExtra &&
-      e.extraType !== "bye" &&
-      e.extraType !== "legBye";
+  // STEP 6: pad to LEGAL_BALLS (legal balls + extra wickets counted as legal)
+  let actualLegalCount = circles.filter((e) => e && e.countsAsBall).length;
 
-    // Push legal balls
-    if (e.countsAsBall) {
-      circles.push(e);
-      actualLegalCount++;
-    }
-    // Push extras that need a display circle (including noBall+wicket)
-    else if (isExtraDisplay) {
-      circles.push(e);
-    }
-
-    // Count extra wickets as legal balls
-    if (
+  const extraWicketBalls = circles.filter(
+    (e) =>
+      e &&
       e.type === "wicket" &&
       e.isExtra &&
       e.extraType !== "bye" &&
       e.extraType !== "legBye"
-    ) {
-      actualLegalCount++;
-    }
-  });
+  ).length;
 
-  // STEP 5: calculate target length for padding
-  const extraOnlyEventsCount = overEvents.filter(
+  actualLegalCount += extraWicketBalls;
+
+  while (actualLegalCount < legalBallsPerOver) {
+    circles.push(null);
+    actualLegalCount++;
+  }
+
+  // STEP 6b: add one empty circle for any extra delivery that isn't a legal ball
+  const extraOnlyEvents = overEvents.filter(
     (e) =>
       e &&
       e.isExtra &&
-      !e.countsAsBall &&
+      ( !e.countsAsBall || e.extraType === "noBall" ) && // include noBalls
       e.extraType !== "bye" &&
       e.extraType !== "legBye"
-  ).length;
+  );
 
-  const targetLength = Math.max(LEGAL_BALLS, actualLegalCount) + extraOnlyEventsCount;
+  extraOnlyEvents.forEach(() => circles.push(null));
 
-  // STEP 6: pad exactly to target length
+  // ✅ NEW STEP 6c: ensure enough circles for display
+  // This guarantees we always have LEGAL_BALLS + all extras + some extra padding
+  // STEP 6c: ensure enough circles for display
+  // total circles = LEGAL_BALLS + all extra-only deliveries
+  const targetLength = LEGAL_BALLS + extraOnlyEvents.length;
   while (circles.length < targetLength) {
     circles.push(null);
   }
+
 
   // STEP 7: handle overflow
   if (circles.length > maxCircles) {
@@ -115,7 +116,7 @@ export function buildCurrentOverCircles(
 
     if (totalExtras > 0) legalBalls.push({ extraCount: totalExtras });
 
-    circles.splice(0, circles.length, ...legalBalls);
+    circles = legalBalls;
   }
 
   // STEP 8: first-ball flag

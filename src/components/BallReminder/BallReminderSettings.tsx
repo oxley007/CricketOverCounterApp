@@ -1,7 +1,13 @@
 import React from "react";
-import { View, Text, Switch, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  Switch,
+  TextInput,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { useMatchStore } from "../../state/matchStore";
-import { styles } from "./styles";
 
 type Props = {
   compact?: boolean;
@@ -9,7 +15,6 @@ type Props = {
 };
 
 export default function BallReminderSettings(props: Props = {}) {
-  // destructure inside the body safely
   const { compact = false, showDescription = true } = props;
 
   const {
@@ -20,7 +25,13 @@ export default function BallReminderSettings(props: Props = {}) {
   } = useMatchStore();
 
   return (
-    <View style={[styles.container, compact && styles.compact]}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        compact && styles.compact,
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.row}>
         <Text style={styles.label}>Ball reminder</Text>
         <Switch
@@ -51,6 +62,49 @@ export default function BallReminderSettings(props: Props = {}) {
           )}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 20, // 👈 horizontal padding
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  compact: {
+    paddingVertical: 8,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 8,
+    backgroundColor: '#fff'
+  },
+  suffix: {
+    fontSize: 16,
+  },
+  help: {
+    fontSize: 14,
+    color: "#666",
+  },
+});

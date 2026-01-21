@@ -8,7 +8,7 @@ export default function BaseRunsInput() {
   const setBaseRuns = useMatchStore((s) => s.setBaseRuns);
 
   return (
-    <View>
+    <View style={styles.container}>
       <Text style={styles.label}>Starting runs</Text>
       <Text style={styles.help}>
         Add runs to the starting score. Commonly used in junior cricket. i.e. you could start the innings with 100 runs.

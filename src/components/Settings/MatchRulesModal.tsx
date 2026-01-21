@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, View, Text, StyleSheet, Pressable } from "react-native";
+import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
 import WicketsNegativeInfo from "./WicketsNegativeInfo";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,17 +29,21 @@ export default function MatchRulesModal({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <Text style={styles.title}>Match Rules</Text>
+          <ScrollView
+              style={styles.scrollContent}
+              contentContainerStyle={{ paddingBottom: 16 }}
+              showsVerticalScrollIndicator={true}
+            >
+            {/* ✅ Show info when setting is enabled */}
+            {wicketsAsNegativeRuns && (
+              <WicketsNegativeInfo />
+            )}
 
-          {/* ✅ Show info when setting is enabled */}
-          {wicketsAsNegativeRuns && (
-            <WicketsNegativeInfo />
-          )}
-
-          {/* 👇 CONTENT COMES FROM PARENT */}
-          <View style={styles.content}>
-            {children}
-          </View>
-
+            {/* 👇 CONTENT COMES FROM PARENT */}
+            <View style={styles.content}>
+              {children}
+            </View>
+          </ScrollView>
           <Pressable
             style={styles.button}
             onPress={onClose}
@@ -89,4 +93,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  scrollContent: {
+      maxHeight: "70%", // ensures scrolling before it grows too big
+      backgroundColor: '#ddd',
+      borderRadius: 10,
+    },
 });

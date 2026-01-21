@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMatchStore } from "../state/matchStore";
-import { Vibration } from "react-native";
+import { Vibration, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 
 export function useBallReminder(enabled: boolean = true) {
   const events = useMatchStore((state) => state.events);
@@ -20,6 +21,16 @@ export function useBallReminder(enabled: boolean = true) {
   const legalBallCount = useMemo(
     () => events.filter((e) => e.countsAsBall).length,
     [events]
+  );
+
+  const overs = useMemo(
+    () => legalBallCount / 6,
+    [legalBallCount]
+  );
+
+  const isFreeTrialPeriod = useMemo(
+    () => overs <= 6,
+    [overs]
   );
 
   const isEndOfOver =
@@ -109,7 +120,7 @@ export function useBallReminder(enabled: boolean = true) {
   // Flashing logic
   // -----------------------------
   useEffect(() => {
-    if (!enabled) return; // <-- early exit if not enabled
+    if (!enabled) return;
 
     let flashInterval: NodeJS.Timeout | undefined;
     const hasExceededLimit = timeSinceLastBall > avgBallPlusThreshold;
@@ -121,25 +132,42 @@ export function useBallReminder(enabled: boolean = true) {
     }
 
     if (hasExceededLimit) {
-      if (hasExceededLimit && !hasAlertedRef.current) {
+      if (!hasAlertedRef.current) {
         hasAlertedRef.current = true;
 
-        if (proUnlocked) {
-          Vibration.vibrate([0, 500, 300, 500, 300, 500]);
+        console.log("Vibration check:", { proUnlocked, isFreeTrialPeriod });
+
+        if (proUnlocked || isFreeTrialPeriod) {
+          console.log("Vibrating now!");
+
+          if (Platform.OS === "ios") {
+            // iOS: max 2 haptics (reliable)
+            Vibration.vibrate(200);
+
+            setTimeout(() => Vibration.vibrate(200), 300);
+            setTimeout(() => Vibration.vibrate(200), 600);
+          } else {
+            // Android: full pattern
+            Vibration.vibrate([0, 500, 300, 500]);
+          }
+        } else {
+          console.log("Not vibrating because not Pro and not free trial");
         }
       }
 
+      // Flashing ALWAYS runs while exceeded
       flashInterval = setInterval(() => {
         setFlashOn((prev) => !prev);
       }, 500);
     } else {
       setFlashOn(true);
+      hasAlertedRef.current = false;
     }
 
     return () => {
       if (flashInterval) clearInterval(flashInterval);
     };
-  }, [timeSinceLastBall, avgBallPlusThreshold, enabled]);
+  }, [timeSinceLastBall, avgBallPlusThreshold, enabled, proUnlocked, isFreeTrialPeriod]);
 
   useEffect(() => {
     if (!enabled) {

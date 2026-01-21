@@ -1,6 +1,15 @@
 import { BallEvent, WicketEvent } from "../../state/matchStore";
 
+let nextId = 1;
+const makeId = () => `event-${nextId++}`;
+const now = () => Date.now();
+const emptyRunBreakdown = { bat: 0, extras: 0 };
+
+// Ball factories
 export const wide = (runs = 0): BallEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "ball",
   runs,
   isExtra: true,
@@ -9,6 +18,9 @@ export const wide = (runs = 0): BallEvent => ({
 });
 
 export const noBall = (runs = 0): BallEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "ball",
   runs,
   isExtra: true,
@@ -17,6 +29,9 @@ export const noBall = (runs = 0): BallEvent => ({
 });
 
 export const bye = (runs = 1): BallEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "ball",
   runs,
   isExtra: true,
@@ -25,6 +40,9 @@ export const bye = (runs = 1): BallEvent => ({
 });
 
 export const legBye = (runs = 1): BallEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "ball",
   runs,
   isExtra: true,
@@ -33,16 +51,23 @@ export const legBye = (runs = 1): BallEvent => ({
 });
 
 export const run = (runs: number): BallEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "ball",
   runs,
   isExtra: false,
   countsAsBall: true,
 });
 
+// Wicket factory
 export const wicket = (
-  kind: "bowled" | "caught" | "runOut" | "stumped",
+  kind: WicketEvent["kind"],
   options: Partial<WicketEvent> = {}
 ): WicketEvent => ({
+  id: makeId(),
+  timestamp: now(),
+  runBreakdown: emptyRunBreakdown,
   type: "wicket",
   kind,
   runs: 0,

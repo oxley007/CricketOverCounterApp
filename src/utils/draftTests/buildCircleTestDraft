@@ -1,0 +1,59 @@
+// ------------------------
+// BallCircle UI tests
+// ------------------------
+import React from "react";
+import { render } from "@testing-library/react-native";
+import { BallCircle } from "../BallCircle";
+
+describe("BallCircle – UI rendering guarantees", () => {
+  it("renders empty (unbowled) circle", () => {
+    render(<BallCircle item={null} />);
+  });
+
+  it("renders wicket circle 'W'", () => {
+    const { getByText } = render(<BallCircle item={wicket("bowled")} />);
+    expect(getByText("W")).toBeTruthy();
+  });
+
+  it("renders wicket + runs as '+1'", () => {
+    const { getByText } = render(<BallCircle item={wicket("bowled", { runs: 1 })} />);
+    expect(getByText("+1")).toBeTruthy();
+  });
+
+  it("renders wicket + wide as 'Wd'", () => {
+    const { getByText } = render(<BallCircle item={wicket("stumped", { isExtra: true, extraType: "wide", countsAsBall: false })} />);
+    expect(getByText("Wd")).toBeTruthy();
+  });
+
+  it("renders wicket + run + wide as '+1 Wd'", () => {
+    const { getByText } = render(<BallCircle item={wicket("stumped", { runs: 1, isExtra: true, extraType: "wide", countsAsBall: false })} />);
+    expect(getByText("+1 Wd")).toBeTruthy();
+  });
+
+  it("extra-only balls hide main dot", () => {
+    const { queryByText } = render(<BallCircle item={wide()} />);
+    expect(queryByText("•")).toBeNull();
+  });
+
+  it("extra summary circle shows 'Ex' + number", () => {
+    const events = [wide(), wide(), wide(), wide()];
+    const { getByText } = render(<BallCircle item={{ extraCount: 4 }} />);
+    expect(getByText("Ex")).toBeTruthy();
+    expect(getByText("4")).toBeTruthy();
+  });
+
+  it("renders normal ball with runs > 0", () => {
+    const { getByText } = render(<BallCircle item={run(2)} />);
+    expect(getByText("2")).toBeTruthy();
+  });
+
+  it("renders normal ball with 0 runs as •", () => {
+    const { getByText } = render(<BallCircle item={run(0)} />);
+    expect(getByText("•")).toBeTruthy();
+  });
+
+  it("renders negative wicket run correctly", () => {
+    const { getByText } = render(<BallCircle item={wicket("bowled", { runs: -1 })} />);
+    expect(getByText("-1")).toBeTruthy();
+  });
+});

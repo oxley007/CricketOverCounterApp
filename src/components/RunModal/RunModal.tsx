@@ -14,6 +14,7 @@
   import BallReminderSettings from "../BallReminder/BallReminderSettings";
   import BaseRunsInput from "../Settings/BaseRunsInput";
   import { SafeAreaView } from "react-native-safe-area-context";
+  import CustomRunsInput from "./CustomRunsInput";
 
   interface RunModalProps {
     visible: boolean;
@@ -29,7 +30,8 @@
       wicketsAsNegativeRuns,
       wicketPenaltyRuns,
     } = useMatchStore();
-    const [selectedRuns, setSelectedRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
+    //const [selectedRuns, setSelectedRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
+    const [selectedRuns, setSelectedRuns] = useState<number | null>(null);
     const [batRuns, setBatRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
     const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
     const [selectedWickets, setSelectedWickets] = useState<string[]>([]);
@@ -48,13 +50,13 @@
 
     const toggleExtra = (extra: string) => {
       setSelectedExtras((prev) =>
-        prev.includes(extra) ? prev.filter((e) => e !== extra) : [...prev, extra]
+        prev.includes(extra) ? [] : [extra] // single selection
       );
     };
 
     const toggleWicket = (wicket: string) => {
       setSelectedWickets((prev) =>
-        prev.includes(wicket) ? prev.filter((w) => w !== wicket) : [...prev, wicket]
+        prev.includes(wicket) ? [] : [wicket] // single selection
       );
     };
 
@@ -81,16 +83,19 @@
       const handleSubmit = () => {
         const isExtra = selectedExtras.length > 0;
         const hasWicket = selectedWickets.length > 0;
+        const isScoringWicket = wicketsAsNegativeRuns && hasWicket;
 
-        const isScoringWicket =
-          wicketsAsNegativeRuns && selectedWickets.length > 0;
+        if (isScoringWicket) {
+          const hasBlockingExtras =
+            selectedExtras.some((e) => e !== "Wide" && e !== "No Ball");
 
-        if (
-          isScoringWicket &&
-          (selectedRuns !== null || selectedExtras.length > 0)
-        ) {
-          // show toast: "Runs/extras are not added when wickets score negative runs"
-          return;
+          const hasBlockingRuns = selectedRuns !== null && selectedRuns > 0;
+
+          // Only block if there are runs AND blocking extras
+          if (hasBlockingRuns && hasBlockingExtras) {
+            // show toast
+            return;
+          }
         }
 
         const totalRuns = selectedRuns ?? 0;
@@ -132,14 +137,19 @@
 
         // 🟥 Wicket as negative runs
         if (hasWicket && wicketsAsNegativeRuns && !isRetired && !isPartnership) {
+          let extras = 0;
+          if (selectedExtras.includes("Wide") || selectedExtras.includes("No Ball")) {
+            extras = 1; // minimum 1 run for these extras
+          }
+
           const penalty = wicketPenaltyRuns || 0;
 
           addEvent({
-            type: "ball", // scoring adjustment, not a real delivery
-            runs: -Math.abs(penalty),
-            runBreakdown: { bat: 0, extras: 0 },
-            isExtra: false,
-            extraType: undefined,
+            type: "ball",
+            runs: -Math.abs(penalty) + extras,
+            runBreakdown: { bat: -Math.abs(penalty), extras },
+            isExtra: extras > 0,
+            extraType: normalizeExtraType(selectedExtras[0]),
             countsAsBall,
           });
 
@@ -174,9 +184,10 @@
           isExtra,
           extraType: normalizeExtraType(selectedExtras[0]),
           countsAsBall,
+          runBreakdown: { bat, extras },
         });
 
-
+        setShowAdvanced(false);
         resetSelections();
         onClose();
       };
@@ -253,6 +264,10 @@
                   </TouchableOpacity>
                 ))}
               </View>
+              <CustomRunsInput
+                value={selectedRuns}
+                onChange={(runs) => setSelectedRuns(runs)}
+              />
 
               <Text style={styles.sectionTitle}>Extras</Text>
               <Text style={styles.subtitleLeft}>Selecting an extra will automatically add 1 run. If you want to add more runs with an extra, first select the number of runs above, then select the extra. For example, a wide plus 4 runs equals 5 runs, so you would select 5 runs followed by the wide.</Text>
@@ -295,32 +310,6 @@
               ))}
               </View>
               {wicketsAsNegativeRuns && (
-                <View style={styles.warningBox}>
-                  <Text style={styles.warningText}>
-                    Wickets are recorded as negative runs.
-                  </Text>
-                  <Text style={styles.warningSubtext}>
-                    Use a wicket option to add negative runs, and use <Text style={styles.bold}>End Partnership</Text> (adds 2 wickets) or <Text style={styles.bold}>End Batter</Text> (adds 1 wicket) to end the partnership.
-                  </Text>
-
-                </View>
-              )}
-              <Text style={styles.sectionTitle}>Wickets</Text>
-              <View style={styles.grid}>
-                {wicketOptions.map((w) => (
-                  <TouchableOpacity
-                    key={w}
-                    style={[
-                      styles.optionButton,
-                      selectedWickets.includes(w) && styles.optionSelected,
-                    ]}
-                    onPress={() => toggleWicket(w)}
-                  >
-                    <Text style={styles.optionText}>{w}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {wicketsAsNegativeRuns && (
                 <>
                   <Text style={styles.sectionTitle}>End Partnership</Text>
 
@@ -343,12 +332,41 @@
                   </View>
                 </>
               )}
+              {wicketsAsNegativeRuns && (
+                <View style={styles.warningBox}>
+                  <Text style={styles.warningText}>
+                    Wickets are recorded as negative runs.
+                  </Text>
+                  <Text style={styles.warningSubtext}>
+                    Use a wicket option below to add negative runs, and use <Text style={styles.bold}>End Partnership</Text> (adds 2 wickets) or <Text style={styles.bold}>End Batter</Text> (adds 1 wicket) to end the partnership.
+                  </Text>
+
+                </View>
+              )}
+              <Text style={styles.sectionTitle}>Wickets</Text>
+              <View style={styles.grid}>
+                {wicketOptions.map((w) => (
+                  <TouchableOpacity
+                    key={w}
+                    style={[
+                      styles.optionButton,
+                      selectedWickets.includes(w) && styles.optionSelected,
+                    ]}
+                    onPress={() => toggleWicket(w)}
+                  >
+                    <Text style={styles.optionText}>{w}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </ScrollView>
 
             <Pressable style={styles.submitButton} onPress={handleSubmit}>
               <Text style={styles.submitText}>Add Ball</Text>
             </Pressable>
-            <Pressable style={styles.closeButton} onPress={onClose}>
+            <Pressable style={styles.closeButton} onPress={() => {
+                setShowAdvanced(false); // collapse advanced section
+                onClose();               // existing close logic
+              }}>
               <Text style={styles.closeText}>Cancel</Text>
             </Pressable>
           </View>
@@ -373,7 +391,7 @@
     optionText: { fontSize: 16, fontWeight: "600" },
     submitButton: { marginTop: 10, backgroundColor: "#77dd77", padding: 12, borderRadius: 8, alignItems: "center" },
     submitText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-    closeButton: { marginTop: 10, alignItems: "center" },
+    closeButton: { marginTop: 10, alignItems: "center", marginBottom: 5 },
     closeText: { color: "#c471ed", fontSize: 16, fontWeight: "600" },
     warningBox: {
       backgroundColor: "#fff3cd",

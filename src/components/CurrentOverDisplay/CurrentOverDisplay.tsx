@@ -7,7 +7,7 @@ import { styles } from "./styles";
 
 export const CurrentOverDisplay = () => {
   const events = useMatchStore((s) => s.events);
-  const { circles, isFirstBall } = buildCurrentOverCircles(events);
+  const { circles, isFirstBall } = buildCurrentOverCircles(events, { wideIsExtraBall: true })
 
   const wideIsExtraBall = useMatchStore((s) => s.wideIsExtraBall);
   console.log("wideIsExtraBall =", wideIsExtraBall);

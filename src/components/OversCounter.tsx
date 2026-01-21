@@ -2,24 +2,30 @@
 import React from "react";
 import { Text, StyleSheet } from "react-native";
 import { useMatchStore } from "../state/matchStore";
+import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 
 export default function OversCounter() {
-  // Separate selectors to avoid infinite re-render
   const events = useMatchStore((state) => state.events);
   const wideIsExtraBall = useMatchStore((state) => state.wideIsExtraBall);
   const wicketsAsNegativeRuns = useMatchStore((state) => state.wicketsAsNegativeRuns);
   const wicketPenaltyRuns = useMatchStore((state) => state.wicketPenaltyRuns);
 
   /* =========================
-     Legal deliveries
+     Get balls for current over
   ========================= */
-  const legalBalls = events.reduce(
-    (count, e) => count + (e.countsAsBall ? 1 : 0),
-    0
-  );
+  const { ballsThisOver } = buildCurrentOverCircles(events, { wideIsExtraBall });
 
-  const overs = Math.floor(legalBalls / 6);
-  const ballsInOver = legalBalls % 6;
+  // Total legal deliveries in match
+  const totalLegalBalls = events.reduce((count, e) => count + (e.countsAsBall ? 1 : 0), 0);
+
+  // Completed overs
+  const completedOvers = Math.floor(totalLegalBalls / 6);
+  const ballsIntoOver = totalLegalBalls % 6;
+
+  const displayOvers =
+    ballsIntoOver === 0 && totalLegalBalls > 0
+      ? `${completedOvers}.0`
+      : `${completedOvers}.${ballsIntoOver}`;
 
   /* =========================
      Runs (includes negative wickets)
@@ -27,7 +33,6 @@ export default function OversCounter() {
   const totalRuns = events.reduce((sum, e) => {
     let runs = e.runs || 0;
 
-    // Apply negative runs for wickets if enabled
     if (
       wicketsAsNegativeRuns &&
       e.type === "wicket" &&
@@ -44,12 +49,12 @@ export default function OversCounter() {
   /* =========================
      Run rate
   ========================= */
-  const oversBowled = legalBalls / 6;
+  const oversBowled = totalLegalBalls / 6;
   const runRate = oversBowled > 0 ? (totalRuns / oversBowled).toFixed(2) : "0.00";
 
   return (
     <Text style={styles.text}>
-      Overs: {overs}.{ballsInOver}{"  "}
+      Overs: {displayOvers}{"  "}
       <Text style={styles.subText}>RR: {runRate}</Text>
     </Text>
   );
