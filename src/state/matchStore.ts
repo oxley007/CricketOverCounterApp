@@ -161,9 +161,13 @@ export const matchStoreRef = create<MatchState>()(
           if (event.extraType === "noBall" && event.runs && event.runs > 1) {
             batRuns = event.runs - extraRuns;
           }
+          console.log(extraRuns, "extraRuns is ya??");
 
-          if (event.extraType === "bye" || event.extraType === "legBye") {
-            extraRuns = Math.max(extraRuns, 1); // bye/legBye always 1 extra min
+          if (
+            (event.extraType === "bye" || event.extraType === "legBye") &&
+            (!event.runs || event.runs === 0)
+          ) {
+            extraRuns = Math.max(extraRuns, 1);
           }
         }
 

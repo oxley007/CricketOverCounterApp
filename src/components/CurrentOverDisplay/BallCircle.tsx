@@ -12,7 +12,7 @@ export const BallCircle = ({ item }: Props) => {
   if (!item) {
     return (
       <View style={styles.cell}>
-        <View style={styles.unbowledCircle} />
+        <View style={styles.unbowledCircle} testID="unbowled-circle" />
       </View>
     );
   }
@@ -115,7 +115,7 @@ export const BallCircle = ({ item }: Props) => {
 
   return (
     <View style={styles.cell}>
-      <View style={circleStyle}>
+      <View style={circleStyle} testID="ball-circle">
         {/* Main circle text */}
         {!isExtraOnly && <Text style={textStyle}>{mainText}</Text>}
 
@@ -139,14 +139,12 @@ export const BallCircle = ({ item }: Props) => {
               return (
                 <View key={i} style={{ alignItems: "center" }}>
                   <Text
-                    style={[styles.circleText, { color: "#c471ed", fontWeight: "bold" }]}
-                  >
+                    style={[styles.circleText, { color: "#c471ed", fontWeight: "bold" }]} testID={`ball-extra-code-${i}`}>
                     {code}
                   </Text>
                   {runs && (
                     <Text
-                      style={[styles.circleText, { color: "#c471ed", fontWeight: "bold" }]}
-                    >
+                      style={[styles.circleText, { color: "#c471ed", fontWeight: "bold" }]} testID={`ball-extra-runs-${i}`}testID={`ball-extra-runs-${i}`}>
                       {runs}
                     </Text>
                   )}
