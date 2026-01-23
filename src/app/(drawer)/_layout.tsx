@@ -1,5 +1,5 @@
 // app/(drawer)/_layout.tsx
-import { StyleSheet, View, Image, Platform } from "react-native";
+import { StyleSheet, View, Image, Platform, useColorScheme } from "react-native";
 import { Drawer } from "expo-router/drawer";
 import { DrawerToggleButton } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,10 +20,14 @@ export default function DrawerLayout() {
 }
 
 function DrawerContent() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
     <Drawer
       screenOptions={{
         headerShown: true,
+
         headerTitle: () => (
           <View style={styles.logoContainer}>
             <Image
@@ -33,23 +37,28 @@ function DrawerContent() {
             />
           </View>
         ),
-        headerLeft: () => <DrawerToggleButton />,
+
+        headerLeft: () => (
+          <DrawerToggleButton tintColor="#000" />
+        ),
+
         headerTitleAlign: "center",
+
         headerStyle: {
           backgroundColor: "#12c2e9",
           shadowOpacity: 0,
           shadowColor: "transparent",
           elevation: 0,
         },
+
+        headerTintColor: "#000",
+
         drawerActiveTintColor: "#FF7043",
-        drawerInactiveTintColor: "#333",
-      }}
-      defaultStatus="closed"
-      useLegacyImplementation
-      headerMode="screen"
-      unstable_settings={{
-        initialRouteName: "index",
-        hideDevTools: true,
+        drawerInactiveTintColor: isDark ? "#ccc" : "#333",
+
+        drawerStyle: {
+          backgroundColor: isDark ? "#121212" : "#fff",
+        },
       }}
     >
       <Drawer.Screen
