@@ -21,9 +21,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # -----------------------
       # Node modules cache
-      # -----------------------
       - name: Cache Node modules
         uses: actions/cache@v3
         with:
@@ -57,20 +55,18 @@ jobs:
     name: Build & Submit
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # -----------------------
       # Node modules cache
-      # -----------------------
       - name: Cache Node modules
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
+          key: npm-${{ hashFiles('package-lock.json', 'package.json') }}
           restore-keys: npm-
 
       - name: Setup Node.js
@@ -82,9 +78,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # -----------------------
       # EAS CLI cache
-      # -----------------------
       - name: Cache EAS builds
         uses: actions/cache@v3
         with:
@@ -98,15 +92,11 @@ jobs:
       - name: Login to Expo
         run: eas login --token ${{ secrets.EXPO_TOKEN }}
 
-      # -----------------------
       # Android Google Play setup
-      # -----------------------
       - name: Setup Google Play service account
         run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT }}" > ./google_service_account.json
 
-      # -----------------------
       # Android Gradle cache
-      # -----------------------
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
@@ -116,9 +106,7 @@ jobs:
           key: gradle-${{ hashFiles('android/build.gradle', 'android/app/build.gradle', 'android/gradle.properties', 'android/settings.gradle') }}
           restore-keys: gradle-
 
-      # -----------------------
       # iOS Build & Submit
-      # -----------------------
       - name: Build iOS
         run: |
           eas build -p ios \
@@ -126,15 +114,12 @@ jobs:
             --non-interactive
 
       - name: Submit iOS to TestFlight
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           eas submit -p ios \
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
             --non-interactive
 
-      # -----------------------
       # Android Build & Submit
-      # -----------------------
       - name: Build Android
         run: |
           eas build -p android \
@@ -143,7 +128,6 @@ jobs:
             --gradle-service-account ./google_service_account.json
 
       - name: Submit Android to Internal Track
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           eas submit -p android \
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
@@ -151,8 +135,6 @@ jobs:
             --track internal \
             --service-account ./google_service_account.json
 
-      # -----------------------
       # Cleanup sensitive files
-      # -----------------------
       - name: Cleanup secrets
         run: rm ./google_service_account.json
