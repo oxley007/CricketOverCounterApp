@@ -57,11 +57,16 @@ jobs:
     needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
 
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # -----------------------
       # Node modules cache
+      # -----------------------
       - name: Cache Node modules
         uses: actions/cache@v3
         with:
@@ -78,8 +83,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # -----------------------
       # EAS CLI cache
-      - name: Cache EAS builds
+      # -----------------------
+      - name: Cache EAS
         uses: actions/cache@v3
         with:
           path: ~/.eas
@@ -89,26 +96,30 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Login to Expo
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Verify Expo auth
         run: eas whoami
 
+      # -----------------------
       # Android Google Play setup
+      # -----------------------
       - name: Setup Google Play service account
-        run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT }}" > ./google_service_account.json
+        run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT }}" > google_service_account.json
 
+      # -----------------------
       # Android Gradle cache
+      # -----------------------
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('android/build.gradle', 'android/app/build.gradle', 'android/gradle.properties', 'android/settings.gradle') }}
+          key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle.properties') }}
           restore-keys: gradle-
 
+      # -----------------------
       # iOS Build & Submit
+      # -----------------------
       - name: Build iOS
         run: |
           eas build -p ios \
@@ -121,13 +132,15 @@ jobs:
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
             --non-interactive
 
+      # -----------------------
       # Android Build & Submit
+      # -----------------------
       - name: Build Android
         run: |
           eas build -p android \
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
             --non-interactive \
-            --gradle-service-account ./google_service_account.json
+            --gradle-service-account google_service_account.json
 
       - name: Submit Android to Internal Track
         run: |
@@ -135,8 +148,10 @@ jobs:
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
             --non-interactive \
             --track internal \
-            --service-account ./google_service_account.json
+            --service-account google_service_account.json
 
-      # Cleanup sensitive files
+      # -----------------------
+      # Cleanup
+      # -----------------------
       - name: Cleanup secrets
-        run: rm ./google_service_account.json
+        run: rm google_service_account.json
