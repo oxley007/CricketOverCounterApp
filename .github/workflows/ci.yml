@@ -1,9 +1,13 @@
 name: CI & CD
 
 on:
+  # PRs only run tests
   pull_request:
     branches:
       - develop
+      - main
+
+  # Push triggers CI + CD
   push:
     branches:
       - develop
@@ -11,7 +15,7 @@ on:
 
 jobs:
   # -----------------------
-  # Continuous Integration
+  # Continuous Integration (tests for PRs and pushes)
   # -----------------------
   test:
     name: Run Jest Tests
@@ -49,7 +53,7 @@ jobs:
           path: coverage/
 
   # -----------------------
-  # Continuous Deployment
+  # Continuous Deployment (only on push to develop/main)
   # -----------------------
   build-and-submit:
     name: Build & Submit
@@ -64,9 +68,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # -----------------------
       # Node modules cache
-      # -----------------------
       - name: Cache Node modules
         uses: actions/cache@v3
         with:
@@ -83,9 +85,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # -----------------------
       # EAS CLI cache
-      # -----------------------
       - name: Cache EAS
         uses: actions/cache@v3
         with:
@@ -96,18 +96,15 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Verify Expo auth
+      # Login to Expo
+      - name: Expo Auth Check
         run: eas whoami
 
-      # -----------------------
       # Android Google Play setup
-      # -----------------------
       - name: Setup Google Play service account
         run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT }}" > google_service_account.json
 
-      # -----------------------
       # Android Gradle cache
-      # -----------------------
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
@@ -126,7 +123,7 @@ jobs:
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
             --non-interactive
 
-      - name: Submit iOS to TestFlight
+      - name: Submit iOS
         run: |
           eas submit -p ios \
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
@@ -134,7 +131,6 @@ jobs:
 
       # -----------------------
       # Android Build & Submit
-      # -----------------------
       - name: Build Android
         run: |
           eas build -p android \
@@ -142,7 +138,7 @@ jobs:
             --non-interactive \
             --gradle-service-account google_service_account.json
 
-      - name: Submit Android to Internal Track
+      - name: Submit Android
         run: |
           eas submit -p android \
             --profile ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }} \
@@ -150,8 +146,6 @@ jobs:
             --track internal \
             --service-account google_service_account.json
 
-      # -----------------------
-      # Cleanup
-      # -----------------------
+      # Cleanup secrets
       - name: Cleanup secrets
         run: rm google_service_account.json
