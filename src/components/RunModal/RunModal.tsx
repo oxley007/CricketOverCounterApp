@@ -1,4 +1,4 @@
-  import React, { useState } from "react";
+  import React, { useState, useMemo } from "react";
   import {
     View,
     Text,
@@ -9,12 +9,16 @@
     StyleSheet,
     Platform,
   } from "react-native";
-  import { useMatchStore } from "../../state/matchStore";
+  import { useMatchStore, type MatchEvent } from "../../state/matchStore";
+  import { useGameStore } from "../../state/gameStore";
+  import { useTeamStore } from "../../state/teamStore";
   import MatchRulesSettings from "./MatchRulesSettings";
   import BallReminderSettings from "../BallReminder/BallReminderSettings";
   import BaseRunsInput from "../Settings/BaseRunsInput";
   import { SafeAreaView } from "react-native-safe-area-context";
   import CustomRunsInput from "./CustomRunsInput";
+  import PlayerSelectorRow from "./PlayerSelectorRow";
+  import SelectPlayersModal from "../Scorebook/SelectPlayersModal";
 
   interface RunModalProps {
     visible: boolean;
@@ -30,13 +34,51 @@
       wicketsAsNegativeRuns,
       wicketPenaltyRuns,
     } = useMatchStore();
+    //const { currentGame, updateBatterStats } = useGameStore();
     //const [selectedRuns, setSelectedRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
     const [selectedRuns, setSelectedRuns] = useState<number | null>(null);
     const [batRuns, setBatRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
     const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
     const [selectedWickets, setSelectedWickets] = useState<string[]>([]);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showPlayerSelect, setShowPlayerSelect] = useState<"batter" | "bowler" | null>(null);
 
+    const currentGame = useGameStore((s) => s.currentGame);
+    const updateBatterStats = useGameStore((s) => s.updateBatterStats);
+    const setStrike = useGameStore((s) => s.setStrike);
+    const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
+    const applyStrikeChange = useGameStore((s) => s.applyStrikeChange);
+    const teams = useTeamStore((s) => s.teams);
+
+    const inScorebookMode = !!currentGame;
+    const battingTeam = useMemo(
+      () => (currentGame?.battingTeamId ? teams.find((t) => t.id === currentGame.battingTeamId) : null),
+      [currentGame?.battingTeamId, teams]
+    );
+    const bowlingTeam = useMemo(
+      () => (currentGame?.bowlingTeamId ? teams.find((t) => t.id === currentGame.bowlingTeamId) : null),
+      [currentGame?.bowlingTeamId, teams]
+    );
+
+    const batterPlayers = useMemo(() => {
+      if (!currentGame || !battingTeam) return [];
+      return (currentGame.batters ?? []).map((b) => {
+        const p = battingTeam.players.find((pl) => pl.id === b.playerId);
+        return { id: b.playerId, name: p?.name ?? b.playerId };
+      });
+    }, [currentGame?.batters, battingTeam]);
+
+    const currentBatterName = useMemo(() => {
+      if (!currentGame?.currentStrikeId || !battingTeam) return null;
+      const p = battingTeam.players.find((pl) => pl.id === currentGame.currentStrikeId);
+      return p?.name ?? null;
+    }, [currentGame?.currentStrikeId, battingTeam]);
+
+    const currentBowlerName = useMemo(() => {
+      if (!currentGame?.currentBowlerId || !bowlingTeam) return null;
+      const p = bowlingTeam.players.find((pl) => pl.id === currentGame.currentBowlerId);
+      return p?.name ?? null;
+    }, [currentGame?.currentBowlerId, bowlingTeam]);
 
     const runOptions = [1, 2, 3, 4, 5, 6];
     const extraOptions = ["Wide", "No Ball", "Bye", "Leg Bye", "Penalty"];
@@ -85,74 +127,107 @@
         const hasWicket = selectedWickets.length > 0;
         const isScoringWicket = wicketsAsNegativeRuns && hasWicket;
 
+        // 🚫 Block invalid scoring wicket combos
         if (isScoringWicket) {
           const hasBlockingExtras =
             selectedExtras.some((e) => e !== "Wide" && e !== "No Ball");
 
           const hasBlockingRuns = selectedRuns !== null && selectedRuns > 0;
 
-          // Only block if there are runs AND blocking extras
           if (hasBlockingRuns && hasBlockingExtras) {
-            // show toast
+            // TODO: show toast
             return;
           }
         }
 
+        // 🔢 Basic flags
         const totalRuns = selectedRuns ?? 0;
         const isNoBall = selectedExtras.includes("No Ball");
         const isWide = selectedExtras.includes("Wide");
 
-        // Default breakdown
+        // 🧮 Run breakdown
         let bat = 0;
         let extras = 0;
 
-        // 🟥 No ball logic
         if (isNoBall) {
           extras = 1;
-
           if (totalRuns > 1) {
             bat = batRuns ?? (totalRuns - 1);
           }
-        }
-
-        // 🟦 Wide logic
-        else if (isWide) {
+        } else if (isWide) {
           bat = 0;
           extras = totalRuns || 1;
-        }
-
-        // 🟩 Normal ball
-        else {
+        } else {
           bat = totalRuns;
           extras = 0;
         }
 
         const runs = bat + extras;
 
-        const countsAsBall = !isWide || !wideIsExtraBall;
+        // 🎯 Ball counting rule
+        let countsAsBall = isWide ? !wideIsExtraBall : true;
 
-        // Determine if this is a retired wicket
+        // Override for no-ball
+        if (isNoBall) countsAsBall = false;
+
+        // 🧠 Helpers (now safe — bat/extras/countsAsBall exist)
+        const maybeUpdateBatter = () => {
+          if (!inScorebookMode || !currentGame?.currentStrikeId) return;
+          if (bat === 0 && !countsAsBall) return;
+
+          console.log(countsAsBall, 'countsAsBall runmodal');
+
+          updateBatterStats(
+            currentGame.currentStrikeId,
+            bat,
+            countsAsBall ? 1 : 0
+          );
+        };
+
+        const applyStrikeFromLastEvent = () => {
+          const lastEvent = useMatchStore.getState().events.at(-1);
+          if (!lastEvent) return;
+
+          maybeUpdateBatter();
+
+          applyStrikeChange({
+            bat: lastEvent.runBreakdown.bat,
+            extras: lastEvent.runBreakdown.extras,
+            countsAsBall: lastEvent.countsAsBall,
+            extraType: lastEvent.extraType,
+            runs: lastEvent.runs,
+          });
+        };
+
+        // 🏏 Wicket types
         const isRetired = selectedWickets.includes("Retired");
-        const isPartnership = selectedWickets.includes("Partnership"); // if needed
+        const isPartnership = selectedWickets.includes("Partnership");
 
         // 🟥 Wicket as negative runs
         if (hasWicket && wicketsAsNegativeRuns && !isRetired && !isPartnership) {
-          let extras = 0;
-          if (selectedExtras.includes("Wide") || selectedExtras.includes("No Ball")) {
-            extras = 1; // minimum 1 run for these extras
+          let extrasRuns = 0;
+
+          if (isWide || isNoBall) {
+            extrasRuns = 1;
           }
 
           const penalty = wicketPenaltyRuns || 0;
 
           addEvent({
             type: "ball",
-            runs: -Math.abs(penalty) + extras,
-            runBreakdown: { bat: -Math.abs(penalty), extras },
-            isExtra: extras > 0,
+            batterId: currentGame!.currentStrikeId!,
+            bowlerId: currentGame?.currentBowlerId,
+            runs: -Math.abs(penalty) + extrasRuns,
+            runBreakdown: {
+              bat: -Math.abs(penalty),
+              extras: extrasRuns,
+            },
+            isExtra: extrasRuns > 0,
             extraType: normalizeExtraType(selectedExtras[0]),
             countsAsBall,
           });
 
+          applyStrikeFromLastEvent();
           resetSelections();
           onClose();
           return;
@@ -164,14 +239,17 @@
 
           addEvent({
             type: "wicket",
+            batterId: currentGame!.currentStrikeId!,
+            bowlerId: currentGame?.currentBowlerId,
             kind,
-            runs: 0, // always 0 for retired
+            runs: 0,
             isExtra,
             extraType: normalizeExtraType(selectedExtras[0]),
-            countsAsBall: kind === "retired" ? false : true, // ✅ retired doesn't count as ball
-            runBreakdown: { bat: bat, extras: extras },
-          });
+            countsAsBall: kind === "retired" ? false : true,
+            runBreakdown: { bat, extras },
+          } as Omit<MatchEvent, "id" | "timestamp">);
 
+          applyStrikeFromLastEvent();
           resetSelections();
           onClose();
           return;
@@ -180,12 +258,16 @@
         // 🟩 Normal ball
         addEvent({
           type: "ball",
+          batterId: currentGame!.currentStrikeId!,
+          bowlerId: currentGame?.currentBowlerId,
           runs,
           isExtra,
           extraType: normalizeExtraType(selectedExtras[0]),
           countsAsBall,
           runBreakdown: { bat, extras },
         });
+
+        applyStrikeFromLastEvent();
 
         setShowAdvanced(false);
         resetSelections();
@@ -196,11 +278,14 @@
         for (let i = 0; i < count; i++) {
           addEvent({
             type: "wicket",
+            batterId: currentGame!.currentStrikeId!,
+            bowlerId: currentGame?.currentBowlerId,
             kind: "partnership",
             runs: 0,
             isExtra: false,
-            countsAsBall: false, // 👈 KEY FIX
-          });
+            countsAsBall: false,
+            runBreakdown: { bat: 0, extras: 0 },
+          } as Omit<MatchEvent, "id" | "timestamp">);
         }
 
         resetSelections();
@@ -210,11 +295,14 @@
       const addRetiredWicket = () => {
         addEvent({
           type: "wicket",
+          batterId: currentGame!.currentStrikeId!,
+          bowlerId: currentGame?.currentBowlerId,
           kind: "retired",
           runs: 0,
           isExtra: false,
           countsAsBall: false,
-        });
+          runBreakdown: { bat: 0, extras: 0 },
+        } as Omit<MatchEvent, "id" | "timestamp">);
 
         resetSelections();
         onClose();
@@ -228,6 +316,25 @@
             <Text style={styles.title}>Select Ball Outcome</Text>
             <Text style={styles.subtitle}>Select more than one option if needed (i.e. 5 + wides, or 1 + runout, or 1 + wide + sumpted, etc)</Text>
             <ScrollView contentContainerStyle={styles.scrollContent}>
+            {inScorebookMode && (
+              <>
+                <Text style={styles.sectionTitle}>Players</Text>
+                <PlayerSelectorRow
+                  label="Batter"
+                  selectedName={currentBatterName}
+                  placeholder="Select batter"
+                  onPress={() => setShowPlayerSelect("batter")}
+                />
+                {bowlingTeam && (
+                  <PlayerSelectorRow
+                    label="Bowler"
+                    selectedName={currentBowlerName}
+                    placeholder="Select bowler"
+                    onPress={() => setShowPlayerSelect("bowler")}
+                  />
+                )}
+              </>
+            )}
             {/* Accordion toggle */}
             <Pressable
               onPress={() => setShowAdvanced((prev) => !prev)}
@@ -364,14 +471,43 @@
               <Text style={styles.submitText}>Add Ball</Text>
             </Pressable>
             <Pressable style={styles.closeButton} onPress={() => {
-                setShowAdvanced(false); // collapse advanced section
-                onClose();               // existing close logic
+                setShowAdvanced(false);
+                onClose();
               }}>
               <Text style={styles.closeText}>Cancel</Text>
             </Pressable>
           </View>
         </View>
         </Wrapper>
+
+        {showPlayerSelect === "batter" && batterPlayers.length > 0 && (
+          <SelectPlayersModal
+            visible={true}
+            onClose={() => setShowPlayerSelect(null)}
+            title="Select batter on strike"
+            players={batterPlayers}
+            selectedIds={currentGame?.currentStrikeId ? [currentGame.currentStrikeId] : []}
+            onSelectionChange={(ids) => {
+              if (ids[0]) setStrike(ids[0]);
+              setShowPlayerSelect(null);
+            }}
+            selectionMode="single"
+          />
+        )}
+        {showPlayerSelect === "bowler" && bowlingTeam && (
+          <SelectPlayersModal
+            visible={true}
+            onClose={() => setShowPlayerSelect(null)}
+            title="Select bowler"
+            players={bowlingTeam.players}
+            selectedIds={currentGame?.currentBowlerId ? [currentGame.currentBowlerId] : []}
+            onSelectionChange={(ids) => {
+              if (ids[0]) setCurrentBowler(ids[0]);
+              setShowPlayerSelect(null);
+            }}
+            selectionMode="single"
+          />
+        )}
       </Modal>
     );
   }
@@ -389,6 +525,8 @@
     optionSelected: { backgroundColor: "#77dd77" },
     optionSelectedNoBallBat: { backgroundColor: "#12c2e9" },
     optionText: { fontSize: 16, fontWeight: "600" },
+    optionSubText: { fontSize: 12, color: "#666", marginTop: 2 },
+    wicketAction: { backgroundColor: "#f0f0f0" },
     submitButton: { marginTop: 10, backgroundColor: "#77dd77", padding: 12, borderRadius: 8, alignItems: "center" },
     submitText: { fontSize: 16, fontWeight: "700", color: "#fff" },
     closeButton: { marginTop: 10, alignItems: "center", marginBottom: 5 },
