@@ -31,7 +31,7 @@ function DrawerContent() {
         headerTitle: () => (
           <View style={styles.logoContainer}>
             <Image
-              source={require("../../../assets/4dot6logo-transparent-old.png")}
+              source={require("../../../assets/4dot6logo-transparent.png")}
               style={styles.logo}
               resizeMode="contain"
             />

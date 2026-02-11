@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useGameStore } from "../../state/gameStore";
-import { useMatchStore } from "../../state/matchStore";
 import type { Team } from "../../state/teamStore";
 import { useTeamStore } from "../../state/teamStore";
 import AddPlayerFooter from "./AddPlayerFooter";
@@ -12,64 +11,40 @@ import SelectPlayersModal from "./SelectPlayersModal";
 
 interface BattersPickerProps {
   battingTeam: Team | null;
+  allTeams: Team[];
   selectedBatters: string[];
   onSelectionChange: (ids: string[]) => void;
 }
 
 export default function BattersPicker({
   battingTeam,
+  allTeams,
   selectedBatters,
   onSelectionChange,
 }: BattersPickerProps) {
   const [showModal, setShowModal] = useState(false);
 
+  const [selectedBattingTeamId, setSelectedBattingTeamId] = useState<
+    string | null
+  >(battingTeam?.id ?? null);
+
   const currentGame = useGameStore((s) => s.currentGame);
-  const selectedBattingTeamId = currentGame?.battingTeamId ?? null;
+  const startGame = useGameStore((s) => s.startGame);
   const addBatter = useGameStore((s) => s.addBatter);
   const setStrike = useGameStore((s) => s.setStrike);
-  const matchEvents = useMatchStore((s) => s.events);
-  const startGame = useGameStore((s) => s.startGame);
 
-  const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
-
-  const legalBallsBowled = matchEvents.reduce(
-    (count, e) => count + (e.countsAsBall ? 1 : 0),
-    0,
-  );
-
-  const handleCloseModal = () => setShowModal(false);
-
-  //const batters = useGameStore((s) => s.currentGame?.batters ?? []);
-
-  const getBatterStats = (playerId: string) => {
-    const eventsForBatter = matchEvents.filter((e) => e.batterId === playerId);
-    const runs = eventsForBatter.reduce((sum, e) => sum + (e.runs ?? 0), 0);
-    const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
-    const strikeRate = balls > 0 ? (runs / balls) * 100 : 0;
-    return { runs, balls, strikeRate: strikeRate.toFixed(1) };
-  };
-
-  const shouldShowChangeBatters = (() => {
-    const stats = selectedBatters.map((id) => getBatterStats(id));
-
-    if (stats.length === 0) return false; // no batters selected
-
-    // Show button if any batter has BOTH runs === 0 AND balls === 0
-    return stats.some((b) => b.runs === 0 && b.balls === 0);
-  })();
-
-  const battingTeamPlayers = battingTeam?.players ?? [];
-
+  // When selectedBatters changes, add missing batters to the game
   useEffect(() => {
     if (!battingTeam || selectedBatters.length === 0) return;
 
     const gameState = useGameStore.getState();
 
-    // Start the game if it doesn't exist yet
+    // Start game if it doesn't exist yet
     if (!gameState.currentGame) {
-      startGame(battingTeam.id, selectedBatters);
+      console.log("🟢 Starting new game");
+      startGame(battingTeam.id, selectedBatters); // 🔹 pass selected batters here
     } else {
-      // Add any selected batters not already in the game
+      // Add all selected batters that aren't already in the game
       selectedBatters.forEach((playerId) => {
         const exists = gameState.currentGame?.batters.find(
           (b) => b.playerId === playerId,
@@ -77,11 +52,11 @@ export default function BattersPicker({
         if (!exists) addBatter(playerId);
       });
 
-      // Ensure a batter is on strike
-      const currentGameState = useGameStore.getState().currentGame;
+      // 🔹 Restore currentStrikeId if missing
+      const currentGame = useGameStore.getState().currentGame;
       if (
-        currentGameState &&
-        !currentGameState.currentStrikeId &&
+        currentGame &&
+        !currentGame.currentStrikeId &&
         selectedBatters.length > 0
       ) {
         setStrike(selectedBatters[0]);
@@ -89,23 +64,88 @@ export default function BattersPicker({
     }
   }, [battingTeam, selectedBatters]);
 
+  const handleCloseModal = () => setShowModal(false);
+
+  const getBatterStats = (playerId: string) => {
+    if (!currentGame) return { runs: 0, balls: 0, strikeRate: "0.0" };
+    const batter = currentGame.batters.find((b) => b.playerId === playerId);
+    if (!batter) return { runs: 0, balls: 0, strikeRate: "0.0" };
+    const strikeRate =
+      batter.balls > 0 ? (batter.runs / batter.balls) * 100 : 0;
+    return {
+      runs: batter.runs,
+      balls: batter.balls,
+      strikeRate: strikeRate.toFixed(1),
+    };
+  };
+
+  const battingTeamObj =
+    currentGame?.teams?.find((t) => t.id === selectedBattingTeamId) ?? null;
+
+  const battingTeamPlayers =
+    currentGame?.teams?.find((t) => t.id === selectedBattingTeamId)?.players ??
+    allTeams.find((t) => t.id === selectedBattingTeamId)?.players ??
+    [];
+
+  const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
+
   return (
     <>
-      {battingTeam && (
+      {selectedBattingTeamId &&
+        currentGame &&
+        (currentGame.events ?? []).filter((e) => e.countsAsBall).length ===
+          0 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ fontWeight: "600" }}>
+              {allTeams.find((t) => t.id === selectedBattingTeamId)?.name}{" "}
+              batting first
+            </Text>
+            <Pressable
+              onPress={() => setSelectedBattingTeamId(null)}
+              style={{ marginLeft: 8 }}
+            >
+              <Text style={{ color: "#eee", fontWeight: "600" }}>(change)</Text>
+            </Pressable>
+          </View>
+        )}
+
+      {/* Choose batting team if not already selected */}
+      {!selectedBattingTeamId && allTeams.length > 0 && (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontWeight: "600", marginBottom: 6 }}>
+            Select Batting Team:
+          </Text>
+          {allTeams.map((team) => (
+            <Pressable
+              key={team.id}
+              onPress={() => handleSelectBattingTeam(team.id)}
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: "#f0f0f0",
+                marginBottom: 6,
+              }}
+            >
+              <Text>{team.name}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* Show Add Batters button and selected batters only after team is chosen */}
+      {selectedBattingTeamId && (
         <>
           <Pressable
             style={styles.addBatters}
             onPress={() => setShowModal(true)}
           >
-            {shouldShowChangeBatters && (
-              <Pressable
-                style={[styles.addBowlerButton, { marginTop: 12 }]}
-                onPress={() => setShowModal(true)}
-              >
-                <Text style={styles.addBowlerButtonText}>Change Batters</Text>
-              </Pressable>
-            )}
-
+            <Text style={styles.addBattersTitle}>Add Batters</Text>
             {selectedBatters.length > 0 ? (
               <View style={styles.selectedBattersContainer}>
                 {battingTeamPlayers
@@ -136,22 +176,14 @@ export default function BattersPicker({
                   })}
               </View>
             ) : (
-              <View>
-                <Text>Select opening batters to start scoring</Text>
-                <Pressable
-                  style={[styles.addBowlerButton, { marginTop: 12 }]}
-                  onPress={() => setShowModal(true)}
-                >
-                  <Text style={styles.addBowlerButtonText}>Add Batters</Text>
-                </Pressable>
-              </View>
+              <Text>Select opening batters to start scoring</Text>
             )}
           </Pressable>
 
           <SelectPlayersModal
             visible={showModal}
             onClose={handleCloseModal}
-            title={`Select Opening Batters for ${battingTeam?.name ?? ""}`}
+            title={`Select Opening Batters for ${battingTeamObj?.name ?? ""}`}
             players={battingTeamPlayers}
             selectedIds={selectedBatters}
             onSelectionChange={onSelectionChange}
@@ -159,9 +191,10 @@ export default function BattersPicker({
             maxSelection={2}
             renderFooter={() => (
               <AddPlayerFooter
-                teamId={selectedBattingTeamId!}
+                teamId={selectedBattingTeamId}
                 onAdded={(name) => {
-                  addPlayerToTeam(selectedBattingTeamId!, name);
+                  if (!selectedBattingTeamId) return;
+                  addPlayerToTeam(selectedBattingTeamId, name);
                 }}
               />
             )}
@@ -226,12 +259,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0f7ff",
     borderRadius: 8,
   },
-  addBowlerButton: {
-    marginBottom: 12,
-    paddingVertical: 10,
-    backgroundColor: "#12c2e9",
+  debugBox: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "#f8fafc",
     borderRadius: 8,
-    alignItems: "center",
   },
-  addBowlerButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  debugTitle: { fontSize: 12, fontWeight: "700" },
+  debugText: { fontSize: 12 },
 });

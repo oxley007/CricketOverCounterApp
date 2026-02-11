@@ -3,16 +3,19 @@
 // Callers are responsible for fetching/preparing the player list and optional footer UI.
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Modal,
-  View,
-  Text,
-  ScrollView,
   Pressable,
-  StyleSheet,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
+
+import { useGameStore } from "../../state/gameStore";
+const { updateCurrentGame } = useGameStore.getState();
 
 export type PlayerOption = { id: string; name: string };
 
@@ -50,10 +53,11 @@ export default function SelectPlayersModal({
   const [selectedIds, setSelectedIds] = useState<string[]>(parentSelectedIds);
 
   useEffect(() => {
+    // Reset selection whenever the modal opens OR the players change
     if (visible) {
       setSelectedIds(parentSelectedIds);
     }
-  }, [visible, parentSelectedIds]);
+  }, [visible, parentSelectedIds, players]);
 
   const togglePlayer = (playerId: string) => {
     setSelectedIds((prev) => {
@@ -68,7 +72,7 @@ export default function SelectPlayersModal({
       return next;
     });
   };
-  useEffect(() => onSelectionChange(selectedIds), [selectedIds]);
+  //useEffect(() => onSelectionChange(selectedIds), [selectedIds]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -97,14 +101,36 @@ export default function SelectPlayersModal({
               })
             ) : (
               <View style={styles.noPlayers}>
-                <Text style={styles.noPlayersText}>No players in this list.</Text>
+                <Text style={styles.noPlayersText}>
+                  No players in this list.
+                </Text>
               </View>
             )}
           </ScrollView>
 
           {renderFooter?.()}
 
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable
+            onPress={() => {
+              // Commit selection first
+              if (selectedIds.length > 0) {
+                const currentGame = useGameStore.getState().currentGame;
+                if (currentGame) {
+                  updateCurrentGame({
+                    currentBowlerId: selectedIds[0],
+                    explicitBowlerSelection: true,
+                  });
+                }
+              }
+
+              // Notify parent if needed
+              onSelectionChange(selectedIds);
+
+              // Close modal
+              onClose();
+            }}
+            style={styles.closeButton}
+          >
             <Text style={styles.closeButtonText}>Close</Text>
           </Pressable>
         </View>
