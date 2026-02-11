@@ -4,29 +4,39 @@
 "use client";
 
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useTeamStore } from "../../state/teamStore";
 
 type AddPlayerFooterProps = {
   teamId: string;
-  onAdded?: () => void;
+  onAdded?: (name: string) => void;
 };
 
-export default function AddPlayerFooter({ teamId, onAdded }: AddPlayerFooterProps) {
+export default function AddPlayerFooter({
+  teamId,
+  onAdded,
+}: AddPlayerFooterProps) {
   const [name, setName] = useState("");
   const addPlayer = useTeamStore((s) => s.addPlayer);
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    const player = addPlayer(teamId, name.trim());
-    if (player) {
-      setName("");
-      onAdded?.();
-    }
+    onAdded?.(name.trim()); // call parent callback instead of team store
+    setName("");
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <Text style={styles.title}>Add Players</Text>
       <View style={styles.row}>
         <TextInput

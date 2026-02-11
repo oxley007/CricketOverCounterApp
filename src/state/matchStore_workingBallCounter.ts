@@ -146,7 +146,6 @@ export const matchStoreRef = create<MatchState>()(
       undoLastEvent: () =>
         set((state) => {
           if (state.events.length === 0) return state;
-
           const lastEvent = state.events[state.events.length - 1];
           const newEvents = state.events.slice(0, -1);
           const {
@@ -154,59 +153,32 @@ export const matchStoreRef = create<MatchState>()(
             updateBowlerStats,
             currentGame,
             setStrike,
-            setCurrentBowler,
           } = useGameStore.getState();
 
-          if (!currentGame) return { ...state, events: newEvents };
-
-          // Undo batter stats
-          if (lastEvent.batterId && lastEvent.type === "ball") {
-            updateBatterStats(
-              lastEvent.batterId,
-              -lastEvent.runBreakdown.bat,
-              lastEvent.countsAsBall ? -1 : 0,
-            );
-            setStrike(lastEvent.batterId);
-          }
-
-          // Undo bowler stats
-          if (lastEvent.bowlerId) {
-            const extraType = lastEvent.extraType as
-              | "wide"
-              | "noBall"
-              | undefined;
-            if (lastEvent.type === "ball") {
+          if (lastEvent.type === "ball") {
+            if (lastEvent.batterId && currentGame) {
+              updateBatterStats(
+                lastEvent.batterId,
+                -lastEvent.runBreakdown.bat,
+                lastEvent.countsAsBall ? -1 : 0,
+              );
+              setStrike(lastEvent.batterId);
+            }
+            if (lastEvent.bowlerId) {
               updateBowlerStats(
                 lastEvent.bowlerId,
                 -lastEvent.runs,
                 lastEvent.countsAsBall ? -1 : 0,
                 0,
-                extraType,
-              );
-            } else if (lastEvent.type === "wicket") {
-              updateBowlerStats(
-                lastEvent.bowlerId,
-                -lastEvent.runs,
-                lastEvent.countsAsBall ? -1 : 0,
-                -1,
-                extraType,
               );
             }
-
-            // If this was the last ball of an over and ballsThisOver is 0, restore bowler
-            const ballsThisOver =
-              lastEvent.countsAsBall && currentGame.ballsThisOver === 0
-                ? LEGAL_BALLS - 1
-                : currentGame.ballsThisOver - (lastEvent.countsAsBall ? 1 : 0);
-
-            setCurrentBowler(lastEvent.bowlerId);
-
-            // Update ballsThisOver
-            set((s) => ({
-              currentGame: s.currentGame
-                ? { ...s.currentGame, ballsThisOver }
-                : s.currentGame,
-            }));
+          } else if (lastEvent.type === "wicket" && lastEvent.bowlerId) {
+            updateBowlerStats(
+              lastEvent.bowlerId,
+              -lastEvent.runs,
+              lastEvent.countsAsBall ? -1 : 0,
+              -1,
+            );
           }
 
           return { ...state, events: newEvents };
