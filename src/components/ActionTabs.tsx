@@ -84,6 +84,8 @@ export default function ActionTabs() {
           runBreakdown: { bat, extras },
         });
 
+        console.log("All events after add:", useMatchStore.getState().events);
+
         // 2️⃣ Update batter stats
         updateBatterStats(
           currentGame.currentStrikeId,

@@ -1,6 +1,20 @@
+import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useGameStore } from "./gameStore";
+
+const secureStore = {
+  getItem: async (name: string) => {
+    const result = await SecureStore.getItemAsync(name);
+    return result;
+  },
+  setItem: async (name: string, value: string) => {
+    await SecureStore.setItemAsync(name, value);
+  },
+  removeItem: async (name: string) => {
+    await SecureStore.deleteItemAsync(name);
+  },
+};
 
 /* =========================
    Store
@@ -256,18 +270,16 @@ export const matchStoreRef = create<MatchState>()(
     {
       name: "cricket-match-events",
       storage: createJSONStorage(() => secureStore),
-
-      partialize: (state) =>
-        ({
-          events: state.events ?? [],
-          baseRuns: state.baseRuns,
-          wideIsExtraBall: state.wideIsExtraBall,
-          wicketsAsNegativeRuns: state.wicketsAsNegativeRuns,
-          wicketPenaltyRuns: state.wicketPenaltyRuns,
-          ballReminderEnabled: state.ballReminderEnabled,
-          ballReminderThresholdPercent: state.ballReminderThresholdPercent,
-          proUnlocked: state.proUnlocked,
-        }) as unknown as MatchState,
+      partialize: (state) => ({
+        events: state.events ?? [],
+        baseRuns: state.baseRuns,
+        wideIsExtraBall: state.wideIsExtraBall,
+        wicketsAsNegativeRuns: state.wicketsAsNegativeRuns,
+        wicketPenaltyRuns: state.wicketPenaltyRuns,
+        ballReminderEnabled: state.ballReminderEnabled,
+        ballReminderThresholdPercent: state.ballReminderThresholdPercent,
+        proUnlocked: state.proUnlocked,
+      }),
     },
   ),
 );

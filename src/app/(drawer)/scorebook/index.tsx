@@ -43,7 +43,6 @@ import { useBallReminder } from "../../../hooks/useBallReminder";
 export default function ScorebookIndex() {
   const {
     isSetupComplete,
-    currentGame,
     startGame,
     addBatter,
     addBowler,
@@ -62,16 +61,31 @@ export default function ScorebookIndex() {
   const { teams, loadTeams } = useTeamStore();
   const gameConfig = useGameStore((s) => s.gameConfig);
 
+  const hasHydrated = useGameStore((s) => s.hasHydrated);
+  const currentGame = useGameStore((s) => s.currentGame);
+
+  const battingTeamId = currentGame?.battingTeamId ?? null;
+  const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
+
+  console.log("render battingTeamId", battingTeamId);
+
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [battingTeamId, setBattingTeamId] = useState<string | null>(null);
-  const [bowlingTeamId, setBowlingTeamId] = useState<string | null>(null);
+  //const [battingTeamId, setBattingTeamId] = useState<string | null>(null);
+  //const [bowlingTeamId, setBowlingTeamId] = useState<string | null>(null);
+
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
 
+  useKeepAwake();
+
+  /*
+  if (!hasHydrated) {
+    return null; // or spinner
+  }
+    */
+
   const battingTeam = teams.find((t) => t.id === battingTeamId) ?? null;
   const bowlingTeam = teams.find((t) => t.id === bowlingTeamId) ?? null;
-
-  useKeepAwake();
 
   // Load teams
   useEffect(() => {
@@ -154,13 +168,6 @@ export default function ScorebookIndex() {
     setSelectedBowlerId(null);
   }, []);
 
-  // Handle batting team selection & auto-assign bowling team
-  const handleSelectBattingTeam = (teamId: string) => {
-    setBattingTeamId(teamId);
-    const otherTeam = teams.find((t) => t.id !== teamId);
-    setBowlingTeamId(otherTeam?.id ?? null);
-  };
-
   const playingTeams = useMemo(() => {
     if (!gameConfig) return [];
 
@@ -206,16 +213,29 @@ export default function ScorebookIndex() {
 
         <View style={styles.divider} />
 
+        {/*
         <BattingTeamSelector
           allTeams={playingTeams}
           selectedBattingTeamId={battingTeamId}
           legalBallsBowled={legalBallsBowled}
           onSelectTeam={(teamId) => {
             const otherTeam = playingTeams.find((t) => t.id !== teamId);
-            setBattingTeamId(teamId);
-            setBowlingTeamId(otherTeam?.id ?? null);
+            if (otherTeam?.id) {
+              startGame(teamId, otherTeam.id, []);
+            }
+          }}
+          onReset={handleReset}
+        />
+        */}
 
-            if (otherTeam?.id) startGame(teamId, otherTeam.id, []);
+        <BattingTeamSelector
+          allTeams={playingTeams}
+          selectedBattingTeamId={battingTeamId}
+          bowlingTeamId={bowlingTeamId}
+          legalBallsBowled={legalBallsBowled}
+          onSelectTeam={(battingId, bowlingId) => {
+            console.log("START GAME", battingId, bowlingId);
+            startGame(battingId, bowlingId, []);
           }}
           onReset={handleReset}
         />

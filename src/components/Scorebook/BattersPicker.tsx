@@ -60,34 +60,50 @@ export default function BattersPicker({
 
   const battingTeamPlayers = battingTeam?.players ?? [];
 
+  const battersIds = currentGame?.batters.map((b) => b.playerId) ?? [];
+
   useEffect(() => {
-    if (!battingTeam || selectedBatters.length === 0) return;
+    if (!battingTeam) return;
 
     const gameState = useGameStore.getState();
 
     // Start the game if it doesn't exist yet
     if (!gameState.currentGame) {
-      startGame(battingTeam.id, selectedBatters);
-    } else {
-      // Add any selected batters not already in the game
-      selectedBatters.forEach((playerId) => {
-        const exists = gameState.currentGame?.batters.find(
-          (b) => b.playerId === playerId,
-        );
-        if (!exists) addBatter(playerId);
-      });
+      if (selectedBatters.length > 0)
+        startGame(battingTeam.id, selectedBatters);
+      return;
+    }
 
-      // Ensure a batter is on strike
-      const currentGameState = useGameStore.getState().currentGame;
-      if (
-        currentGameState &&
-        !currentGameState.currentStrikeId &&
-        selectedBatters.length > 0
-      ) {
-        setStrike(selectedBatters[0]);
+    const currentBatters = gameState.currentGame.batters ?? [];
+
+    // 1️⃣ Remove batters not in selectedBatters
+    const filteredBatters = currentBatters.filter((b) =>
+      selectedBatters.includes(b.playerId),
+    );
+    if (filteredBatters.length !== currentBatters.length) {
+      gameState.updateCurrentGame({
+        ...gameState.currentGame,
+        batters: filteredBatters,
+      });
+    }
+
+    // 2️⃣ Add any new selected batters not already in the game
+    selectedBatters.forEach((playerId) => {
+      const exists = filteredBatters.find((b) => b.playerId === playerId);
+      if (!exists) addBatter(playerId);
+    });
+
+    // 3️⃣ Ensure a batter is on strike
+    const currentGameState = useGameStore.getState().currentGame;
+
+    if (currentGameState) {
+      const desiredStrike = selectedBatters[0] ?? null;
+
+      if (desiredStrike && currentGameState.currentStrikeId !== desiredStrike) {
+        setStrike(desiredStrike);
       }
     }
-  }, [battingTeam, selectedBatters]);
+  }, [battingTeam?.id, selectedBatters.join(",")]);
 
   return (
     <>
@@ -109,7 +125,7 @@ export default function BattersPicker({
             {selectedBatters.length > 0 ? (
               <View style={styles.selectedBattersContainer}>
                 {battingTeamPlayers
-                  .filter((p) => selectedBatters.includes(p.id))
+                  .filter((p) => battersIds.includes(p.id))
                   .map((p) => {
                     const stats = getBatterStats(p.id);
                     const onStrike = currentGame?.currentStrikeId === p.id;
