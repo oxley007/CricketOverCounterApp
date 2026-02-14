@@ -33,6 +33,25 @@ export type CurrentGame = {
   currentBowlerId?: string;
   lastBowlerId?: string;
   explicitBowlerSelection?: boolean;
+  wickets: WicketEvent[];
+  ballCount: number;
+};
+
+export type WicketEvent = {
+  batterId: string; // who got out
+  bowlerId?: string; // bowler who took the wicket
+  assistId?: string | null; // fielder who assisted (catch, stumping), null if none
+  kind:
+    | "bowled"
+    | "caught"
+    | "lbw"
+    | "stumped"
+    | "runOut"
+    | "hitWicket"
+    | "retired"
+    | "partnership";
+  runsConceded?: number; // optional, e.g., negative runs for scoring mode
+  ballNumber: number; // sequential ball in the game
 };
 
 interface GameConfig {
@@ -138,6 +157,8 @@ export const useGameStore = create<GameState>()(
             ballsThisOver: 0,
             bowlers: [],
             currentBowlerId: undefined,
+            wickets: [], // ✅ initialize empty
+            ballCount: 0,
           },
         }),
 
@@ -282,7 +303,12 @@ export const useGameStore = create<GameState>()(
 
           // Update balls in the over
           let ballsThisOver = game.ballsThisOver;
-          if (params.countsAsBall) ballsThisOver += 1;
+          let ballCount = game.ballCount;
+
+          if (params.countsAsBall) {
+            ballsThisOver += 1;
+            ballCount += 1; // ✅ increment overall ball count
+          }
 
           const endsOver = params.countsAsBall && ballsThisOver >= LEGAL_BALLS;
 
@@ -345,6 +371,39 @@ export const useGameStore = create<GameState>()(
 
               // ✅ Save the bowler who just finished the over
               lastBowlerId: endsOver ? game.currentBowlerId : game.lastBowlerId,
+              ballCount,
+            },
+          };
+        }),
+
+      addWicket: (
+        batterId: string,
+        bowlerId?: string,
+        assistId?: string | null,
+        kind: WicketEvent["kind"] = "bowled",
+        runsConceded?: number,
+      ) =>
+        set((state) => {
+          if (!state.currentGame) return state;
+
+          const ballNumber = state.currentGame.ballCount + 1;
+          const ballCount = ballNumber;
+
+          return {
+            currentGame: {
+              ...state.currentGame,
+              wickets: [
+                ...(state.currentGame.wickets || []), // ✅ fallback here
+                {
+                  batterId,
+                  bowlerId,
+                  assistId: assistId ?? null,
+                  kind,
+                  runsConceded,
+                  ballNumber,
+                },
+              ],
+              ballCount,
             },
           };
         }),

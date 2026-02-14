@@ -33,35 +33,41 @@ export default function BowlerPicker({
   const addBowler = useGameStore((s) => s.addBowler);
 
   const events = useMatchStore((s) => s.events);
-  const ballCount = useMatchStore((s) => s.getBallCount());
+
+  const ballCount = events.reduce(
+    (count, e) => count + (e.countsAsBall ? 1 : 0),
+    0,
+  );
 
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
 
-  useEffect(() => {
-    if (!currentBowler) return;
-
-    // If the over is complete (6 legal balls)
-    if (ballCount > 0 && ballCount % 6 === 0) {
-      // Save current bowler as last bowler
-      setLastBowlerStats({
-        name: currentBowler.name,
-        stats: getBowlerStats(currentBowler.id),
-      });
-
-      // Remove current bowler so next one can be selected
-      onSelectionChange(null);
-    }
-  }, [ballCount]);
-
   const bowlingTeamPlayers = bowlingTeam?.players ?? [];
-
-  const ballsInCurrentOver = ballCount % 6;
-  const isOverComplete = ballsInCurrentOver === 0 && ballCount > 0;
 
   // Find currently selected bowler
   const currentBowler = bowlingTeamPlayers.find(
     (p) => p.id === selectedBowlerId,
   );
+
+  useEffect(() => {
+    // only run if there is a current bowler
+    if (!currentBowler) return;
+
+    // Check if over is complete
+    if (ballCount > 0 && ballCount % 6 === 0) {
+      // Capture last bowler info
+      setLastBowlerStats({
+        name: currentBowler.name,
+        stats: getBowlerStats(currentBowler.id),
+      });
+
+      // Reset selection so next bowler can be chosen
+      onSelectionChange(null);
+    }
+  }, [ballCount, currentBowler]);
+
+  const ballsInCurrentOver = ballCount % 6;
+  const isOverComplete = ballsInCurrentOver === 0 && ballCount > 0;
+
   const player = currentBowler;
 
   // ======= FUNCTIONS =======
