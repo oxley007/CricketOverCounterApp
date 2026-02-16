@@ -49,19 +49,18 @@ export default function BowlerPicker({
   );
 
   useEffect(() => {
-    // only run if there is a current bowler
+    // Only update lastBowlerStats when the bowler actually changes
     if (!currentBowler) return;
 
-    // Check if over is complete
-    if (ballCount > 0 && ballCount % 6 === 0) {
-      // Capture last bowler info
+    const lastBallCount = ballCount - (ballCount % 6);
+    const overJustEnded = lastBallCount > 0 && ballCount % 6 === 0;
+
+    if (overJustEnded) {
+      // Capture last bowler info without resetting selection
       setLastBowlerStats({
         name: currentBowler.name,
         stats: getBowlerStats(currentBowler.id),
       });
-
-      // Reset selection so next bowler can be chosen
-      onSelectionChange(null);
     }
   }, [ballCount, currentBowler]);
 
@@ -112,15 +111,15 @@ export default function BowlerPicker({
   };
 
   const handleSelectBowler = (playerId: string) => {
-    // Before changing the current bowler, store the old one
-    if (currentBowler) {
+    // Store last bowler info only if changing bowler
+    if (currentBowler && currentBowler.id !== playerId) {
       setLastBowlerStats({
         name: currentBowler.name,
         stats: getBowlerStats(currentBowler.id),
       });
     }
 
-    onSelectionChange(playerId); // Update parent state
+    onSelectionChange(playerId); // Update parent state immediately
     setShowModal(false);
   };
 

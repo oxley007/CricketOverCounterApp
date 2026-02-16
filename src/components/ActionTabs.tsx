@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
+import { buildCurrentOverCircles } from "../utils/currentOverUtils"; // <- import here
 import RunModal from "./RunModal/RunModal";
 
 const { width } = Dimensions.get("window");
@@ -39,26 +40,37 @@ export default function ActionTabs() {
           applyStrikeChange,
         } = useGameStore.getState();
 
-        const lastBowlerId = currentGame?.lastBowlerId;
+        const events = useMatchStore.getState().events;
+        const wideIsExtraBall = useMatchStore.getState().wideIsExtraBall;
 
-        console.log(lastBowlerId, " what i lastBowlerId");
-
-        // 🛑 Log for debugging
-        console.log(
-          "ActionTabs – currentBowlerId:",
-          currentGame?.currentBowlerId,
-          "lastBowlerId:",
-          lastBowlerId,
+        // Actual balls bowled this over from events
+        const { ballsThisOver: actualBallsThisOver } = buildCurrentOverCircles(
+          events,
+          { wideIsExtraBall },
         );
 
-        // 🛑 Guard – must have bowler
+        const lastBowlerId = currentGame?.lastBowlerId;
         const currentBowlerId = currentGame?.currentBowlerId;
 
-        // 🛑 Guard – must have a valid new bowler
+        // 🔹 LOG for debugging
+        console.log("=== DOT BALL LOG ===");
+        console.log(
+          "ActionTabs ballsThisOver:",
+          currentGame?.ballsBowledThisOver ?? 0,
+        );
+        console.log("Actual ballsThisOver from events:", actualBallsThisOver);
+        console.log("currentBowlerId:", currentBowlerId);
+        console.log("lastBowlerId:", lastBowlerId);
+        console.log("===================");
+
+        // 🛑 Guard – must have bowler
         if (!currentBowlerId) {
           Alert.alert("Please add a bowler to continue");
           return;
-        } else if (currentBowlerId === lastBowlerId) {
+        }
+
+        // 🛑 Guard – only block if over complete
+        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
           Alert.alert("Please add the next bowler to continue");
           return;
         }
@@ -77,14 +89,12 @@ export default function ActionTabs() {
         addEvent({
           type: "ball",
           batterId: currentGame.currentStrikeId,
-          bowlerId: currentGame.currentBowlerId,
+          bowlerId: currentBowlerId,
           runs: 0,
           isExtra: false,
           countsAsBall,
           runBreakdown: { bat, extras },
         });
-
-        console.log("All events after add:", useMatchStore.getState().events);
 
         // 2️⃣ Update batter stats
         updateBatterStats(
@@ -95,14 +105,8 @@ export default function ActionTabs() {
 
         // 3️⃣ Update bowler stats
         updateBowlerStats(
-          currentGame.currentBowlerId,
-          {
-            overs: 1,
-            maidens: 0,
-            runs: 0,
-            wickets: 0,
-            extras: 0,
-          },
+          currentBowlerId,
+          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
           countsAsBall,
         );
 
@@ -117,18 +121,36 @@ export default function ActionTabs() {
       label: "Scoring",
       onPress: () => {
         const { currentGame } = useGameStore.getState();
+        const events = useMatchStore.getState().events;
+        const wideIsExtraBall = useMatchStore.getState().wideIsExtraBall;
+
+        // Actual balls bowled this over from events
+        const { ballsThisOver: actualBallsThisOver } = buildCurrentOverCircles(
+          events,
+          { wideIsExtraBall },
+        );
 
         const currentBowlerId = currentGame?.currentBowlerId;
         const lastBowlerId = currentGame?.lastBowlerId;
+        const ballsThisOverFromGame = currentGame?.ballsBowledThisOver ?? 0;
 
-        // 🛑 Guard – must have a bowler selected
+        // 🔹 LOG for debugging
+        console.log("=== BALLS LOG ===");
+        console.log("ActionTabs ballsThisOver:", ballsThisOverFromGame);
+        console.log("Actual ballsThisOver from events:", actualBallsThisOver);
+        console.log("currentBowlerId:", currentBowlerId);
+        console.log("lastBowlerId:", lastBowlerId);
+        console.log("=================");
+
+        // Guard – must have a bowler
         if (!currentBowlerId) {
           Alert.alert("Please add a bowler to continue");
           return;
         }
 
-        // 🛑 Guard – must be a new bowler
-        if (currentBowlerId === lastBowlerId) {
+        // Guard – only block if over complete
+        // ✅ Use actual balls from events instead of tracked ballsThisOver
+        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
           Alert.alert("Please add the next bowler to continue");
           return;
         }
