@@ -128,12 +128,25 @@ export const matchStoreRef = create<MatchState>()(
           useGameStore.getState();
 
         // ✅ Update batter if exists
+        // ✅ Update batter + batting entry
         if (newEvent.batterId && currentGame && newEvent.type === "ball") {
           updateBatterStats(
             newEvent.batterId,
             newEvent.runBreakdown.bat,
             newEvent.countsAsBall ? 1 : 0,
           );
+
+          const { currentEntryId, updateBattingEntryStats } =
+            useGameStore.getState();
+
+          if (currentEntryId) {
+            updateBattingEntryStats(
+              currentEntryId,
+              newEvent.runBreakdown.bat,
+              newEvent.countsAsBall ? 1 : 0,
+            );
+          }
+
           setStrike(newEvent.batterId);
         }
 
@@ -174,12 +187,25 @@ export const matchStoreRef = create<MatchState>()(
           if (!currentGame) return { ...state, events: newEvents };
 
           // Undo batter stats
+          // Undo batter stats + batting entry
           if (lastEvent.batterId && lastEvent.type === "ball") {
             updateBatterStats(
               lastEvent.batterId,
               -lastEvent.runBreakdown.bat,
               lastEvent.countsAsBall ? -1 : 0,
             );
+
+            const { currentEntryId, updateBattingEntryStats } =
+              useGameStore.getState();
+
+            if (currentEntryId) {
+              updateBattingEntryStats(
+                currentEntryId,
+                -lastEvent.runBreakdown.bat,
+                lastEvent.countsAsBall ? -1 : 0,
+              );
+            }
+
             setStrike(lastEvent.batterId);
           }
 

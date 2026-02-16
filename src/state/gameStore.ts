@@ -2,6 +2,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { buildCurrentOverCircles } from "../utils/currentOverUtils";
+import { useMatchStore } from "./matchStore";
 
 export const LEGAL_BALLS = 6;
 
@@ -20,9 +22,34 @@ export type BowlerStats = {
   noBalls: number;
 };
 
+export type BattingDismissal = {
+  kind:
+    | "bowled"
+    | "caught"
+    | "lbw"
+    | "stumped"
+    | "runOut"
+    | "hitWicket"
+    | "retired"
+    | "notOut";
+  bowlerId?: string;
+};
+
+export type BattingEntry = {
+  entryId: string;
+  playerId: string;
+  inningsNumber: number; // allows batting twice
+  battingOrder: number;
+  runs: number;
+  balls: number;
+  dismissal?: BattingDismissal;
+};
+
 export type CurrentGame = {
   battingTeamId: string;
   batters: BatterStats[];
+  battingEntries: BattingEntry[];
+  currentEntryId?: string;
   totalRuns: number;
   totalBalls: number;
   currentStrikeId?: string;
@@ -109,6 +136,7 @@ interface GameState {
 
   resetGame: () => void;
   resetBatters: () => void;
+  setCurrentBowlerExplicit: (playerId: string) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -142,31 +170,60 @@ export const useGameStore = create<GameState>()(
         }),
 
       startGame: (battingTeamId, bowlingTeamId, openingBatters = []) =>
-        set({
-          currentGame: {
-            battingTeamId,
-            bowlingTeamId, // ✅ persist this
-            batters: openingBatters.map((id) => ({
-              playerId: id,
-              runs: 0,
-              balls: 0,
-            })),
-            totalRuns: 0,
-            totalBalls: 0,
-            currentStrikeId: openingBatters[0],
-            ballsThisOver: 0,
-            bowlers: [],
-            currentBowlerId: undefined,
-            wickets: [], // ✅ initialize empty
-            ballCount: 0,
-          },
+        set(() => {
+          // Create scorecard entries for opening batters
+          const battingEntries = openingBatters.map((id, index) => ({
+            entryId: `${id}-${Date.now()}-${index}`,
+            playerId: id,
+            inningsNumber: 1,
+            battingOrder: index + 1,
+            runs: 0,
+            balls: 0,
+          }));
+
+          return {
+            currentGame: {
+              battingTeamId,
+              bowlingTeamId,
+
+              // ✅ keep your existing live scoring structure
+              batters: openingBatters.map((id) => ({
+                playerId: id,
+                runs: 0,
+                balls: 0,
+              })),
+
+              // ✅ NEW scorecard structure
+              battingEntries,
+              currentEntryId: battingEntries[0]?.entryId,
+
+              totalRuns: 0,
+              totalBalls: 0,
+              currentStrikeId: openingBatters[0],
+              ballsThisOver: 0,
+
+              bowlers: [],
+              currentBowlerId: undefined,
+              wickets: [],
+              ballCount: 0,
+            },
+          };
         }),
 
-      addBatter: (playerId) =>
+      addBatter: (playerId: string) =>
         set((state) => {
           if (!state.currentGame) return state;
           if (state.currentGame.batters.some((b) => b.playerId === playerId))
             return state;
+
+          const battingEntry = {
+            entryId: `${playerId}-${Date.now()}`,
+            playerId,
+            inningsNumber: 1,
+            battingOrder: state.currentGame.battingEntries.length + 1,
+            runs: 0,
+            balls: 0,
+          };
 
           return {
             currentGame: {
@@ -174,6 +231,10 @@ export const useGameStore = create<GameState>()(
               batters: [
                 ...state.currentGame.batters,
                 { playerId, runs: 0, balls: 0 },
+              ],
+              battingEntries: [
+                ...state.currentGame.battingEntries,
+                battingEntry,
               ],
               currentStrikeId: state.currentGame.currentStrikeId ?? playerId,
             },
@@ -219,6 +280,19 @@ export const useGameStore = create<GameState>()(
                 currentGame: {
                   ...state.currentGame,
                   currentBowlerId: playerId,
+                },
+              }
+            : state,
+        ),
+
+      setCurrentBowlerExplicit: (playerId: string) =>
+        set((state) =>
+          state.currentGame
+            ? {
+                currentGame: {
+                  ...state.currentGame,
+                  currentBowlerId: playerId,
+                  explicitBowlerSelection: true,
                 },
               }
             : state,
@@ -301,16 +375,30 @@ export const useGameStore = create<GameState>()(
           const game = state.currentGame;
           if (!game || !game.currentStrikeId) return state;
 
-          // Update balls in the over
-          let ballsThisOver = game.ballsThisOver;
+          // 🔹 fetch events from matchStore
+          const events = useMatchStore.getState().events;
+
+          // Get actual balls bowled this over from events
+          const { ballsThisOver: ballsThisOverFromEvents } =
+            buildCurrentOverCircles(events || [], { wideIsExtraBall: true });
+
+          // ✅ Increment for the current delivery only if it counts as a ball
+          let ballsThisOver = ballsThisOverFromEvents;
           let ballCount = game.ballCount;
 
+          /*
           if (params.countsAsBall) {
-            ballsThisOver += 1;
-            ballCount += 1; // ✅ increment overall ball count
-          }
+            ballsThisOver += 1; // current delivery
+            ballCount += 1; // total balls in game
+          }*/
 
-          const endsOver = params.countsAsBall && ballsThisOver >= LEGAL_BALLS;
+          // Check if over ends
+          const endsOver = ballsThisOver >= LEGAL_BALLS;
+
+          // ----- LOGGING -----
+          console.log("ballsThisOverFromEvents:", ballsThisOverFromEvents);
+          console.log("ballsThisOver after increment:", ballsThisOver);
+          console.log("ballCount total:", ballCount);
 
           if (endsOver) {
             console.log(
@@ -363,6 +451,25 @@ export const useGameStore = create<GameState>()(
               game.batters[(idx + 1) % game.batters.length].playerId;
           }
 
+          // ----- LOGGING -----
+          console.log("=== APPLY STRIKE CHANGE ===");
+          console.log("countsAsBall:", params.countsAsBall);
+          console.log(
+            "runs:",
+            params.runs,
+            "extras:",
+            params.extras,
+            "extraType:",
+            params.extraType,
+          );
+          console.log("ballsThisOver (before update):", game.ballsThisOver);
+          console.log("ballsThisOver (after update):", ballsThisOver);
+          console.log("ballCount (total):", ballCount);
+          console.log("endsOver:", endsOver);
+          console.log("shouldSwap:", shouldSwap);
+          console.log("currentStrikeId after change:", currentStrikeId);
+          console.log("==========================");
+
           return {
             currentGame: {
               ...game,
@@ -404,6 +511,70 @@ export const useGameStore = create<GameState>()(
                 },
               ],
               ballCount,
+            },
+          };
+        }),
+
+      addBattingEntry: (playerId: string) =>
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          const inningsCount =
+            game.battingEntries.filter((e) => e.playerId === playerId).length +
+            1;
+
+          const entry = {
+            entryId: `${playerId}-${Date.now()}`,
+            playerId,
+            inningsNumber: inningsCount,
+            battingOrder: game.battingEntries.length + 1,
+            runs: 0,
+            balls: 0,
+          };
+
+          return {
+            currentGame: {
+              ...game,
+              battingEntries: [...game.battingEntries, entry],
+              currentEntryId: entry.entryId,
+            },
+          };
+        }),
+
+      updateBattingEntryStats: (entryId: string, runs: number, balls = 1) =>
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          const battingEntries = game.battingEntries.map((e) =>
+            e.entryId === entryId
+              ? { ...e, runs: e.runs + runs, balls: e.balls + balls }
+              : e,
+          );
+
+          return {
+            currentGame: {
+              ...game,
+              battingEntries,
+            },
+          };
+        }),
+
+      dismissBattingEntry: (entryId: string, dismissal: BattingDismissal) =>
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          const battingEntries = game.battingEntries.map((e) =>
+            e.entryId === entryId ? { ...e, dismissal } : e,
+          );
+
+          return {
+            currentGame: {
+              ...game,
+              battingEntries,
+              currentEntryId: undefined,
             },
           };
         }),

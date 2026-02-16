@@ -14,8 +14,7 @@ import {
   View,
 } from "react-native";
 
-import { useGameStore } from "../../state/gameStore";
-const { updateCurrentGame } = useGameStore.getState();
+import Scorecard from "./Scorecard";
 
 export type PlayerOption = { id: string; name: string };
 
@@ -78,6 +77,7 @@ export default function SelectPlayersModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
+          <Scorecard />
           <Text style={styles.title}>{title}</Text>
 
           <ScrollView style={styles.scroll}>
@@ -112,20 +112,8 @@ export default function SelectPlayersModal({
 
           <Pressable
             onPress={() => {
-              // Commit selection first
-              if (selectedIds.length > 0) {
-                const currentGame = useGameStore.getState().currentGame;
-                if (currentGame) {
-                  updateCurrentGame({
-                    currentBowlerId: selectedIds[0],
-                    explicitBowlerSelection: true,
-                  });
-                }
-              }
-
               // Notify parent if needed
               onSelectionChange(selectedIds);
-
               // Close modal
               onClose();
             }}

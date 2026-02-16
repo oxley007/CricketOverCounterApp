@@ -53,6 +53,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
   const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
   const applyStrikeChange = useGameStore((s) => s.applyStrikeChange);
   const updateBowlerStats = useGameStore((s) => s.updateBowlerStats);
+  const addBatter = useGameStore((s) => s.addBatter);
   const teams = useTeamStore((s) => s.teams);
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [dismissedBatterId, setDismissedBatterId] = useState<string | null>(
@@ -470,10 +471,10 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
       batters: updatedBatters,
     });
 
-    // 3️⃣ Update local selectedBatters state
+    // 3️⃣ Pre-fill selectedBatters for the next batter modal
     setSelectedBatters(updatedBatters.map((b) => b.playerId));
 
-    // 4️⃣ Open player selection modal
+    // 4️⃣ Open player selection modal for the next batter
     setShowPlayerSelect("batter");
   };
 
@@ -723,18 +724,23 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
             players={battingTeam.players}
             selectedIds={selectedBatters}
             onSelectionChange={(ids) => {
-              // Update currentGame directly
-              const gameState = useGameStore.getState().currentGame;
-              if (!gameState) return;
+              if (ids.length === 0) return;
 
-              const newBatters = ids.map((id) => ({ playerId: id }));
-              useGameStore.getState().updateCurrentGame({
-                ...gameState,
-                batters: newBatters,
+              const currentBatters =
+                currentGame?.batters.map((b) => b.playerId) ?? [];
+
+              ids.forEach((id) => {
+                if (!currentBatters.includes(id)) {
+                  addBatter(id);
+                }
               });
 
-              if (ids.length > 0) setStrike(ids[0]);
-              setShowPlayerSelect(false);
+              // Set strike to the first newly added batter
+              const newStrike =
+                ids.find((id) => !currentBatters.includes(id)) ?? ids[0];
+              setStrike(newStrike);
+
+              setShowPlayerSelect(null);
               onClose();
             }}
             selectionMode="multiple"

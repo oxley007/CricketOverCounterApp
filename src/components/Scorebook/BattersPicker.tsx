@@ -52,9 +52,13 @@ export default function BattersPicker({
   const shouldShowChangeBatters = (() => {
     const stats = selectedBatters.map((id) => getBatterStats(id));
 
-    if (stats.length === 0) return false; // no batters selected
+    // Hide if no balls bowled yet
+    const totalBallsBowled = matchEvents.filter((e) => e.countsAsBall).length;
+    if (totalBallsBowled === 0) return false;
 
-    // Show button if any batter has BOTH runs === 0 AND balls === 0
+    if (stats.length <= 1) return true; // always show if 0 or 1 batter
+
+    // Show button if any selected batter has BOTH runs === 0 AND balls === 0
     return stats.some((b) => b.runs === 0 && b.balls === 0);
   })();
 
