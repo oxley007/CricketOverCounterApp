@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Platform,
@@ -65,6 +65,13 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
   const addWicket = useGameStore((s) => s.addWicket);
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [confirmingWicket, setConfirmingWicket] = useState(false);
+
+  // Automatically submit when a batter is selected from DismissBatterModal
+  useEffect(() => {
+    if (dismissedBatterId) {
+      handleSubmit();
+    }
+  }, [dismissedBatterId]);
 
   const inScorebookMode = !!currentGame;
   const battingTeam = useMemo(
@@ -750,16 +757,35 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         {confirmingWicket && (
           <View style={styles.confirmOverlay}>
             <View style={styles.confirmBox}>
-              <Text style={styles.title}>Confirm Wicket</Text>
-              <Text>Bowler: {currentBowlerName ?? "—"}</Text>
-              <Text>Batter: {currentBatterName ?? "—"}</Text>
-              <Text>How out: {selectedWickets[0]}</Text>
-              <Text style={styles.warning}>⚠️ Wickets cannot be undone</Text>
+              <Text style={styles.confirmTitle}>Confirm Wicket</Text>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Bowler</Text>
+                <Text style={styles.value}>{currentBowlerName ?? "—"}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Batter</Text>
+                <Text style={styles.value}>{currentBatterName ?? "—"}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>How out</Text>
+                <Text style={styles.value}>{selectedWickets[0]}</Text>
+              </View>
+
+              <Text style={styles.warning}>
+                ⚠️ This action cannot be undone
+              </Text>
 
               <View style={styles.buttonRow}>
-                <Pressable onPress={() => setConfirmingWicket(false)}>
-                  <Text>Cancel</Text>
+                <Pressable
+                  style={styles.cancelBtn}
+                  onPress={() => setConfirmingWicket(false)}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
+
                 <Pressable
                   style={styles.confirmBtn}
                   onPress={() => {
@@ -767,7 +793,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                     handleSubmit();
                   }}
                 >
-                  <Text style={{ color: "#fff" }}>Continue</Text>
+                  <Text style={styles.confirmText}>Confirm Wicket</Text>
                 </Pressable>
               </View>
             </View>
@@ -864,53 +890,99 @@ const styles = StyleSheet.create({
     backgroundColor: "#999",
     marginVertical: 10, // optional spacing above and below
   },
-  confirmBox: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 12,
-    width: "80%", // or whatever fits your design
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   confirmOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 999, // ensure it's above everything else
+    zIndex: 999,
   },
+
   confirmBox: {
-    backgroundColor: "white",
+    backgroundColor: "#fff",
     padding: 20,
-    borderRadius: 12,
-    width: "80%",
-    borderWidth: 3, // ✅ thick border
-    borderColor: "#007AFF", // or any highlight color
+    borderRadius: 16,
+    width: "85%",
+    borderWidth: 3,
+    borderColor: "#D32F2F", // 🔴 red danger border
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 10,
-    alignItems: "center", // center text/buttons
+    shadowRadius: 8,
+    elevation: 12,
   },
+
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 16,
+    color: "#D32F2F",
+  },
+
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+
+  label: {
+    fontSize: 14,
+    color: "#666",
+  },
+
+  value: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+
+  warning: {
+    marginTop: 14,
+    textAlign: "center",
+    fontSize: 14,
+    color: "#D32F2F",
+    fontWeight: "600",
+  },
+
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 15,
-    width: "100%",
+    marginTop: 20,
+    gap: 10,
   },
-  confirmBtn: {
-    backgroundColor: "#007AFF",
-    padding: 10,
-    borderRadius: 8,
-    minWidth: 100,
+
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: "#f1f1f1",
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: "center",
+  },
+
+  cancelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+
+  confirmBtn: {
+    flex: 1,
+    backgroundColor: "#D32F2F",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  confirmText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
   },
 });

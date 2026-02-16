@@ -181,6 +181,8 @@ export const useGameStore = create<GameState>()(
             balls: 0,
           }));
 
+          const firstBatter = battingEntries[0];
+
           return {
             currentGame: {
               battingTeamId,
@@ -196,10 +198,9 @@ export const useGameStore = create<GameState>()(
               // ✅ NEW scorecard structure
               battingEntries,
               currentEntryId: battingEntries[0]?.entryId,
-
+              currentStrikeId: firstBatter?.playerId,
               totalRuns: 0,
               totalBalls: 0,
-              currentStrikeId: openingBatters[0],
               ballsThisOver: 0,
 
               bowlers: [],
