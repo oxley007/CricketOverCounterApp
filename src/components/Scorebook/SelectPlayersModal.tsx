@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 
+import BowlerScorecard from "./BowlerScorecard";
 import Scorecard from "./Scorecard";
 
 export type PlayerOption = { id: string; name: string };
@@ -34,6 +35,7 @@ export type SelectPlayersModalProps = {
   maxSelection?: number;
   /** Optional footer (e.g. "Add player" form). Rendered below the list; caller owns any team/store logic. */
   renderFooter?: () => ReactNode;
+  pickerType?: "batter" | "bowler";
 };
 
 export default function SelectPlayersModal({
@@ -46,6 +48,7 @@ export default function SelectPlayersModal({
   selectionMode,
   maxSelection = 2,
   renderFooter,
+  pickerType,
 }: SelectPlayersModalProps) {
   const effectiveMax = selectionMode === "single" ? 1 : maxSelection;
 
@@ -77,7 +80,9 @@ export default function SelectPlayersModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <Scorecard />
+          {/* Only render the relevant scorecard */}
+          {pickerType === "batter" && <Scorecard />}
+          {pickerType === "bowler" && <BowlerScorecard />}
           <Text style={styles.title}>{title}</Text>
 
           <ScrollView style={styles.scroll}>

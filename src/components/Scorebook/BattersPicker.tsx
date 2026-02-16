@@ -79,33 +79,53 @@ export default function BattersPicker({
     }
 
     const currentBatters = gameState.currentGame.batters ?? [];
+    const battingEntries = gameState.currentGame.battingEntries ?? [];
 
-    // 1️⃣ Remove batters not in selectedBatters
-    const filteredBatters = currentBatters.filter((b) =>
-      selectedBatters.includes(b.playerId),
-    );
-    if (filteredBatters.length !== currentBatters.length) {
+    // 1️⃣ Merge selectedBatters with current batters, ignoring dismissed entries
+    const mergedBatters = [
+      ...currentBatters.filter(
+        (b) =>
+          selectedBatters.includes(b.playerId) &&
+          !battingEntries.find(
+            (e) =>
+              e.playerId === b.playerId &&
+              e.dismissal &&
+              e.dismissal.kind !== "notOut",
+          ),
+      ),
+      ...selectedBatters
+        .filter(
+          (id) =>
+            !currentBatters.some((b) => b.playerId === id) &&
+            !battingEntries.find(
+              (e) =>
+                e.playerId === id &&
+                e.dismissal &&
+                e.dismissal.kind !== "notOut",
+            ),
+        )
+        .map((id) => ({ playerId: id, runs: 0, balls: 0 })),
+    ];
+
+    // 2️⃣ Update store only if changed
+    if (
+      mergedBatters.length !== currentBatters.length ||
+      mergedBatters.some((b, i) => b.playerId !== currentBatters[i]?.playerId)
+    ) {
       gameState.updateCurrentGame({
         ...gameState.currentGame,
-        batters: filteredBatters,
+        batters: mergedBatters,
       });
     }
 
-    // 2️⃣ Add any new selected batters not already in the game
-    selectedBatters.forEach((playerId) => {
-      const exists = filteredBatters.find((b) => b.playerId === playerId);
-      if (!exists) addBatter(playerId);
-    });
+    // 3️⃣ Ensure a valid strike
+    const newStrikeId =
+      currentBatters.find(
+        (b) => b.playerId === gameState.currentGame.currentStrikeId,
+      )?.playerId || mergedBatters[0]?.playerId;
 
-    // 3️⃣ Ensure a batter is on strike
-    const currentGameState = useGameStore.getState().currentGame;
-
-    if (currentGameState) {
-      const desiredStrike = selectedBatters[0] ?? null;
-
-      if (desiredStrike && currentGameState.currentStrikeId !== desiredStrike) {
-        setStrike(desiredStrike);
-      }
+    if (newStrikeId && gameState.currentGame.currentStrikeId !== newStrikeId) {
+      setStrike(newStrikeId);
     }
   }, [battingTeam?.id, selectedBatters.join(",")]);
 
@@ -177,6 +197,7 @@ export default function BattersPicker({
             onSelectionChange={onSelectionChange}
             selectionMode="multiple"
             maxSelection={2}
+            pickerType="batter"
             renderFooter={() => (
               <AddPlayerFooter
                 teamId={selectedBattingTeamId!}

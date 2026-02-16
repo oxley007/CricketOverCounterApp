@@ -1,7 +1,7 @@
 // src/components/Scorebook/BowlerPicker.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
@@ -48,21 +48,72 @@ export default function BowlerPicker({
     (p) => p.id === selectedBowlerId,
   );
 
-  useEffect(() => {
-    // Only update lastBowlerStats when the bowler actually changes
-    if (!currentBowler) return;
+  const getBowlerStats = useCallback(
+    (playerId: string) => {
+      const bowlerEvents = events.filter((e) => e.bowlerId === playerId);
 
-    const lastBallCount = ballCount - (ballCount % 6);
-    const overJustEnded = lastBallCount > 0 && ballCount % 6 === 0;
-
-    if (overJustEnded) {
-      // Capture last bowler info without resetting selection
-      setLastBowlerStats({
-        name: currentBowler.name,
-        stats: getBowlerStats(currentBowler.id),
+      let balls = 0,
+        runs = 0,
+        wickets = 0,
+        wides = 0,
+        noBalls = 0;
+      bowlerEvents.forEach((e) => {
+        if (e.countsAsBall) balls += 1;
+        runs += e.runs || 0;
+        if (e.type === "wicket") wickets += 1;
+        if (e.extraType === "wide") wides += 1;
+        if (e.extraType === "noBall") noBalls += 1;
       });
+
+      const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
+
+      let maidens = 0,
+        overRuns = 0,
+        ballInOver = 0;
+      bowlerEvents.forEach((e) => {
+        if (e.countsAsBall) {
+          ballInOver += 1;
+          overRuns += e.runs || 0;
+          if (ballInOver === 6) {
+            if (overRuns === 0) maidens += 1;
+            ballInOver = 0;
+            overRuns = 0;
+          }
+        }
+      });
+
+      const oversDecimal = balls / 6;
+      const economy =
+        oversDecimal > 0 ? (runs / oversDecimal).toFixed(2) : "0.00";
+
+      return { overs, maidens, runs, wickets, economy, wides, noBalls };
+    },
+    [events], // ← only changes when events change
+  );
+
+  useEffect(() => {
+    if (ballCount > 0 && ballCount % 6 === 0) {
+      console.log("🏏 End of over detected");
+      console.log("ballCount:", ballCount);
+      console.log("currentBowler:", currentBowler?.name);
+
+      if (currentBowler) {
+        const stats = getBowlerStats(currentBowler.id);
+        console.log("Last bowler stats:", stats);
+
+        setLastBowlerStats({
+          name: currentBowler.name,
+          stats,
+        });
+      } else {
+        console.log("No current bowler found at end of over!");
+      }
     }
-  }, [ballCount, currentBowler]);
+  }, [ballCount, currentBowler, getBowlerStats]);
+
+  useEffect(() => {
+    if (currentBowler) setLastBowlerStats(null);
+  }, [currentBowler]);
 
   const ballsInCurrentOver = ballCount % 6;
   const isOverComplete = ballsInCurrentOver === 0 && ballCount > 0;
@@ -70,45 +121,6 @@ export default function BowlerPicker({
   const player = currentBowler;
 
   // ======= FUNCTIONS =======
-  const getBowlerStats = (playerId: string) => {
-    const bowlerEvents = events.filter((e) => e.bowlerId === playerId);
-
-    let balls = 0,
-      runs = 0,
-      wickets = 0,
-      wides = 0,
-      noBalls = 0;
-    bowlerEvents.forEach((e) => {
-      if (e.countsAsBall) balls += 1;
-      runs += e.runs || 0;
-      if (e.type === "wicket") wickets += 1;
-      if (e.extraType === "wide") wides += 1;
-      if (e.extraType === "noBall") noBalls += 1;
-    });
-
-    const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
-
-    let maidens = 0,
-      overRuns = 0,
-      ballInOver = 0;
-    bowlerEvents.forEach((e) => {
-      if (e.countsAsBall) {
-        ballInOver += 1;
-        overRuns += e.runs || 0;
-        if (ballInOver === 6) {
-          if (overRuns === 0) maidens += 1;
-          ballInOver = 0;
-          overRuns = 0;
-        }
-      }
-    });
-
-    const oversDecimal = balls / 6;
-    const economy =
-      oversDecimal > 0 ? (runs / oversDecimal).toFixed(2) : "0.00";
-
-    return { overs, maidens, runs, wickets, economy, wides, noBalls };
-  };
 
   const handleSelectBowler = (playerId: string) => {
     // Store last bowler info only if changing bowler
@@ -138,29 +150,14 @@ export default function BowlerPicker({
     return ballCount % 6 === 0 || ballCount === 0;
   })();
 
+  const showLastBowlerUI =
+    lastBowlerStats && (!currentBowler || isOverComplete);
+
   // ======= RENDER =======
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.selectedBowlers}>
-        {currentBowler && player && stats ? (
-          <View style={[styles.selectedBowlerItem, styles.activeBowler]}>
-            <View style={styles.bowlerRow}>
-              <View style={{ flexDirection: "column" }}>
-                <Text style={styles.selectedBowlerText}>{player.name}</Text>
-                <Text style={styles.statsText}>
-                  <Text style={{ fontWeight: "700" }}>O:</Text> {stats.overs}{" "}
-                  <Text style={{ fontWeight: "700" }}>M:</Text> {stats.maidens}{" "}
-                  <Text style={{ fontWeight: "700" }}>R:</Text> {stats.runs}{" "}
-                  <Text style={{ fontWeight: "700" }}>W:</Text> {stats.wickets}{" "}
-                  <Text style={{ fontWeight: "700" }}>Econ:</Text>{" "}
-                  {stats.economy} <Text style={{ fontWeight: "700" }}>WD:</Text>{" "}
-                  {stats.wides} <Text style={{ fontWeight: "700" }}>NB:</Text>{" "}
-                  {stats.noBalls}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : lastBowlerStats ? (
+        {showLastBowlerUI ? (
           <View style={styles.selectedBowlerItem}>
             <View style={styles.bowlerRow}>
               <View style={{ flexDirection: "column" }}>
@@ -182,6 +179,24 @@ export default function BowlerPicker({
                   {lastBowlerStats.stats.wides}{" "}
                   <Text style={{ fontWeight: "700" }}>NB:</Text>{" "}
                   {lastBowlerStats.stats.noBalls}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : currentBowler && player && stats ? (
+          <View style={[styles.selectedBowlerItem, styles.activeBowler]}>
+            <View style={styles.bowlerRow}>
+              <View style={{ flexDirection: "column" }}>
+                <Text style={styles.selectedBowlerText}>{player.name}</Text>
+                <Text style={styles.statsText}>
+                  <Text style={{ fontWeight: "700" }}>O:</Text> {stats.overs}{" "}
+                  <Text style={{ fontWeight: "700" }}>M:</Text> {stats.maidens}{" "}
+                  <Text style={{ fontWeight: "700" }}>R:</Text> {stats.runs}{" "}
+                  <Text style={{ fontWeight: "700" }}>W:</Text> {stats.wickets}{" "}
+                  <Text style={{ fontWeight: "700" }}>Econ:</Text>{" "}
+                  {stats.economy} <Text style={{ fontWeight: "700" }}>WD:</Text>{" "}
+                  {stats.wides} <Text style={{ fontWeight: "700" }}>NB:</Text>{" "}
+                  {stats.noBalls}
                 </Text>
               </View>
             </View>
@@ -217,6 +232,7 @@ export default function BowlerPicker({
             if (ids.length) handleSelectBowler(ids[0]);
           }}
           selectionMode="single"
+          pickerType="bowler"
           renderFooter={() => (
             <AddPlayerFooter
               teamId={bowlingTeam.id}
