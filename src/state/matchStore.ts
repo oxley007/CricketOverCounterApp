@@ -129,6 +129,7 @@ export const matchStoreRef = create<MatchState>()(
 
         // ✅ Update batter if exists
         // ✅ Update batter + batting entry
+        /*
         if (newEvent.batterId && currentGame && newEvent.type === "ball") {
           updateBatterStats(
             newEvent.batterId,
@@ -136,16 +137,46 @@ export const matchStoreRef = create<MatchState>()(
             newEvent.countsAsBall ? 1 : 0,
           );
 
-          const { currentEntryId, updateBattingEntryStats } =
+          const { currentGame, updateBattingEntryStats } =
             useGameStore.getState();
 
-          if (currentEntryId) {
-            updateBattingEntryStats(
-              currentEntryId,
-              newEvent.runBreakdown.bat,
-              newEvent.countsAsBall ? 1 : 0,
+          if (currentGame && newEvent.batterId) {
+            const active = currentGame.activeBatters.find(
+              (b) => b.playerId === newEvent.batterId,
             );
+
+            if (active?.batterInningId) {
+              updateBattingEntryStats(
+                active.batterInningId,
+                newEvent.runBreakdown.bat,
+                newEvent.countsAsBall ? 1 : 0,
+              );
+            }
           }
+
+          setStrike(newEvent.batterId);
+        }
+        */
+
+        if (
+          newEvent.batterId &&
+          newEvent.batterInningId &&
+          currentGame &&
+          newEvent.type === "ball"
+        ) {
+          updateBatterStats(
+            newEvent.batterId,
+            newEvent.runBreakdown.bat,
+            newEvent.countsAsBall ? 1 : 0,
+          );
+
+          const { updateBattingEntryStats } = useGameStore.getState();
+
+          updateBattingEntryStats(
+            newEvent.batterInningId,
+            newEvent.runBreakdown.bat,
+            newEvent.countsAsBall ? 1 : 0,
+          );
 
           setStrike(newEvent.batterId);
         }
@@ -178,6 +209,7 @@ export const matchStoreRef = create<MatchState>()(
           const newEvents = state.events.slice(0, -1);
           const {
             updateBatterStats,
+            updateBattingEntryStats,
             updateBowlerStats,
             currentGame,
             setStrike,
@@ -186,8 +218,9 @@ export const matchStoreRef = create<MatchState>()(
 
           if (!currentGame) return { ...state, events: newEvents };
 
+          // -------------------------
           // Undo batter stats
-          // Undo batter stats + batting entry
+          // -------------------------
           if (lastEvent.batterId && lastEvent.type === "ball") {
             updateBatterStats(
               lastEvent.batterId,
@@ -195,12 +228,14 @@ export const matchStoreRef = create<MatchState>()(
               lastEvent.countsAsBall ? -1 : 0,
             );
 
-            const { currentEntryId, updateBattingEntryStats } =
-              useGameStore.getState();
+            // ✅ Find the correct batting entry from activeBatters
+            const active = currentGame.activeBatters.find(
+              (b) => b.playerId === lastEvent.batterId,
+            );
 
-            if (currentEntryId) {
+            if (active?.batterInningId) {
               updateBattingEntryStats(
-                currentEntryId,
+                active.batterInningId,
                 -lastEvent.runBreakdown.bat,
                 lastEvent.countsAsBall ? -1 : 0,
               );
@@ -209,7 +244,9 @@ export const matchStoreRef = create<MatchState>()(
             setStrike(lastEvent.batterId);
           }
 
+          // -------------------------
           // Undo bowler stats
+          // -------------------------
           if (lastEvent.bowlerId) {
             const extraType = lastEvent.extraType as
               | "wide"

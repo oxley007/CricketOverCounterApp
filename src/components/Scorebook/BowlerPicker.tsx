@@ -229,7 +229,9 @@ export default function BowlerPicker({
           players={bowlingTeamPlayers}
           selectedIds={currentBowler ? [currentBowler.id] : []} // This should now be correct
           onSelectionChange={(ids) => {
-            if (ids.length) handleSelectBowler(ids[0]);
+            if (ids.length) {
+              handleSelectBowler(ids[0]); // only respond to user tap
+            }
           }}
           selectionMode="single"
           pickerType="bowler"

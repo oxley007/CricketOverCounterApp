@@ -73,6 +73,20 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     }
   }, [dismissedBatterId]);
 
+  // LOGGING AFTER HOOKS
+  console.log("==== HANDLE SUBMIT LOGS ====");
+  console.log("Current Strike ID:", currentGame?.currentStrikeId);
+  console.log("Current active batters:", currentGame?.activeBatters);
+  console.log("Current batting entries:", currentGame?.battingEntries);
+  console.log(
+    "Selected runs:",
+    selectedRuns,
+    "Bat runs (state):",
+    batRuns,
+    "Extras (state):",
+    selectedExtras,
+  );
+
   const inScorebookMode = !!currentGame;
   const battingTeam = useMemo(
     () =>
@@ -91,11 +105,13 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
 
   const batterPlayers = useMemo(() => {
     if (!currentGame || !battingTeam) return [];
-    return (currentGame.batters ?? []).map((b) => {
-      const p = battingTeam.players.find((pl) => pl.id === b.playerId);
-      return { id: b.playerId, name: p?.name ?? b.playerId };
+    return (currentGame.activeBatters ?? []).map((b) => {
+      // b could be string OR object
+      const playerId = typeof b === "string" ? b : b.playerId;
+      const p = battingTeam.players.find((pl) => pl.id === playerId);
+      return { id: playerId, name: p?.name ?? playerId };
     });
-  }, [currentGame?.batters, battingTeam]);
+  }, [currentGame?.activeBatters, battingTeam]);
 
   const currentBatterName = useMemo(() => {
     if (!currentGame?.currentStrikeId || !battingTeam) return null;
@@ -166,6 +182,23 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     w?.toLowerCase().replace(" ", "") as any;
 
   const handleSubmit = () => {
+    // 🔹 Log the batter who should get the runs
+    const strikeBatterId = currentGame?.currentStrikeId;
+    const strikeBatterName = battingTeam?.players.find(
+      (p) => p.id === strikeBatterId,
+    )?.name;
+    console.log(
+      "⚡ Handling runs for batter:",
+      strikeBatterName,
+      strikeBatterId,
+    );
+
+    const activeBatter = currentGame?.activeBatters.find(
+      (b) => b.playerId === strikeBatterId,
+    );
+
+    const batterInningId = activeBatter?.batterInningId;
+
     const isExtra = selectedExtras.length > 0;
     const hasWicket = selectedWickets.length > 0;
     const isScoringWicket = wicketsAsNegativeRuns && hasWicket;
@@ -175,6 +208,45 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
 
     if (hasWicket && !confirmingWicket) {
       setConfirmingWicket(true);
+      return;
+    }
+
+    // ✅ ADD RETIRED BATTER LOGIC HERE
+    if (selectedWickets.includes("Retired")) {
+      if (!dismissedBatterId) return; // safety check
+
+      let bat = selectedRuns ?? 0;
+      let extras = 0;
+      if (selectedExtras.includes("No Ball")) extras += 1;
+      if (selectedExtras.includes("Wide")) extras += selectedRuns ?? 1;
+
+      const batterId = dismissedBatterId;
+      const bowlerId = currentGame.currentBowlerId ?? null;
+
+      addEvent({
+        type: "wicket",
+        batterId,
+        batterInningId,
+        bowlerId,
+        kind: "retired",
+        runs: bat + extras,
+        isExtra: extras > 0,
+        countsAsBall: false,
+        runBreakdown: { bat, extras },
+        wicket: null,
+      });
+
+      //useGameStore.getState().retireBatter(batterId);
+      handleDismissBatter(batterId, { retired: true });
+
+      resetSelections();
+      setDismissedBatterId(null);
+      setDismissedKind(null);
+      setConfirmingWicket(false);
+
+      // 🚫 Remove this onClose() here
+      // onClose();
+
       return;
     }
 
@@ -222,22 +294,31 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     // Override for no-ball
     if (isNoBall) countsAsBall = false;
 
+    console.log("Counts as ball:", countsAsBall);
+    console.log(
+      "isWide:",
+      isWide,
+      "isNoBall:",
+      isNoBall,
+      "wideIsExtraBall:",
+      wideIsExtraBall,
+    );
+
     // 🧠 Helpers (now safe — bat/extras/countsAsBall exist)
-    const maybeUpdateBatter = () => {
-      if (!inScorebookMode || !currentGame?.currentStrikeId) return;
+    const maybeUpdateBatter = (batterId: string) => {
+      if (!inScorebookMode) return;
       if (bat === 0 && !countsAsBall) return;
 
-      // Update batter stats
-      updateBatterStats(currentGame.currentStrikeId, bat, countsAsBall ? 1 : 0);
+      updateBatterStats(batterId, bat, countsAsBall ? 1 : 0);
 
-      // Update bowler stats
-      if (currentGame.currentBowlerId) {
-        let bowlerRuns = bat + extras; // all runs conceded
+      // Update bowler stats for this ball
+      if (currentGame?.currentBowlerId) {
+        const bowlerRuns = bat + extras;
         updateBowlerStats(
           currentGame.currentBowlerId,
           bowlerRuns,
-          countsAsBall ? 1 : 0, // only legal balls count
-          0, // wickets handled separately
+          countsAsBall ? 1 : 0,
+          0,
           normalizeExtraType(selectedExtras[0]) as
             | "wide"
             | "noBall"
@@ -250,7 +331,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
       const lastEvent = useMatchStore.getState().events.at(-1);
       if (!lastEvent) return;
 
-      maybeUpdateBatter();
+      maybeUpdateBatter(strikeBatterId!);
 
       applyStrikeChange({
         bat: lastEvent.runBreakdown.bat,
@@ -278,6 +359,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
       addEvent({
         type: "ball",
         batterId: currentGame!.currentStrikeId!,
+        batterInningId,
         bowlerId: currentGame?.currentBowlerId,
         runs: -Math.abs(penalty) + extrasRuns,
         runBreakdown: {
@@ -333,6 +415,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         addEvent({
           type: "wicket",
           batterId: currentGame!.currentStrikeId!,
+          batterInningId,
           bowlerId: currentGame?.currentBowlerId,
           kind,
           runs: 0,
@@ -363,7 +446,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         );
       }
 
-      maybeUpdateBatter(); // ✅ make sure bowler stats updated for runs/balls
+      maybeUpdateBatter(strikeBatterId!); // ✅ make sure bowler stats updated for runs/balls
       /*
       // ← Add this snippet here
       if (currentGame.currentBowlerId) {
@@ -391,6 +474,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     addEvent({
       type: "ball",
       batterId: currentGame!.currentStrikeId!,
+      batterInningId,
       bowlerId: currentGame?.currentBowlerId,
       runs,
       isExtra,
@@ -412,10 +496,19 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
   };
 
   const addPartnershipWicket = (count: 1 | 2) => {
+    const strikeBatterId = currentGame?.currentStrikeId;
+
+    const activeBatter = currentGame?.activeBatters.find(
+      (b) => b.playerId === strikeBatterId,
+    );
+
+    const batterInningId = activeBatter?.batterInningId;
+
     for (let i = 0; i < count; i++) {
       addEvent({
         type: "wicket",
         batterId: currentGame!.currentStrikeId!,
+        batterInningId,
         bowlerId: currentGame?.currentBowlerId,
         kind: "partnership",
         runs: 0,
@@ -432,56 +525,77 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     onClose();
   };
 
-  const addRetiredWicket = () => {
-    addEvent({
-      type: "wicket",
-      batterId: currentGame!.currentStrikeId!,
-      bowlerId: currentGame?.currentBowlerId,
-      kind: "retired",
-      runs: 0,
-      isExtra: false,
-      countsAsBall: false,
-      runBreakdown: { bat: 0, extras: 0 },
-    } as Omit<MatchEvent, "id" | "timestamp">);
-
-    console.log("All events after add:", useMatchStore.getState().events);
-
-    resetSelections();
-    setConfirmingWicket(false);
-    onClose();
-  };
-
   const toggleWicket = (wicket: string) => {
-    const normalized = normalizeWicketKind(wicket);
+    console.log("toggleWicket tapped:", wicket); // 🔹 log tapped wicket
 
-    setSelectedWickets(
-      (prev) => (prev.includes(wicket) ? [] : [wicket]), // single selection
-    );
+    setSelectedWickets([wicket]); // single selection
 
-    if (wicket !== "Retired" && wicket !== "Partnership") {
-      setDismissedKind(normalized);
+    if (wicket === "Retired") {
+      console.log("Retired selected — opening DismissBatterModal"); // 🔹 log retired path
+      setDismissedKind("retired");
+      setShowDismissModal(true); // open modal first
+    } else if (wicket !== "Partnership") {
+      console.log(`${wicket} selected — opening DismissBatterModal`); // 🔹 log other wickets
+      setDismissedKind(normalizeWicketKind(wicket));
       setShowDismissModal(true);
     }
   };
 
-  const handleDismissBatter = (batterId: string) => {
-    const currentGameState = useGameStore.getState().currentGame;
-    if (!currentGameState) return;
+  const handleDismissBatter = (
+    batterId: string,
+    options?: { retired?: boolean },
+  ) => {
+    const gameStore = useGameStore.getState();
+    const game = gameStore.currentGame;
+    if (!game) return;
 
-    // 1️⃣ Remove the dismissed batter from the game batters
-    const updatedBatters =
-      currentGameState.batters?.filter((b) => b.playerId !== batterId) ?? [];
+    const active = game.activeBatters.find((b) => b.playerId === batterId);
+    if (!active) return;
 
-    // 2️⃣ Update the game state
-    useGameStore.getState().updateCurrentGame({
-      ...currentGameState,
-      batters: updatedBatters,
+    console.log("Handling batter removal:", batterId, options);
+
+    // 🔵 RETIRED FLOW
+    if (options?.retired) {
+      const updatedActive = game.activeBatters.filter(
+        (b) => b.playerId !== batterId,
+      );
+
+      const updatedRetired = [
+        ...(game.activeRetired ?? []),
+        active, // copy exact ActiveBatter object
+      ];
+
+      gameStore.updateCurrentGame({
+        activeBatters: updatedActive,
+        activeRetired: updatedRetired,
+        currentStrikeId:
+          game.currentStrikeId === batterId
+            ? updatedActive[0]?.playerId
+            : game.currentStrikeId,
+      });
+
+      setShowPlayerSelect("batter");
+      return;
+    }
+
+    // 🔴 NORMAL DISMISSAL FLOW
+    gameStore.dismissBattingEntry(active.batterInningId, {
+      kind: "bowled", // you already pass real kind elsewhere
+      bowlerId: game.currentBowlerId,
     });
 
-    // 3️⃣ Pre-fill selectedBatters for the next batter modal
-    setSelectedBatters(updatedBatters.map((b) => b.playerId));
+    const updatedActive = game.activeBatters.filter(
+      (b) => b.playerId !== batterId,
+    );
 
-    // 4️⃣ Open player selection modal for the next batter
+    gameStore.updateCurrentGame({
+      activeBatters: updatedActive,
+      currentStrikeId:
+        game.currentStrikeId === batterId
+          ? updatedActive[0]?.playerId
+          : game.currentStrikeId,
+    });
+
     setShowPlayerSelect("batter");
   };
 
@@ -672,13 +786,10 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                         selectedWickets.includes(w) && styles.optionSelected,
                       ]}
                       onPress={() => {
+                        console.log("Wicket button pressed:", w); // 🔹 log button press
                         toggleWicket(w);
                         if (w !== "Retired" && w !== "Partnership") {
                           setShowDismissModal(true);
-                        } else if (w === "Retired") {
-                          addRetiredWicket();
-                        } else if (w === "Partnership") {
-                          addPartnershipWicket(2);
                         }
                       }}
                     >
@@ -710,7 +821,12 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
 
         <DismissBatterModal
           visible={showDismissModal}
-          batters={batterPlayers}
+          batters={batterPlayers.map((p) => {
+            const bEntry = currentGame?.battingEntries.find(
+              (e) => e.playerId === p.id,
+            );
+            return { ...p, retired: bEntry?.retired }; // 🔹 include retired flag
+          })}
           currentBatterId={currentGame?.currentStrikeId ?? null}
           onClose={() => setShowDismissModal(false)}
           onContinue={(selectedId) => {
@@ -733,24 +849,14 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
             onSelectionChange={(ids) => {
               if (ids.length === 0) return;
 
-              const currentBatters =
-                currentGame?.batters.map((b) => b.playerId) ?? [];
-
-              ids.forEach((id) => {
-                if (!currentBatters.includes(id)) {
-                  addBatter(id);
-                }
-              });
-
-              // Set strike to the first newly added batter
-              const newStrike =
-                ids.find((id) => !currentBatters.includes(id)) ?? ids[0];
+              const newStrike = ids[0];
               setStrike(newStrike);
 
               setShowPlayerSelect(null);
               onClose();
             }}
             selectionMode="multiple"
+            pickerType="batter"
           />
         )}
 

@@ -14,24 +14,39 @@ export default function Scorecard() {
 
   if (!currentGame) return null;
 
-  const { batters, currentStrikeId, wickets } = currentGame;
+  const { activeBatters, battingEntries, currentStrikeId, wickets } =
+    currentGame;
+
+  /*
+  const batters = Array.from(
+    new Set([
+      ...activeBatters.map((b) => b.playerId), // <-- map to string
+      ...battingEntries.map((e) => e.playerId),
+    ]),
+  );
+  */
 
   const playerNameMap = Object.fromEntries(
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
   );
 
-  const getBatterStats = (playerId: string) => {
-    const eventsForBatter = matchEvents.filter((e) => e.batterId === playerId);
-    const runs = eventsForBatter.reduce((sum, e) => sum + (e.runs ?? 0), 0);
-    const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
+  const getBatterStats = (batterInningId: string) => {
+    const eventsForEntry = matchEvents.filter(
+      (e) => e.batterInningId === batterInningId,
+    );
+
+    const runs = eventsForEntry.reduce((sum, e) => sum + (e.runs ?? 0), 0);
+    const balls = eventsForEntry.filter((e) => e.countsAsBall).length;
     const strikeRate = balls > 0 ? ((runs / balls) * 100).toFixed(1) : "0.0";
+
     return { runs, balls, strikeRate };
   };
 
+  /*
   const batterFirstEventTime: Record<string, number> = {};
 
   const allBatterIdsSet = new Set<string>([
-    ...batters.map((b) => b.playerId),
+    ...batters, // batters is now string[]
     ...(wickets?.map((w) => w.batterId) ?? []),
   ]);
 
@@ -46,26 +61,38 @@ export default function Scorecard() {
 
     batterFirstEventTime[playerId] = firstTimestamp;
   });
+  
 
   const allBatterIds = Array.from(allBatterIdsSet).sort(
     (a, b) =>
       (batterFirstEventTime[a] ?? Infinity) -
       (batterFirstEventTime[b] ?? Infinity),
   );
+  */
 
-  const scorecard = allBatterIds.map((playerId) => {
-    const dismissal = wickets?.find((w) => w.batterId === playerId);
-    const stats = getBatterStats(playerId);
+  const scorecard = battingEntries.map((entry) => {
+    const stats = getBatterStats(entry.entryId);
+
+    const dismissal = entry.dismissal;
+
+    // Check if batter is retired
+    const isRetired = currentGame.activeRetired?.some(
+      (b) => b.playerId === entry.playerId,
+    );
 
     return {
-      playerId,
-      playerName: playerNameMap[playerId] ?? playerId,
-      bowlerName: dismissal?.bowlerId
-        ? (playerNameMap[dismissal.bowlerId] ?? "Unknown")
-        : "-",
+      key: entry.entryId,
+      playerId: entry.playerId,
+      playerName: playerNameMap[entry.playerId] ?? entry.playerId,
+      bowlerName: isRetired
+        ? "-"
+        : dismissal?.bowlerId
+          ? (playerNameMap[dismissal.bowlerId] ?? "Unknown")
+          : "-",
       dismissal,
+      statusText: isRetired ? "Retired" : undefined, // 👈 new
       ...stats,
-      onStrike: currentStrikeId === playerId,
+      onStrike: currentStrikeId === entry.playerId,
     };
   });
 
@@ -82,9 +109,15 @@ export default function Scorecard() {
 
       <FlatList
         data={scorecard}
-        keyExtractor={(item) => item.playerId}
+        keyExtractor={(item) => item.key}
         renderItem={({ item }) => (
-          <View style={[styles.row, item.onStrike && styles.onStrikeRow]}>
+          <View
+            style={[
+              styles.row,
+              item.onStrike && styles.onStrikeRow,
+              item.statusText === "Retired" && styles.retiredRow,
+            ]}
+          >
             <Text style={styles.nameCol} numberOfLines={2} ellipsizeMode="tail">
               {item.playerName}
             </Text>
@@ -94,11 +127,11 @@ export default function Scorecard() {
               numberOfLines={2}
               ellipsizeMode="tail"
             >
-              {getDismissalText(item)}
+              {item.statusText ?? getDismissalText(item)}
             </Text>
 
             <Text style={styles.nameCol} numberOfLines={2} ellipsizeMode="tail">
-              {item.bowlerName}
+              {item.statusText === "Retired" ? "" : item.bowlerName}
             </Text>
 
             <Text style={styles.statCol}>{item.runs}</Text>
@@ -170,5 +203,9 @@ const styles = StyleSheet.create({
   onStrikeRow: {
     backgroundColor: "#e0f7ff",
     borderRadius: 4,
+  },
+  retiredRow: {
+    backgroundColor: "#f0f0f0",
+    fontStyle: "italic",
   },
 });
