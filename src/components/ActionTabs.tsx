@@ -75,9 +75,12 @@ export default function ActionTabs() {
           return;
         }
 
-        // 🛑 Guard – nothing to score yet
-        if (!currentGame?.currentStrikeId) {
-          console.warn("No current striker set");
+        const activeStriker = currentGame?.activeBatters?.find(
+          (b) => b.playerId === currentGame.currentStrikeId,
+        );
+
+        if (!activeStriker) {
+          console.warn("No active striker found");
           return;
         }
 
@@ -89,6 +92,7 @@ export default function ActionTabs() {
         addEvent({
           type: "ball",
           batterId: currentGame.currentStrikeId,
+          batterInningId: activeStriker.batterInningId,
           bowlerId: currentBowlerId,
           runs: 0,
           isExtra: false,

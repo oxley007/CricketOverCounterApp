@@ -29,6 +29,7 @@ export default function BattersPicker({
   const setStrike = useGameStore((s) => s.setStrike);
   const matchEvents = useMatchStore((s) => s.events);
   const startGame = useGameStore((s) => s.startGame);
+  const hasHydrated = useGameStore((s) => s.hasHydrated);
 
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
 
@@ -41,13 +42,24 @@ export default function BattersPicker({
 
   //const batters = useGameStore((s) => s.currentGame?.batters ?? []);
 
-  const getBatterStats = (playerId: string) => {
-    const eventsForBatter = matchEvents.filter((e) => e.batterId === playerId);
+  const getBatterStats = (playerId: string, batterInningId?: string) => {
+    const eventsForBatter = matchEvents.filter(
+      (e) =>
+        e.batterId === playerId &&
+        (!batterInningId || e.batterInningId === batterInningId),
+    );
+
     const runs = eventsForBatter.reduce((sum, e) => sum + (e.runs ?? 0), 0);
     const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
     const strikeRate = balls > 0 ? (runs / balls) * 100 : 0;
+
     return { runs, balls, strikeRate: strikeRate.toFixed(1) };
   };
+
+  console.log(
+    "Persisted batters:",
+    useGameStore.getState().currentGame?.batters,
+  );
 
   const shouldShowChangeBatters = (() => {
     const stats = selectedBatters.map((id) => getBatterStats(id));
@@ -64,27 +76,58 @@ export default function BattersPicker({
 
   const battingTeamPlayers = battingTeam?.players ?? [];
 
-  const battersIds = currentGame?.batters.map((b) => b.playerId) ?? [];
+  // currentGame.activeBatters is string[], not objects
+  const battersIds = currentGame?.activeBatters ?? [];
+  const currentBatters = currentGame?.activeBatters ?? [];
+  const battingEntries = currentGame?.battingEntries ?? [];
+
+  // derive active batters for display
+  const activeBatters = (currentGame?.activeBatters ?? [])
+    .map(({ playerId, batterInningId }) => {
+      const player = battingTeamPlayers.find((p) => p.id === playerId);
+      if (!player) return null;
+
+      const { runs, balls } = getBatterStats(playerId, batterInningId);
+
+      return {
+        ...player,
+        runs,
+        balls,
+      };
+    })
+    .filter(Boolean) as ((typeof battingTeamPlayers)[0] & {
+    runs: number;
+    balls: number;
+  })[];
+
+  console.log("battingTeamPlayers:", battingTeamPlayers);
+
+  console.log("Current Batters:", currentBatters);
+  console.log("Batting Entries:", currentGame?.battingEntries);
+  console.log("currentBatters in BattersPicker:", currentGame?.batters);
 
   useEffect(() => {
+    if (!hasHydrated) return; // ⚠️ wait for hydration
     if (!battingTeam) return;
 
     const gameState = useGameStore.getState();
 
     // Start the game if it doesn't exist yet
     if (!gameState.currentGame) {
-      if (selectedBatters.length > 0)
+      if (selectedBatters.length > 0) {
         startGame(battingTeam.id, selectedBatters);
+      }
       return;
     }
 
-    const currentBatters = gameState.currentGame.batters ?? [];
-    const battingEntries = gameState.currentGame.battingEntries ?? [];
+    const currentBatters = currentGame?.activeBatters ?? [];
+    const battingEntries = currentGame?.battingEntries ?? [];
 
     // 1️⃣ Merge selectedBatters with current batters, ignoring dismissed entries
     const mergedBatters = [
       ...currentBatters.filter(
         (b) =>
+          !b.retired && // 👈 ADD THIS
           selectedBatters.includes(b.playerId) &&
           !battingEntries.find(
             (e) =>
@@ -104,7 +147,12 @@ export default function BattersPicker({
                 e.dismissal.kind !== "notOut",
             ),
         )
-        .map((id) => ({ playerId: id, runs: 0, balls: 0 })),
+        .map((id) => ({
+          playerId: id,
+          runs: 0,
+          balls: 0,
+          retired: false,
+        })),
     ];
 
     // 2️⃣ Update store only if changed
@@ -119,15 +167,17 @@ export default function BattersPicker({
     }
 
     // 3️⃣ Ensure a valid strike
-    const newStrikeId =
-      currentBatters.find(
-        (b) => b.playerId === gameState.currentGame.currentStrikeId,
-      )?.playerId || mergedBatters[0]?.playerId;
+    const currentBattersIds = currentBatters.map((b) => b.playerId);
+    const newStrikeId = currentBattersIds.includes(
+      gameState.currentGame.currentStrikeId,
+    )
+      ? gameState.currentGame.currentStrikeId
+      : mergedBatters[0]?.playerId;
 
     if (newStrikeId && gameState.currentGame.currentStrikeId !== newStrikeId) {
       setStrike(newStrikeId);
     }
-  }, [battingTeam?.id, selectedBatters.join(",")]);
+  }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]); // ✅ include hasHydrated
 
   return (
     <>
@@ -148,32 +198,30 @@ export default function BattersPicker({
 
             {selectedBatters.length > 0 ? (
               <View style={styles.selectedBattersContainer}>
-                {battingTeamPlayers
-                  .filter((p) => battersIds.includes(p.id))
-                  .map((p) => {
-                    const stats = getBatterStats(p.id);
-                    const onStrike = currentGame?.currentStrikeId === p.id;
-                    return (
-                      <Pressable
-                        key={p.id}
-                        style={[
-                          styles.selectedBatterItem,
-                          onStrike && styles.onStrikeBatter,
-                        ]}
-                        onPress={() => setStrike(p.id)}
-                      >
-                        <View style={styles.batterRow}>
-                          <Text style={styles.strikeIcon}>
-                            {onStrike ? "⚡" : "  "}
-                          </Text>
-                          <Text style={styles.selectedBatterText}>
-                            {p.name} — {stats.runs} ({stats.balls}) SR:{" "}
-                            {stats.strikeRate}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
+                {activeBatters.map((p) => {
+                  const strikeRate =
+                    p.balls > 0 ? ((p.runs / p.balls) * 100).toFixed(1) : "0.0";
+                  const onStrike = currentGame?.currentStrikeId === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={[
+                        styles.selectedBatterItem,
+                        onStrike && styles.onStrikeBatter,
+                      ]}
+                      onPress={() => setStrike(p.id)}
+                    >
+                      <View style={styles.batterRow}>
+                        <Text style={styles.strikeIcon}>
+                          {onStrike ? "⚡" : "  "}
+                        </Text>
+                        <Text style={styles.selectedBatterText}>
+                          {p.name} — {p.runs} ({p.balls}) SR: {strikeRate}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : (
               <View>

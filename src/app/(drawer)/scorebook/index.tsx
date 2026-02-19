@@ -139,7 +139,7 @@ export default function ScorebookIndex() {
     }
 
     setSelectedBatters((prev) =>
-      prev.length > 0 ? prev : currentGame.batters.map((b) => b.playerId),
+      prev.length > 0 ? prev : (currentGame.activeBatters ?? []),
     );
 
     if (!selectedBowlerId && currentGame.currentBowlerId)

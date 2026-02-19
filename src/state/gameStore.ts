@@ -11,6 +11,7 @@ export type BatterStats = {
   playerId: string;
   runs: number;
   balls: number;
+  retired?: boolean;
 };
 
 export type BowlerStats = {
@@ -45,23 +46,31 @@ export type BattingEntry = {
   dismissal?: BattingDismissal;
 };
 
+export type ActiveBatter = {
+  playerId: string;
+  batterInningId: string;
+};
+
 export type CurrentGame = {
   battingTeamId: string;
-  batters: BatterStats[];
+  activeBatters: ActiveBatter[];
+  activeRetired: ActiveBatter[];
   battingEntries: BattingEntry[];
-  currentEntryId?: string;
+
+  currentStrikeId?: string;
+
   totalRuns: number;
   totalBalls: number;
-  currentStrikeId?: string;
   ballsThisOver: number;
-  /** Bowling team and bowlers (scorebook mode) */
+
   bowlingTeamId?: string;
   bowlers: BowlerStats[];
   currentBowlerId?: string;
   lastBowlerId?: string;
-  explicitBowlerSelection?: boolean;
+
   wickets: WicketEvent[];
   ballCount: number;
+  currentEntryId?: string;
 };
 
 export type WicketEvent = {
@@ -124,6 +133,7 @@ interface GameState {
     runsConceded: number,
     ballsBowled: number,
     wickets?: number,
+    extraType?: "wide" | "noBall",
   ) => void;
 
   applyStrikeChange: (params: {
@@ -137,6 +147,26 @@ interface GameState {
   resetGame: () => void;
   resetBatters: () => void;
   setCurrentBowlerExplicit: (playerId: string) => void;
+  hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
+  addWicket: (
+    batterId: string,
+    bowlerId?: string,
+    assistId?: string | null,
+    kind?: WicketEvent["kind"],
+    runsConceded?: number,
+  ) => void;
+
+  addBattingEntry: (playerId: string) => void;
+  retireBatter: (playerId: string) => void;
+
+  updateBattingEntryStats: (
+    entryId: string,
+    runs: number,
+    balls?: number,
+  ) => void;
+
+  dismissBattingEntry: (entryId: string, dismissal: BattingDismissal) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -170,15 +200,28 @@ export const useGameStore = create<GameState>()(
         }),
 
       startGame: (battingTeamId, bowlingTeamId, openingBatters = []) =>
-        set(() => {
-          // Create scorecard entries for opening batters
+        set((state) => {
+          // 🔴 GUARD: do not overwrite persisted game
+          if (state.currentGame) {
+            console.log("⚠️ startGame skipped — game already exists");
+            return state;
+          }
+
+          console.log("✅ startGame creating new game");
+
+          // startGame
           const battingEntries = openingBatters.map((id, index) => ({
-            entryId: `${id}-${Date.now()}-${index}`,
+            entryId: `${id}-${Date.now()}-${index}`, // string
             playerId: id,
             inningsNumber: 1,
             battingOrder: index + 1,
             runs: 0,
             balls: 0,
+          }));
+
+          const activeBatters = battingEntries.map((e) => ({
+            playerId: e.playerId,
+            batterInningId: e.entryId, // string
           }));
 
           const firstBatter = battingEntries[0];
@@ -187,22 +230,14 @@ export const useGameStore = create<GameState>()(
             currentGame: {
               battingTeamId,
               bowlingTeamId,
-
-              // ✅ keep your existing live scoring structure
-              batters: openingBatters.map((id) => ({
-                playerId: id,
-                runs: 0,
-                balls: 0,
-              })),
-
-              // ✅ NEW scorecard structure
+              activeBatters: activeBatters,
+              activeRetired: [],
               battingEntries,
               currentEntryId: battingEntries[0]?.entryId,
               currentStrikeId: firstBatter?.playerId,
               totalRuns: 0,
               totalBalls: 0,
               ballsThisOver: 0,
-
               bowlers: [],
               currentBowlerId: undefined,
               wickets: [],
@@ -211,36 +246,37 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
-      addBatter: (playerId: string) =>
-        set((state) => {
-          if (!state.currentGame) return state;
-          if (state.currentGame.batters.some((b) => b.playerId === playerId))
-            return state;
+      addBatter: (playerId: string): string | null => {
+        let entryId: string | null = null;
 
-          const battingEntry = {
-            entryId: `${playerId}-${Date.now()}`,
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          entryId = `${playerId}-${Date.now()}`;
+
+          const entry = {
+            entryId,
             playerId,
-            inningsNumber: 1,
-            battingOrder: state.currentGame.battingEntries.length + 1,
+            inningsNumber:
+              game.battingEntries.filter((e) => e.playerId === playerId)
+                .length + 1,
+            battingOrder: game.battingEntries.length + 1,
             runs: 0,
             balls: 0,
           };
 
           return {
             currentGame: {
-              ...state.currentGame,
-              batters: [
-                ...state.currentGame.batters,
-                { playerId, runs: 0, balls: 0 },
-              ],
-              battingEntries: [
-                ...state.currentGame.battingEntries,
-                battingEntry,
-              ],
-              currentStrikeId: state.currentGame.currentStrikeId ?? playerId,
+              ...game,
+              battingEntries: [...game.battingEntries, entry],
+              currentEntryId: entryId,
             },
           };
-        }),
+        });
+
+        return entryId;
+      },
 
       setBowlingTeam: (bowlingTeamId) =>
         set((state) =>
@@ -341,20 +377,21 @@ export const useGameStore = create<GameState>()(
 
       updateBatterStats: (playerId, runs, balls = 1) =>
         set((state) => {
-          if (!state.currentGame) return state;
+          const game = state.currentGame;
+          if (!game || !game.currentEntryId) return state;
 
-          const batters = state.currentGame.batters.map((b) =>
-            b.playerId === playerId
-              ? { ...b, runs: b.runs + runs, balls: b.balls + balls }
-              : b,
+          const battingEntries = game.battingEntries.map((e) =>
+            e.entryId === game.currentEntryId
+              ? { ...e, runs: e.runs + runs, balls: e.balls + balls }
+              : e,
           );
 
           return {
             currentGame: {
-              ...state.currentGame,
-              batters,
-              totalRuns: batters.reduce((s, b) => s + b.runs, 0),
-              totalBalls: batters.reduce((s, b) => s + b.balls, 0),
+              ...game,
+              battingEntries,
+              totalRuns: battingEntries.reduce((s, e) => s + e.runs, 0),
+              totalBalls: battingEntries.reduce((s, e) => s + e.balls, 0),
             },
           };
         }),
@@ -444,12 +481,16 @@ export const useGameStore = create<GameState>()(
           }
 
           let currentStrikeId = game.currentStrikeId;
-          if (shouldSwap && game.batters.length > 1) {
-            const idx = game.batters.findIndex(
+          if (shouldSwap && game.activeBatters.length > 1) {
+            const idx = game.activeBatters.findIndex(
               (b) => b.playerId === currentStrikeId,
             );
-            currentStrikeId =
-              game.batters[(idx + 1) % game.batters.length].playerId;
+
+            if (idx !== -1) {
+              currentStrikeId =
+                game.activeBatters[(idx + 1) % game.activeBatters.length]
+                  .playerId;
+            }
           }
 
           // ----- LOGGING -----
@@ -543,6 +584,27 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
+      retireBatter: (playerId: string) =>
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          const activeBatters = game.activeBatters.filter(
+            (b) => b.playerId !== playerId,
+          );
+
+          return {
+            currentGame: {
+              ...game,
+              activeBatters,
+              currentStrikeId:
+                game.currentStrikeId === playerId
+                  ? activeBatters[0]?.playerId
+                  : game.currentStrikeId,
+            },
+          };
+        }),
+
       updateBattingEntryStats: (entryId: string, runs: number, balls = 1) =>
         set((state) => {
           const game = state.currentGame;
@@ -586,12 +648,15 @@ export const useGameStore = create<GameState>()(
             ? {
                 currentGame: {
                   ...state.currentGame,
-                  batters: [],
+                  activeBatters: [],
+                  activeRetired: [], // NEW
                   currentStrikeId: undefined,
                 },
               }
             : state,
         ),
+      hasHydrated: false,
+      setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {
       name: "cricket-game-store",
@@ -603,14 +668,44 @@ export const useGameStore = create<GameState>()(
         gameConfig: state.gameConfig,
         currentGame: state.currentGame,
       }),
-      migrate: (persisted: unknown) => {
-        const state = persisted as { currentGame?: CurrentGame };
-        if (state?.currentGame && !Array.isArray(state.currentGame.bowlers)) {
-          state.currentGame = { ...state.currentGame, bowlers: [] };
+      migrate: (persisted: any) => {
+        if (!persisted) return persisted;
+
+        const game = persisted.currentGame;
+
+        if (!game) return persisted;
+
+        const migratedGame = { ...game };
+
+        if (
+          Array.isArray(migratedGame.batters) &&
+          !migratedGame.activeBatters
+        ) {
+          migratedGame.activeBatters = migratedGame.batters
+            .filter((b: any) => !b.retired)
+            .map((b: any) => b.playerId);
         }
-        return state;
+
+        delete migratedGame.batters;
+
+        if (!Array.isArray(migratedGame.bowlers)) {
+          migratedGame.bowlers = [];
+        }
+
+        if (!Array.isArray(migratedGame.battingEntries)) {
+          migratedGame.battingEntries = [];
+        }
+
+        if (!Array.isArray(migratedGame.activeRetired)) {
+          migratedGame.activeRetired = [];
+        }
+
+        return {
+          ...persisted,
+          currentGame: migratedGame,
+        };
       },
-      version: 1,
+      version: 2,
     },
   ),
 );

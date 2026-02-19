@@ -13,6 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useGameStore } from "../../state/gameStore";
 
 import BowlerScorecard from "./BowlerScorecard";
 import Scorecard from "./Scorecard";
@@ -50,31 +51,115 @@ export default function SelectPlayersModal({
   renderFooter,
   pickerType,
 }: SelectPlayersModalProps) {
+  const currentGame = useGameStore((s) => s.currentGame);
+
+  console.log(
+    "Current Game Active Batters from store:",
+    useGameStore.getState().currentGame?.activeBatters,
+  );
+  console.log(
+    "Current Game Batting Entries:",
+    useGameStore.getState().currentGame?.battingEntries,
+  );
+  console.log("Team Players:", players);
   const effectiveMax = selectionMode === "single" ? 1 : maxSelection;
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(parentSelectedIds);
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    parentSelectedIds ?? [],
+  );
 
   useEffect(() => {
-    // Reset selection whenever the modal opens OR the players change
     if (visible) {
-      setSelectedIds(parentSelectedIds);
+      setSelectedIds(parentSelectedIds ?? []);
     }
   }, [visible, parentSelectedIds, players]);
 
   const togglePlayer = (playerId: string) => {
     setSelectedIds((prev) => {
       let next: string[];
+      const gameStore = useGameStore.getState();
+
       if (prev.includes(playerId)) {
         next = prev.filter((id) => id !== playerId);
       } else if (prev.length >= effectiveMax) {
         next = prev;
       } else {
         next = [...prev, playerId];
+
+        if (pickerType === "batter" && gameStore.currentGame) {
+          const game = gameStore.currentGame;
+
+          const retiredBatter = game.activeRetired?.find(
+            (b) => b.playerId === playerId,
+          );
+
+          // 🟢 RETURN RETIRED BATTER
+          if (retiredBatter) {
+            console.log("Returning retired batter:", playerId);
+
+            const matchStore =
+              require("../../state/matchStore").useMatchStore.getState();
+
+            matchStore.removeEventByPredicate?.((event: any) => {
+              return (
+                event.type === "wicket" &&
+                event.kind === "retired" &&
+                event.batterInningId === retiredBatter.batterInningId
+              );
+            });
+
+            // Move from activeRetired → activeBatters
+            gameStore.updateCurrentGame({
+              activeBatters: [...game.activeBatters, retiredBatter],
+              activeRetired: game.activeRetired.filter(
+                (b) => b.playerId !== playerId,
+              ),
+            });
+
+            // ✅ Add to selection if not already selected
+            next = [...(prev ?? []), playerId];
+
+            return next;
+          }
+
+          // 🔵 NORMAL NEW BATTER FLOW
+          if (!game.activeBatters.some((b) => b.playerId === playerId)) {
+            const entryId = gameStore.addBatter(playerId);
+
+            gameStore.updateCurrentGame({
+              activeBatters: [
+                ...game.activeBatters,
+                { playerId, batterInningId: entryId },
+              ],
+            });
+          }
+        }
       }
+
+      console.log(`Toggled player: ${playerId}`);
+      console.log("Selected IDs after toggle:", next);
+
+      console.log(
+        "Current Game Active Batters from store 2:",
+        gameStore.currentGame?.activeBatters,
+      );
+      console.log(
+        "Current Game Batting Entries 2:",
+        gameStore.currentGame?.battingEntries,
+      );
+
+      onSelectionChange(next);
       return next;
     });
   };
-  //useEffect(() => onSelectionChange(selectedIds), [selectedIds]);
+
+  // Notify parent whenever selection changes
+  /*
+  useEffect(() => {
+    onSelectionChange(selectedIds);
+    console.log("onSelectionChange called with:", selectedIds);
+  }, [selectedIds]);
+  */
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -88,7 +173,22 @@ export default function SelectPlayersModal({
           <ScrollView style={styles.scroll}>
             {players.length > 0 ? (
               players.map((player) => {
+                const activeBatter = currentGame?.activeBatters?.find(
+                  (b) => b.playerId === player.id,
+                );
+
+                const playerEntry = currentGame?.battingEntries?.find(
+                  (e) => e.entryId === activeBatter?.batterInningId,
+                );
+
+                const retiredBatter = currentGame?.activeRetired?.find(
+                  (b) => b.playerId === player.id,
+                );
+
+                const isRetired = !!retiredBatter;
+
                 const selected = selectedIds.includes(player.id);
+
                 return (
                   <Pressable
                     key={player.id}
@@ -100,6 +200,10 @@ export default function SelectPlayersModal({
                   >
                     <Text style={{ color: selected ? "#fff" : "#000" }}>
                       {player.name}
+                      {isRetired ? " — retired (tap to continue innings)" : ""}
+                      {playerEntry
+                        ? ` — ${playerEntry.runs} (${playerEntry.balls})`
+                        : ""}
                     </Text>
                   </Pressable>
                 );
@@ -118,7 +222,7 @@ export default function SelectPlayersModal({
           <Pressable
             onPress={() => {
               // Notify parent if needed
-              onSelectionChange(selectedIds);
+              //onSelectionChange(selectedIds);
               // Close modal
               onClose();
             }}

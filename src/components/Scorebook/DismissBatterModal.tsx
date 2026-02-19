@@ -12,6 +12,7 @@ import {
 interface Batter {
   id: string;
   name: string;
+  retired?: boolean;
 }
 
 interface DismissBatterModalProps {
@@ -43,18 +44,20 @@ export default function DismissBatterModal({
           <Text style={styles.title}>Select Dismissed Batter</Text>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            {batters.map((b) => (
-              <Pressable
-                key={b.id}
-                style={[
-                  styles.optionButton,
-                  selectedId === b.id && styles.optionSelected,
-                ]}
-                onPress={() => setSelectedId(b.id)}
-              >
-                <Text style={styles.optionText}>{b.name}</Text>
-              </Pressable>
-            ))}
+            {batters
+              .filter((b) => !b.retired) // 🔹 filter out retired batters
+              .map((b) => (
+                <Pressable
+                  key={b.id}
+                  style={[
+                    styles.optionButton,
+                    selectedId === b.id && styles.optionSelected,
+                  ]}
+                  onPress={() => setSelectedId(b.id)}
+                >
+                  <Text style={styles.optionText}>{b.name}</Text>
+                </Pressable>
+              ))}
           </ScrollView>
 
           <Pressable
