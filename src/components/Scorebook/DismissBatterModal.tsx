@@ -1,12 +1,12 @@
 // src/components/Scorebook/DismissBatterModal.tsx
 import React, { useEffect, useState } from "react";
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 interface Batter {
@@ -21,6 +21,7 @@ interface DismissBatterModalProps {
   currentBatterId: string | null;
   onClose: () => void;
   onContinue: (selectedId: string) => void;
+  mode?: "dismiss" | "retire";
 }
 
 export default function DismissBatterModal({
@@ -29,6 +30,7 @@ export default function DismissBatterModal({
   currentBatterId,
   onClose,
   onContinue,
+  mode,
 }: DismissBatterModalProps) {
   const [selectedId, setSelectedId] = useState<string | null>(currentBatterId);
 
@@ -41,7 +43,11 @@ export default function DismissBatterModal({
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>Select Dismissed Batter</Text>
+          <Text style={styles.title}>
+            {mode === "retire"
+              ? "Select Batter to Retire"
+              : "Select Dismissed Batter"}
+          </Text>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {batters

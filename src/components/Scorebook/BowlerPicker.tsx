@@ -44,40 +44,47 @@ export default function BowlerPicker({
   const bowlingTeamPlayers = bowlingTeam?.players ?? [];
 
   // Find currently selected bowler
+  const currentBowlerId = useGameStore((s) => s.currentGame?.currentBowlerId);
+
   const currentBowler = bowlingTeamPlayers.find(
-    (p) => p.id === selectedBowlerId,
+    (p) => p.id === currentBowlerId,
   );
 
   const getBowlerStats = useCallback(
     (playerId: string) => {
       const bowlerEvents = events.filter((e) => e.bowlerId === playerId);
 
-      let balls = 0,
-        runs = 0,
-        wickets = 0,
-        wides = 0,
-        noBalls = 0;
-      bowlerEvents.forEach((e) => {
-        if (e.countsAsBall) balls += 1;
-        runs += e.runs || 0;
-        if (e.type === "wicket") wickets += 1;
-        if (e.extraType === "wide") wides += 1;
-        if (e.extraType === "noBall") noBalls += 1;
-      });
+      const balls = bowlerEvents.filter((e) => e.countsAsBall).length;
+      const runs = bowlerEvents.reduce((sum, e) => {
+        const batRuns = e.runBreakdown?.bat || 0;
+
+        const isBowlerExtra =
+          e.extraType === "wide" || e.extraType === "noBall";
+
+        const extraRuns = isBowlerExtra ? e.runBreakdown?.extras || 0 : 0;
+
+        return sum + batRuns + extraRuns;
+      }, 0);
+      const wickets = bowlerEvents.filter((e) => e.type === "wicket").length;
+      const wides = bowlerEvents.filter((e) => e.extraType === "wide").length;
+      const noBalls = bowlerEvents.filter(
+        (e) => e.extraType === "noBall",
+      ).length;
 
       const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
 
+      // Maidens
       let maidens = 0,
-        overRuns = 0,
-        ballInOver = 0;
+        ballInOver = 0,
+        runsInOver = 0;
       bowlerEvents.forEach((e) => {
         if (e.countsAsBall) {
-          ballInOver += 1;
-          overRuns += e.runs || 0;
+          runsInOver += e.runs || 0;
+          ballInOver++;
           if (ballInOver === 6) {
-            if (overRuns === 0) maidens += 1;
+            if (runsInOver === 0) maidens++;
             ballInOver = 0;
-            overRuns = 0;
+            runsInOver = 0;
           }
         }
       });
@@ -88,7 +95,7 @@ export default function BowlerPicker({
 
       return { overs, maidens, runs, wickets, economy, wides, noBalls };
     },
-    [events], // ← only changes when events change
+    [events], // ✅ only re-create if events change
   );
 
   useEffect(() => {
@@ -123,7 +130,7 @@ export default function BowlerPicker({
   // ======= FUNCTIONS =======
 
   const handleSelectBowler = (playerId: string) => {
-    // Store last bowler info only if changing bowler
+    // Store last bowler info
     if (currentBowler && currentBowler.id !== playerId) {
       setLastBowlerStats({
         name: currentBowler.name,
@@ -131,7 +138,10 @@ export default function BowlerPicker({
       });
     }
 
-    onSelectionChange(playerId); // Update parent state immediately
+    // Update store
+    setCurrentBowler(playerId);
+
+    onSelectionChange(playerId); // notify parent
     setShowModal(false);
   };
 

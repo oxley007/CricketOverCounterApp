@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { useGameStore } from "./gameStore";
+import { LEGAL_BALLS, useGameStore } from "./gameStore";
 
 const secureStore = {
   getItem: async (name: string) => {
@@ -119,6 +119,9 @@ export const matchStoreRef = create<MatchState>()(
           countsAsBall,
           runs: totalRuns,
           runBreakdown: { bat: batRuns, extras: extraRuns },
+          prevBatterId:
+            event.prevBatterId ??
+            currentGame?.activeBatters.find((b) => b.isFacing)?.playerId,
           ...(event.type === "wicket" && { kind: (event as WicketEvent).kind }),
         } as MatchEvent;
 
@@ -206,87 +209,92 @@ export const matchStoreRef = create<MatchState>()(
           if (state.events.length === 0) return state;
 
           const lastEvent = state.events[state.events.length - 1];
-          const newEvents = state.events.slice(0, -1);
-          const {
-            updateBatterStats,
-            updateBattingEntryStats,
-            updateBowlerStats,
-            currentGame,
-            setStrike,
-            setCurrentBowler,
-          } = useGameStore.getState();
 
-          if (!currentGame) return { ...state, events: newEvents };
-
-          // -------------------------
-          // Undo batter stats
-          // -------------------------
-          if (lastEvent.batterId && lastEvent.type === "ball") {
-            updateBatterStats(
-              lastEvent.batterId,
-              -lastEvent.runBreakdown.bat,
-              lastEvent.countsAsBall ? -1 : 0,
-            );
-
-            // ✅ Find the correct batting entry from activeBatters
-            const active = currentGame.activeBatters.find(
-              (b) => b.playerId === lastEvent.batterId,
-            );
-
-            if (active?.batterInningId) {
-              updateBattingEntryStats(
-                active.batterInningId,
-                -lastEvent.runBreakdown.bat,
-                lastEvent.countsAsBall ? -1 : 0,
-              );
-            }
-
-            setStrike(lastEvent.batterId);
+          // 🚫 Block wicket undo
+          if (lastEvent.type === "wicket") {
+            Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
+            return state;
           }
 
-          // -------------------------
-          // Undo bowler stats
-          // -------------------------
-          if (lastEvent.bowlerId) {
-            const extraType = lastEvent.extraType as
-              | "wide"
-              | "noBall"
-              | undefined;
-            if (lastEvent.type === "ball") {
-              updateBowlerStats(
-                lastEvent.bowlerId,
-                -lastEvent.runs,
-                lastEvent.countsAsBall ? -1 : 0,
-                0,
-                extraType,
-              );
-            } else if (lastEvent.type === "wicket") {
-              updateBowlerStats(
-                lastEvent.bowlerId,
-                -lastEvent.runs,
-                lastEvent.countsAsBall ? -1 : 0,
-                -1,
-                extraType,
-              );
-            }
+          const updatedEvents = state.events.slice(0, -1);
+          const gameStore = useGameStore.getState();
+          const game = gameStore.currentGame;
 
-            // If this was the last ball of an over and ballsThisOver is 0, restore bowler
-            const ballsThisOver =
-              lastEvent.countsAsBall && currentGame.ballsThisOver === 0
-                ? LEGAL_BALLS - 1
-                : currentGame.ballsThisOver - (lastEvent.countsAsBall ? 1 : 0);
+          console.log("UNDO LAST EVENT:", lastEvent);
 
-            setCurrentBowler(lastEvent.bowlerId);
+          if (!game) return { events: updatedEvents };
 
-            // Update ballsThisOver
-            set((s) => ({
-              currentGame: s.currentGame
-                ? { ...s.currentGame, ballsThisOver }
-                : s.currentGame,
-            }));
+          console.log("CURRENT GAME BEFORE UNDO:", {
+            ballCount: game.ballCount,
+            ballsThisOver: game.ballCount % LEGAL_BALLS,
+            currentBowlerId: game.currentBowlerId,
+            lastBowlerId: game.lastBowlerId,
+            activeBatters: game.activeBatters,
+            activeRetired: game.activeRetired,
+          });
+
+          const { batterId, bowlerId, runBreakdown, countsAsBall, extraType } =
+            lastEvent;
+          const bat = runBreakdown?.bat ?? 0;
+          const extras = runBreakdown?.extras ?? 0;
+
+          // 1️⃣ Reverse batter stats
+          if (bat > 0 || countsAsBall) {
+            gameStore.updateBatterStats(batterId, -bat, countsAsBall ? -1 : 0);
           }
 
-          return { ...state, events: newEvents };
+          // 2️⃣ Reverse bowler stats
+          if (bowlerId) {
+            gameStore.updateBowlerStats(
+              bowlerId,
+              -(bat + extras),
+              countsAsBall ? -1 : 0,
+              0,
+              extraType as "wide" | "noBall" | undefined,
+            );
+          }
+
+          // 3️⃣ Restore previous strike
+          if (lastEvent.prevBatterId) {
+            gameStore.setStrike(lastEvent.prevBatterId);
+          }
+
+          // 4️⃣ RESTORE bowler if needed
+          if (bowlerId && countsAsBall && game.lastBowlerPerOver) {
+            // decrement ball count first
+            gameStore.decrementBallCount?.();
+
+            const newBallCount = gameStore.currentGame?.ballCount ?? 0;
+            const overIndex = Math.floor((newBallCount - 1) / LEGAL_BALLS); // last completed over
+
+            const previousBowlerId =
+              gameStore.currentGame?.lastBowlerPerOver?.[overIndex];
+
+            console.log("Undo ball count before restore:", newBallCount);
+            console.log("Over index for previous bowler:", overIndex);
+            console.log(
+              "Previous bowler for last completed over:",
+              previousBowlerId,
+            );
+
+            if (previousBowlerId && !game.explicitBowlerSelection) {
+              console.log("Undo: restoring previous bowler", previousBowlerId);
+              gameStore.setCurrentBowler(previousBowlerId);
+            }
+          }
+
+          console.log("GAME STATE AFTER UNDO:", {
+            currentBowlerId: gameStore.currentGame?.currentBowlerId,
+            lastBowlerId: gameStore.currentGame?.lastBowlerId,
+            ballCount: gameStore.currentGame?.ballCount,
+          });
+
+          console.log(
+            "Was end of over (after undo calculation):",
+            (game.ballCount - 1) % LEGAL_BALLS === 0,
+          );
+
+          return { ...state, events: updatedEvents };
         }),
 
       resetInnings: () =>

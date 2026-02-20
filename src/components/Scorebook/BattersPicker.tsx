@@ -49,8 +49,13 @@ export default function BattersPicker({
         (!batterInningId || e.batterInningId === batterInningId),
     );
 
-    const runs = eventsForBatter.reduce((sum, e) => sum + (e.runs ?? 0), 0);
+    const runs = eventsForBatter.reduce(
+      (sum, e) => sum + (e.runBreakdown?.bat ?? 0),
+      0,
+    );
+
     const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
+
     const strikeRate = balls > 0 ? (runs / balls) * 100 : 0;
 
     return { runs, balls, strikeRate: strikeRate.toFixed(1) };
@@ -62,16 +67,31 @@ export default function BattersPicker({
   );
 
   const shouldShowChangeBatters = (() => {
-    const stats = selectedBatters.map((id) => getBatterStats(id));
+    const activeBattersObjects = currentGame?.activeBatters ?? [];
 
-    // Hide if no balls bowled yet
-    const totalBallsBowled = matchEvents.filter((e) => e.countsAsBall).length;
-    if (totalBallsBowled === 0) return false;
+    // 0 active batters → show button
+    if (activeBattersObjects.length === 0) return true;
 
-    if (stats.length <= 1) return true; // always show if 0 or 1 batter
+    // get stats for current active batters (including batterInningId)
+    const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
+      getBatterStats(playerId, batterInningId),
+    );
 
-    // Show button if any selected batter has BOTH runs === 0 AND balls === 0
-    return stats.some((b) => b.runs === 0 && b.balls === 0);
+    // both active batters have 0 runs AND 0 balls
+    if (
+      stats.length === 2 &&
+      stats.every((b) => b.runs === 0 && b.balls === 0)
+    ) {
+      return true;
+    }
+
+    // at least one active batter has 0 runs AND 0 balls
+    if (stats.some((b) => b.runs === 0 && b.balls === 0)) {
+      return true;
+    }
+
+    // otherwise hide
+    return false;
   })();
 
   const battingTeamPlayers = battingTeam?.players ?? [];

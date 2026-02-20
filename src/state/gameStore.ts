@@ -67,6 +67,7 @@ export type CurrentGame = {
   bowlers: BowlerStats[];
   currentBowlerId?: string;
   lastBowlerId?: string;
+  lastBowlerPerOver: Record<number, string | undefined>;
 
   wickets: WicketEvent[];
   ballCount: number;
@@ -443,6 +444,15 @@ export const useGameStore = create<GameState>()(
               "OVER ENDED → saving lastBowlerId:",
               game.currentBowlerId,
             );
+
+            const overIndex = Math.floor(game.ballCount / LEGAL_BALLS);
+            game.lastBowlerPerOver = {
+              ...game.lastBowlerPerOver,
+              [overIndex]: game.currentBowlerId,
+            };
+
+            // Reset explicit selection
+            game.explicitBowlerSelection = false;
           }
 
           // Determine if strike should swap
