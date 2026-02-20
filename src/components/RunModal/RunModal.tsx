@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore, WicketEvent } from "../../state/gameStore";
 import { useMatchStore, type MatchEvent } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import { buildCurrentOverCircles } from "../../utils/currentOverUtils";
 import BallReminderSettings from "../BallReminder/BallReminderSettings";
 import DismissBatterModal from "../Scorebook/DismissBatterModal";
 import SelectPlayersModal from "../Scorebook/SelectPlayersModal";
@@ -23,9 +24,14 @@ import MatchRulesSettings from "./MatchRulesSettings";
 interface RunModalProps {
   visible: boolean;
   onClose: () => void;
+  retireOnlyMode?: boolean;
 }
 
-export default function RunModal({ visible, onClose }: RunModalProps) {
+export default function RunModal({
+  visible,
+  onClose,
+  retireOnlyMode = false,
+}: RunModalProps) {
   const Wrapper = Platform.OS === "android" ? SafeAreaView : View;
 
   const {
@@ -234,6 +240,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         countsAsBall: false,
         runBreakdown: { bat, extras },
         wicket: null,
+        prevBatterId: currentGame?.currentStrikeId,
       });
 
       //useGameStore.getState().retireBatter(batterId);
@@ -305,6 +312,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     );
 
     // 🧠 Helpers (now safe — bat/extras/countsAsBall exist)
+    /*
     const maybeUpdateBatter = (batterId: string) => {
       if (!inScorebookMode) return;
       if (bat === 0 && !countsAsBall) return;
@@ -319,6 +327,38 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
           bowlerRuns,
           countsAsBall ? 1 : 0,
           0,
+          normalizeExtraType(selectedExtras[0]) as
+            | "wide"
+            | "noBall"
+            | undefined,
+        );
+      }
+    };
+    */
+
+    const maybeUpdateBatter = (batterId: string) => {
+      if (!inScorebookMode) return;
+      if (bat === 0 && !countsAsBall) return;
+
+      updateBatterStats(batterId, bat, countsAsBall ? 1 : 0);
+
+      // Update bowler stats for this ball using over index
+      if (currentGame?.currentBowlerId) {
+        const bowlerRuns = bat + extras;
+
+        // Get actual balls this over
+        const { ballsThisOver: actualBallsThisOver } = buildCurrentOverCircles(
+          useMatchStore.getState().events,
+          { wideIsExtraBall: useMatchStore.getState().wideIsExtraBall },
+        );
+
+        const overBallIndex = actualBallsThisOver % 6;
+
+        updateBowlerStats(
+          currentGame.currentBowlerId,
+          bowlerRuns,
+          countsAsBall ? 1 : 0,
+          overBallIndex,
           normalizeExtraType(selectedExtras[0]) as
             | "wide"
             | "noBall"
@@ -369,6 +409,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         isExtra: extrasRuns > 0,
         extraType: normalizeExtraType(selectedExtras[0]),
         countsAsBall,
+        prevBatterId: currentGame?.currentStrikeId,
       });
 
       console.log("All events after add:", useMatchStore.getState().events);
@@ -396,6 +437,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         );
 
         // Update bowler stats if applicable
+        /*
         if (currentGame?.currentBowlerId) {
           updateBowlerStats(
             currentGame.currentBowlerId,
@@ -406,6 +448,43 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
               | "wide"
               | "noBall"
               | undefined,
+          );
+        }
+        */
+
+        /*
+        if (currentGame?.currentBowlerId) {
+          const { ballsThisOver: actualBallsThisOver } = buildCurrentOverCircles(
+            useMatchStore.getState().events,
+            { wideIsExtraBall: useMatchStore.getState().wideIsExtraBall },
+          );
+        
+          const overBallIndex = actualBallsThisOver % 6;
+        
+          updateBowlerStats(
+            currentGame.currentBowlerId,
+            totalRuns,
+            countsAsBall ? 1 : 0,
+            overBallIndex,
+            normalizeExtraType(selectedExtras[0]) as "wide" | "noBall" | undefined,
+          );
+        }
+        */
+
+        if (currentGame?.currentBowlerId) {
+          const { ballsThisOver: actualBallsThisOver } =
+            buildCurrentOverCircles(useMatchStore.getState().events, {
+              wideIsExtraBall: useMatchStore.getState().wideIsExtraBall,
+            });
+
+          const overBallIndex = actualBallsThisOver % 6;
+
+          updateBowlerStats(
+            currentGame.currentBowlerId,
+            totalRuns,
+            countsAsBall ? 1 : 0, // increment if countsAsBall
+            overBallIndex,
+            normalizeExtraType(selectedExtras[0]),
           );
         }
 
@@ -424,6 +503,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
           countsAsBall: kind === "retired" ? false : true,
           runBreakdown: { bat, extras },
           wicket: wicketCopy,
+          prevBatterId: currentGame?.currentStrikeId,
         } as Omit<MatchEvent, "id" | "timestamp">);
       }
 
@@ -481,6 +561,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
       extraType: normalizeExtraType(selectedExtras[0]),
       countsAsBall,
       runBreakdown: { bat, extras },
+      prevBatterId: currentGame?.currentStrikeId,
     });
 
     console.log("All events after add:", useMatchStore.getState().events);
@@ -515,6 +596,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         isExtra: false,
         countsAsBall: false,
         runBreakdown: { bat: 0, extras: 0 },
+        prevBatterId: currentGame?.currentStrikeId,
       } as Omit<MatchEvent, "id" | "timestamp">);
     }
 
@@ -599,6 +681,8 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
     setShowPlayerSelect("batter");
   };
 
+  const isRetirement = selectedWickets.includes("Retired");
+
   return (
     <>
       <Modal
@@ -639,78 +723,89 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                     <View style={styles.divider} />
                   </>
                 )}
-                <Text style={styles.sectionTitle}>Runs</Text>
-                <View style={styles.grid}>
-                  {runOptions.map((run) => (
-                    <TouchableOpacity
-                      key={run}
-                      style={[
-                        styles.optionButton,
-                        selectedRuns === run && styles.optionSelected,
-                      ]}
-                      onPress={() => setSelectedRuns(run)}
-                    >
-                      <Text style={styles.optionText}>{run}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <CustomRunsInput
-                  value={selectedRuns}
-                  onChange={(runs) => setSelectedRuns(runs)}
-                />
+                {!retireOnlyMode && (
+                  <>
+                    <Text style={styles.sectionTitle}>Runs</Text>
+                    <View style={styles.grid}>
+                      {runOptions.map((run) => (
+                        <TouchableOpacity
+                          key={run}
+                          style={[
+                            styles.optionButton,
+                            selectedRuns === run && styles.optionSelected,
+                          ]}
+                          onPress={() => setSelectedRuns(run)}
+                        >
+                          <Text style={styles.optionText}>{run}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <CustomRunsInput
+                      value={selectedRuns}
+                      onChange={(runs) => setSelectedRuns(runs)}
+                    />
+                  </>
+                )}
+                {!retireOnlyMode && (
+                  <>
+                    <Text style={styles.sectionTitle}>Extras</Text>
+                    <Text style={styles.subtitleLeft}>
+                      Selecting an extra will automatically add 1 run. If you
+                      want to add more runs with an extra, first select the
+                      number of runs above, then select the extra. For example,
+                      a wide plus 4 runs equals 5 runs, so you would select 5
+                      runs followed by the wide.
+                    </Text>
+                    <View style={styles.grid}>
+                      {extraOptions.map((extra) => (
+                        <TouchableOpacity
+                          key={extra}
+                          style={[
+                            styles.optionButton,
+                            selectedExtras.includes(extra) &&
+                              styles.optionSelected,
+                          ]}
+                          onPress={() => toggleExtra(extra)}
+                        >
+                          <Text style={styles.optionText}>{extra}</Text>
 
-                <Text style={styles.sectionTitle}>Extras</Text>
-                <Text style={styles.subtitleLeft}>
-                  Selecting an extra will automatically add 1 run. If you want
-                  to add more runs with an extra, first select the number of
-                  runs above, then select the extra. For example, a wide plus 4
-                  runs equals 5 runs, so you would select 5 runs followed by the
-                  wide.
-                </Text>
-                <View style={styles.grid}>
-                  {extraOptions.map((extra) => (
-                    <TouchableOpacity
-                      key={extra}
-                      style={[
-                        styles.optionButton,
-                        selectedExtras.includes(extra) && styles.optionSelected,
-                      ]}
-                      onPress={() => toggleExtra(extra)}
-                    >
-                      <Text style={styles.optionText}>{extra}</Text>
-
-                      {/* Only show batRuns selector under No Ball */}
-                      {extra === "No Ball" &&
-                        selectedExtras.includes("No Ball") &&
-                        selectedRuns !== null &&
-                        selectedRuns > 1 && (
-                          <>
-                            <Text style={styles.sectionTitle}>
-                              Runs off the bat
-                            </Text>
-                            <View style={styles.grid}>
-                              {[0, 1, 2, 3, 4, 5, 6].map((r) => (
-                                <TouchableOpacity
-                                  key={r}
-                                  style={[
-                                    styles.optionButton,
-                                    batRuns === r &&
-                                      styles.optionSelectedNoBallBat,
-                                  ]}
-                                  onPress={() => {
-                                    setBatRuns(r as any);
-                                    console.log("Runs off bat selected:", r); // <-- LOG HERE
-                                  }}
-                                >
-                                  <Text style={styles.optionText}>{r}</Text>
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-                          </>
-                        )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                          {/* Only show batRuns selector under No Ball */}
+                          {extra === "No Ball" &&
+                            selectedExtras.includes("No Ball") &&
+                            selectedRuns !== null &&
+                            selectedRuns > 1 && (
+                              <>
+                                <Text style={styles.sectionTitle}>
+                                  Runs off the bat
+                                </Text>
+                                <View style={styles.grid}>
+                                  {[0, 1, 2, 3, 4, 5, 6].map((r) => (
+                                    <TouchableOpacity
+                                      key={r}
+                                      style={[
+                                        styles.optionButton,
+                                        batRuns === r &&
+                                          styles.optionSelectedNoBallBat,
+                                      ]}
+                                      onPress={() => {
+                                        setBatRuns(r as any);
+                                        console.log(
+                                          "Runs off bat selected:",
+                                          r,
+                                        ); // <-- LOG HERE
+                                      }}
+                                    >
+                                      <Text style={styles.optionText}>{r}</Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              </>
+                            )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
                 {wicketsAsNegativeRuns && (
                   <>
                     <Text style={styles.sectionTitle}>End Partnership</Text>
@@ -748,6 +843,17 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                   </View>
                 )}
                 <Text style={styles.sectionTitle}>Wickets</Text>
+                {retireOnlyMode && (
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      marginBottom: 10,
+                      fontWeight: "600",
+                    }}
+                  >
+                    End of Over — Retire or End Partnership Only
+                  </Text>
+                )}
                 {dismissedBatterId && (
                   <View
                     style={{
@@ -778,24 +884,26 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                   </View>
                 )}
                 <View style={styles.grid}>
-                  {wicketOptions.map((w) => (
-                    <TouchableOpacity
-                      key={w}
-                      style={[
-                        styles.optionButton,
-                        selectedWickets.includes(w) && styles.optionSelected,
-                      ]}
-                      onPress={() => {
-                        console.log("Wicket button pressed:", w); // 🔹 log button press
-                        toggleWicket(w);
-                        if (w !== "Retired" && w !== "Partnership") {
-                          setShowDismissModal(true);
-                        }
-                      }}
-                    >
-                      <Text style={styles.optionText}>{w}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {wicketOptions
+                    .filter((w) => (retireOnlyMode ? w === "Retired" : true))
+                    .map((w) => (
+                      <TouchableOpacity
+                        key={w}
+                        style={[
+                          styles.optionButton,
+                          selectedWickets.includes(w) && styles.optionSelected,
+                        ]}
+                        onPress={() => {
+                          console.log("Wicket button pressed:", w); // 🔹 log button press
+                          toggleWicket(w);
+                          if (w !== "Retired" && w !== "Partnership") {
+                            setShowDismissModal(true);
+                          }
+                        }}
+                      >
+                        <Text style={styles.optionText}>{w}</Text>
+                      </TouchableOpacity>
+                    ))}
                 </View>
               </ScrollView>
 
@@ -821,6 +929,7 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
 
         <DismissBatterModal
           visible={showDismissModal}
+          mode={dismissedKind === "retired" ? "retire" : "dismiss"}
           batters={batterPlayers.map((p) => {
             const bEntry = currentGame?.battingEntries.find(
               (e) => e.playerId === p.id,
@@ -863,7 +972,9 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
         {confirmingWicket && (
           <View style={styles.confirmOverlay}>
             <View style={styles.confirmBox}>
-              <Text style={styles.confirmTitle}>Confirm Wicket</Text>
+              <Text style={styles.confirmTitle}>
+                {isRetirement ? "Confirm Retirement" : "Confirm Wicket"}
+              </Text>
 
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Bowler</Text>
@@ -899,7 +1010,9 @@ export default function RunModal({ visible, onClose }: RunModalProps) {
                     handleSubmit();
                   }}
                 >
-                  <Text style={styles.confirmText}>Confirm Wicket</Text>
+                  <Text style={styles.confirmText}>
+                    {isRetirement ? "Confirm Retirement" : "Confirm Wicket"}
+                  </Text>
                 </Pressable>
               </View>
             </View>

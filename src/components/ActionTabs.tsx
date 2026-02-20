@@ -18,6 +18,44 @@ const { width } = Dimensions.get("window");
 export default function ActionTabs() {
   const { addEvent, undoLastEvent } = useMatchStore();
   const [modalVisible, setModalVisible] = useState(false);
+  const [retireOnlyMode, setRetireOnlyMode] = useState(false);
+
+  /*
+  const handleUndo = () => {
+    const events = useMatchStore.getState().events;
+    if (!events.length) return;
+
+    const lastEvent = events[events.length - 1];
+
+    if (lastEvent.type === "wicket") {
+      Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
+      return;
+    }
+
+    undoLastEvent();
+  };
+  */
+
+  const handleUndo = () => {
+    const events = useMatchStore.getState().events;
+    if (!events.length) return;
+
+    const lastEvent = events[events.length - 1];
+
+    if (lastEvent.type === "wicket") {
+      Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
+      return;
+    }
+
+    // 🔹 FIX: use over index instead of raw ball count
+    // Previously you might have been doing: undoLastEvent();
+    // Instead, pass the index of lastEvent relative to the over:
+    const { ballsThisOver } = buildCurrentOverCircles(events, {
+      wideIsExtraBall: useMatchStore.getState().wideIsExtraBall,
+    });
+
+    undoLastEvent(ballsThisOver - 1); // <- This ensures undo affects the correct ball in the over
+  };
 
   const tabs = [
     {
@@ -25,7 +63,7 @@ export default function ActionTabs() {
       color: "#c471ed",
       icon: <MaterialIcons name="undo" size={36} color="white" />,
       label: "Undo",
-      onPress: undoLastEvent,
+      onPress: handleUndo,
     },
     {
       key: "dot",
@@ -69,18 +107,19 @@ export default function ActionTabs() {
           return;
         }
 
-        // 🛑 Guard – only block if over complete
-        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
-          Alert.alert("Please add the next bowler to continue");
-          return;
-        }
-
+        // 🛑 Guard – must have striker
         const activeStriker = currentGame?.activeBatters?.find(
           (b) => b.playerId === currentGame.currentStrikeId,
         );
 
         if (!activeStriker) {
-          console.warn("No active striker found");
+          Alert.alert("Please select the facing batter to continue");
+          return;
+        }
+
+        // 🛑 Guard – only block if over complete
+        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
+          Alert.alert("Please add the next bowler to continue");
           return;
         }
 
@@ -98,6 +137,7 @@ export default function ActionTabs() {
           isExtra: false,
           countsAsBall,
           runBreakdown: { bat, extras },
+          prevBatterId: currentGame?.currentStrikeId,
         });
 
         // 2️⃣ Update batter stats
@@ -108,10 +148,23 @@ export default function ActionTabs() {
         );
 
         // 3️⃣ Update bowler stats
+        /*
         updateBowlerStats(
           currentBowlerId,
           { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
           countsAsBall,
+        );
+        */
+
+        // 3️⃣ Update bowler stats with correct ball index
+
+        const overBallIndex = actualBallsThisOver % 6;
+
+        updateBowlerStats(
+          currentBowlerId,
+          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
+          countsAsBall,
+          overBallIndex, // ✅ use ball index instead of placeholder
         );
 
         // 4️⃣ Apply strike change
@@ -152,10 +205,37 @@ export default function ActionTabs() {
           return;
         }
 
+        // 🛑 Guard – must have striker
+        const activeStriker = currentGame?.activeBatters?.find(
+          (b) => b.playerId === currentGame?.currentStrikeId,
+        );
+
+        if (!activeStriker) {
+          Alert.alert("Please select the facing batter to continue");
+          return;
+        }
+
         // Guard – only block if over complete
         // ✅ Use actual balls from events instead of tracked ballsThisOver
         if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
-          Alert.alert("Please add the next bowler to continue");
+          Alert.alert(
+            "Over Complete",
+            "This over is complete.\n\nAdd the next bowler to continue scoring.\nIf you need to retire a batter, you can continue.",
+            [
+              {
+                text: "Back to add a Bowler",
+                style: "cancel",
+              },
+              {
+                text: "Continue to Retire Batter",
+                onPress: () => {
+                  setRetireOnlyMode(true);
+                  setModalVisible(true);
+                },
+              },
+            ],
+          );
+
           return;
         }
 
@@ -185,7 +265,15 @@ export default function ActionTabs() {
           </Pressable>
         ))}
       </View>
-      <RunModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+
+      <RunModal
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setRetireOnlyMode(false); // reset when closed
+        }}
+        retireOnlyMode={retireOnlyMode}
+      />
     </>
   );
 }

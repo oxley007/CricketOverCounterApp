@@ -35,8 +35,13 @@ export default function Scorecard() {
       (e) => e.batterInningId === batterInningId,
     );
 
-    const runs = eventsForEntry.reduce((sum, e) => sum + (e.runs ?? 0), 0);
+    const runs = eventsForEntry.reduce(
+      (sum, e) => sum + (e.runBreakdown?.bat ?? 0),
+      0,
+    );
+
     const balls = eventsForEntry.filter((e) => e.countsAsBall).length;
+
     const strikeRate = balls > 0 ? ((runs / balls) * 100).toFixed(1) : "0.0";
 
     return { runs, balls, strikeRate };
@@ -77,7 +82,8 @@ export default function Scorecard() {
 
     // Check if batter is retired
     const isRetired = currentGame.activeRetired?.some(
-      (b) => b.playerId === entry.playerId,
+      (b) =>
+        b.playerId === entry.playerId && b.batterInningId === entry.entryId,
     );
 
     return {
@@ -90,9 +96,12 @@ export default function Scorecard() {
           ? (playerNameMap[dismissal.bowlerId] ?? "Unknown")
           : "-",
       dismissal,
-      statusText: isRetired ? "Retired" : undefined, // 👈 new
+      statusText: isRetired ? "Retired" : undefined,
       ...stats,
-      onStrike: currentStrikeId === entry.playerId,
+      onStrike: activeBatters.some(
+        (b) =>
+          b.playerId === entry.playerId && b.batterInningId === entry.entryId,
+      ),
     };
   });
 
