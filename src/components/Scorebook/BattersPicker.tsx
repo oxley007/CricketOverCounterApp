@@ -67,17 +67,18 @@ export default function BattersPicker({
   );
 
   const shouldShowChangeBatters = (() => {
+    // ❌ If no batters selected, we are in "Add Batters" mode
+    if (selectedBatters.length === 0) return false;
+
     const activeBattersObjects = currentGame?.activeBatters ?? [];
 
-    // 0 active batters → show button
     if (activeBattersObjects.length === 0) return true;
 
-    // get stats for current active batters (including batterInningId)
     const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
       getBatterStats(playerId, batterInningId),
     );
 
-    // both active batters have 0 runs AND 0 balls
+    // Allow change if both have not faced a ball
     if (
       stats.length === 2 &&
       stats.every((b) => b.runs === 0 && b.balls === 0)
@@ -85,12 +86,11 @@ export default function BattersPicker({
       return true;
     }
 
-    // at least one active batter has 0 runs AND 0 balls
+    // Allow change if one has not faced a ball
     if (stats.some((b) => b.runs === 0 && b.balls === 0)) {
       return true;
     }
 
-    // otherwise hide
     return false;
   })();
 
@@ -245,7 +245,9 @@ export default function BattersPicker({
               </View>
             ) : (
               <View>
-                <Text>Select opening batters to start scoring</Text>
+                <Text style={styles.selectedText}>
+                  Select opening batters to start scoring
+                </Text>
                 <Pressable
                   style={[styles.addBowlerButton, { marginTop: 12 }]}
                   onPress={() => setShowModal(true)}
@@ -343,4 +345,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addBowlerButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  selectedText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
 });

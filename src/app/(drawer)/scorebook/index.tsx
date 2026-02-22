@@ -246,11 +246,13 @@ export default function ScorebookIndex() {
           onSelectionChange={setSelectedBatters}
         />
 
-        <BowlerPicker
-          bowlingTeam={teams.find((t) => t.id === bowlingTeamId) ?? null}
-          selectedBowlerId={selectedBowlerId}
-          onSelectionChange={setSelectedBowlerId}
-        />
+        {battingTeamId && bowlingTeamId && (
+          <BowlerPicker
+            bowlingTeam={bowlingTeam}
+            selectedBowlerId={selectedBowlerId}
+            onSelectionChange={setSelectedBowlerId}
+          />
+        )}
 
         {!showStats && (
           <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />

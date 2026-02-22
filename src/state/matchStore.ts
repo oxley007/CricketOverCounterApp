@@ -20,6 +20,40 @@ const secureStore = {
    Store
 ========================= */
 
+export type MatchEvent =
+  | {
+      id: string;
+      timestamp: number;
+      type: "ball";
+      batterId?: string;
+      batterInningId?: string;
+      bowlerId?: string;
+      runs: number;
+      runBreakdown: {
+        bat: number;
+        extras: number;
+      };
+      countsAsBall: boolean;
+      isExtra?: boolean;
+      extraType?: "wide" | "noBall" | "bye" | "legBye";
+      prevBatterId?: string;
+    }
+  | {
+      id: string;
+      timestamp: number;
+      type: "wicket";
+      batterId?: string;
+      bowlerId?: string;
+      kind?: string;
+      runs: number;
+      runBreakdown: {
+        bat: number;
+        extras: number;
+      };
+      countsAsBall: boolean;
+      prevBatterId?: string;
+    };
+
 export const matchStoreRef = create<MatchState>()(
   persist(
     (set, get) => ({

@@ -5,16 +5,20 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  Alert,
   Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useGameStore } from "../../state/gameStore";
+import { useTeamStore } from "../../state/teamStore";
 
+import { MaterialIcons } from "@expo/vector-icons";
 import BowlerScorecard from "./BowlerScorecard";
 import Scorecard from "./Scorecard";
 
@@ -52,6 +56,11 @@ export default function SelectPlayersModal({
   pickerType,
 }: SelectPlayersModalProps) {
   const currentGame = useGameStore((s) => s.currentGame);
+  const updatePlayerName = useTeamStore((s) => s.updatePlayerName);
+
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   console.log(
     "Current Game Active Batters from store:",
@@ -83,6 +92,15 @@ export default function SelectPlayersModal({
         const next = [playerId];
         setSelectedIds(next);
         onSelectionChange(next);
+
+        const { updateLastBowlerId } = useGameStore.getState();
+        updateLastBowlerId(null);
+
+        console.log(
+          "🎯 SelectPlayerModal: Bowler selected → lastBowlerId cleared",
+          currentGame?.lastBowlerId,
+        );
+
         return;
       }
 
@@ -214,6 +232,25 @@ export default function SelectPlayersModal({
     console.log("onSelectionChange called with:", selectedIds);
   }, [selectedIds]);
   */
+  const filteredPlayers = players.filter((p) => showArchived || !p.archived);
+
+  const startEditing = (player: PlayerOption) => {
+    setEditingPlayerId(player.id);
+    setEditedName(player.name);
+  };
+
+  const saveEdit = (playerId: string) => {
+    if (!editedName.trim()) return;
+
+    // ⚠️ You need teamId — pass it in as prop if not available here
+    const teamId = currentGame?.battingTeamId || currentGame?.bowlingTeamId;
+    if (!teamId) return;
+
+    updatePlayerName(teamId, playerId, editedName.trim());
+    setEditingPlayerId(null);
+  };
+
+  const archivePlayer = useTeamStore((s) => s.archivePlayer);
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -225,8 +262,8 @@ export default function SelectPlayersModal({
           <Text style={styles.title}>{title}</Text>
 
           <ScrollView style={styles.scroll}>
-            {players.length > 0 ? (
-              players.map((player) => {
+            {filteredPlayers.length > 0 ? (
+              filteredPlayers.map((player) => {
                 const activeBatter = currentGame?.activeBatters?.find(
                   (b) => b.playerId === player.id,
                 );
@@ -249,22 +286,88 @@ export default function SelectPlayersModal({
                 );
 
                 return (
-                  <Pressable
+                  <View
                     key={player.id}
-                    onPress={() => togglePlayer(player.id)}
                     style={[
                       styles.playerItem,
                       { backgroundColor: selected ? "#12c2e9" : "#f0f0f0" },
                     ]}
                   >
-                    <Text style={{ color: selected ? "#fff" : "#000" }}>
-                      {player.name}
-                      {isRetired ? " — retired (tap to continue innings)" : ""}
-                      {playerEntry
-                        ? ` — ${playerEntry.runs} (${playerEntry.balls})`
-                        : ""}
-                    </Text>
-                  </Pressable>
+                    <View style={styles.playerRow}>
+                      {editingPlayerId === player.id ? (
+                        <>
+                          <TextInput
+                            value={editedName}
+                            onChangeText={setEditedName}
+                            style={styles.input}
+                            autoFocus
+                          />
+                          <Pressable onPress={() => saveEdit(player.id)}>
+                            <MaterialIcons
+                              name="check"
+                              size={22}
+                              color="green"
+                            />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <>
+                          <Pressable
+                            style={{ flex: 1 }}
+                            onPress={() => togglePlayer(player.id)}
+                          >
+                            <Text style={{ color: selected ? "#fff" : "#000" }}>
+                              {player.name}
+                              {isRetired
+                                ? " — retired (tap to continue innings)"
+                                : ""}
+                            </Text>
+                          </Pressable>
+
+                          <Pressable onPress={() => startEditing(player)}>
+                            <MaterialIcons
+                              name="edit"
+                              size={20}
+                              color="#64748b"
+                            />
+                          </Pressable>
+                          <Pressable
+                            onPress={() => {
+                              const teamId =
+                                currentGame?.battingTeamId ||
+                                currentGame?.bowlingTeamId;
+                              if (!teamId) return;
+
+                              if (!player.archived) {
+                                Alert.alert(
+                                  "Archive Player",
+                                  `Are you sure you want to archive ${player.name}?`,
+                                  [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                      text: "Yes, Archive",
+                                      style: "destructive",
+                                      onPress: () =>
+                                        archivePlayer(teamId, player.id, true),
+                                    },
+                                  ],
+                                );
+                              } else {
+                                // Unarchive directly
+                                archivePlayer(teamId, player.id, false);
+                              }
+                            }}
+                          >
+                            <MaterialIcons
+                              name={player.archived ? "restore" : "delete"}
+                              size={20}
+                              color={player.archived ? "orange" : "#64748b"}
+                            />
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                  </View>
                 );
               })
             ) : (
@@ -274,6 +377,16 @@ export default function SelectPlayersModal({
                 </Text>
               </View>
             )}
+            <Pressable
+              style={{ marginVertical: 12, alignSelf: "center" }}
+              onPress={() => setShowArchived((prev) => !prev)}
+            >
+              <Text style={{ color: "#12c2e9", fontWeight: "600" }}>
+                {showArchived
+                  ? "Hide Archived Players"
+                  : "Show Archived Players"}
+              </Text>
+            </Pressable>
           </ScrollView>
 
           {renderFooter?.()}
@@ -317,4 +430,20 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   closeButtonText: { color: "#fff", fontWeight: "600" },
+  playerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  input: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginRight: 8,
+  },
 });
