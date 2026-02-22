@@ -288,6 +288,12 @@ export default function RunModal({
     } else if (isWide) {
       bat = 0;
       extras = totalRuns || 1;
+    } else if (
+      selectedExtras.includes("Bye") ||
+      selectedExtras.includes("Leg Bye")
+    ) {
+      bat = 0;
+      extras = totalRuns;
     } else {
       bat = totalRuns;
       extras = 0;

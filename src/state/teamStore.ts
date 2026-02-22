@@ -1,11 +1,12 @@
 // src/state/teamStore.ts
-import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
 import { generateId } from "../utils/generateId";
 
 export type Player = {
   id: string;
   name: string;
+  archived?: boolean;
 };
 
 export type Team = {
@@ -14,14 +15,14 @@ export type Team = {
   players: Player[]; // 👈 NEW
 };
 
-
 interface TeamStore {
   teams: Team[];
   addTeam: (name: string) => Team | null;
 
   addPlayer: (teamId: string, name: string) => Player | null;
   removePlayer: (teamId: string, playerId: string) => void;
-
+  updatePlayerName: (teamId: string, playerId: string, newName: string) => void;
+  archivePlayer: (teamId: string, playerId: string, archive: boolean) => void;
   loadTeams: () => Promise<void>;
   clearTeams: () => Promise<void>;
 }
@@ -57,7 +58,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     if (!trimmed) return null;
 
     const existing = get().teams.find(
-      (t) => t.name.toLowerCase() === trimmed.toLowerCase()
+      (t) => t.name.toLowerCase() === trimmed.toLowerCase(),
     );
     if (existing) return null;
 
@@ -71,7 +72,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams: updatedTeams });
 
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
-      console.warn
+      console.warn,
     );
 
     return newTeam;
@@ -97,7 +98,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     if (!trimmed) return null;
 
     const exists = team.players.some(
-      (p) => p.name.toLowerCase() === trimmed.toLowerCase()
+      (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
     );
     if (exists) return null;
 
@@ -107,15 +108,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     };
 
     const updatedTeams = teams.map((t) =>
-      t.id === teamId
-        ? { ...t, players: [...t.players, newPlayer] }
-        : t
+      t.id === teamId ? { ...t, players: [...t.players, newPlayer] } : t,
     );
 
     set({ teams: updatedTeams });
 
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
-      console.warn
+      console.warn,
     );
 
     return newPlayer;
@@ -128,12 +127,54 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
             ...t,
             players: t.players.filter((p) => p.id !== playerId),
           }
-        : t
+        : t,
     );
 
     set({ teams: updatedTeams });
+
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
-      console.warn
+      console.warn,
+    );
+  },
+
+  updatePlayerName: (teamId, playerId, newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    const updatedTeams = get().teams.map((t) =>
+      t.id === teamId
+        ? {
+            ...t,
+            players: t.players.map((p) =>
+              p.id === playerId ? { ...p, name: trimmed } : p,
+            ),
+          }
+        : t,
+    );
+
+    set({ teams: updatedTeams });
+
+    AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
+      console.warn,
+    );
+  },
+
+  archivePlayer: (teamId: string, playerId: string, archive: boolean) => {
+    const updatedTeams = get().teams.map((t) =>
+      t.id === teamId
+        ? {
+            ...t,
+            players: t.players.map((p) =>
+              p.id === playerId ? { ...p, archived: archive } : p,
+            ),
+          }
+        : t,
+    );
+
+    set({ teams: updatedTeams });
+
+    AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
+      console.warn,
     );
   },
 }));

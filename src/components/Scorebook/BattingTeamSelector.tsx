@@ -1,7 +1,8 @@
 // src/components/Scorebook/BattingTeamSelector.tsx
 "use client";
 
-import { Pressable, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Team } from "../../state/teamStore";
 
 interface BattingTeamSelectorProps {
@@ -24,46 +25,41 @@ export default function BattingTeamSelector({
   // 👇 SHOW TEAM CHOICE
   if (!selectedBattingTeamId) {
     return (
-      <View style={{ marginBottom: 12 }}>
-        <Text style={{ fontWeight: "600", marginBottom: 6 }}>
-          Select Batting Team:
-        </Text>
+      <View style={styles.card}>
+        <Text style={styles.title}>Select Batting Team</Text>
 
         {allTeams.map((team) => (
           <Pressable
             key={team.id}
             onPress={() => {
-              // Automatically set bowling team to the other team
               const otherTeam = allTeams.find((t) => t.id !== team.id);
               onSelectTeam(team.id, otherTeam?.id ?? "");
             }}
-            style={{
-              padding: 12,
-              borderRadius: 8,
-              backgroundColor: "#f0f0f0",
-              marginBottom: 6,
-            }}
+            style={styles.primaryButton}
           >
-            <Text>{team.name}</Text>
+            <Text style={styles.primaryButtonText}>{team.name}</Text>
           </Pressable>
         ))}
       </View>
     );
   }
 
-  // 👇 SHOW SELECTED TEAM
+  // 👇 SHOW SELECTED TEAM (before scoring starts)
   if (legalBallsBowled === 0) {
     const team = allTeams.find((t) => t.id === selectedBattingTeamId);
-    const bowlingTeam = allTeams.find((t) => t.id === bowlingTeamId);
 
     return (
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
-      >
-        <Text style={{ fontWeight: "600" }}>{team?.name} batting first</Text>
+      <View style={styles.card}>
+        <View style={styles.confirmRow}>
+          <View style={styles.iconCircle}>
+            <MaterialIcons name="check" size={18} color="#fff" />
+          </View>
 
-        <Pressable onPress={onReset} style={{ marginLeft: 8 }}>
-          <Text style={{ color: "#666", fontWeight: "600" }}>(change)</Text>
+          <Text style={styles.selectedText}>{team?.name} batting first</Text>
+        </View>
+
+        <Pressable onPress={onReset} style={styles.changeButton}>
+          <Text style={styles.changeButtonText}>Change Team</Text>
         </Pressable>
       </View>
     );
@@ -71,3 +67,88 @@ export default function BattingTeamSelector({
 
   return null;
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    marginVertical: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+    borderLeftWidth: 5,
+    borderLeftColor: "#12c2e9",
+  },
+
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 12,
+  },
+
+  primaryButton: {
+    marginBottom: 12,
+    paddingVertical: 10,
+    backgroundColor: "#12c2e9",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+
+  changeButton: {
+    paddingVertical: 10,
+    backgroundColor: "#e0f7ff",
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  changeButtonText: {
+    color: "#12c2e9",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  confirmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+  },
+
+  iconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 14,
+    backgroundColor: "#16a34a", // stronger green
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  selectedText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+
+  changeInline: {
+    color: "#12c2e9",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+});

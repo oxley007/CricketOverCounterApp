@@ -55,6 +55,9 @@ export default function ActionTabs() {
     });
 
     undoLastEvent(ballsThisOver - 1); // <- This ensures undo affects the correct ball in the over
+
+    // 🔄 Reset the bowler if necessary
+    useGameStore.getState().resetCurrentBowlerAfterUndo();
   };
 
   const tabs = [
@@ -118,6 +121,11 @@ export default function ActionTabs() {
         }
 
         // 🛑 Guard – only block if over complete
+        console.log("🕵️ ActionTabs: Over guard check", {
+          actualBallsThisOver,
+          currentBowlerId,
+          lastBowlerId,
+        });
         if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
           Alert.alert("Please add the next bowler to continue");
           return;

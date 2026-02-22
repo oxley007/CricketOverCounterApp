@@ -168,11 +168,12 @@ interface GameState {
   ) => void;
 
   dismissBattingEntry: (entryId: string, dismissal: BattingDismissal) => void;
+  updateLastBowlerId: (bowlerId: string | null) => void;
 }
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isSetupComplete: false,
       seasons: [],
       lastSeason: undefined,
@@ -651,6 +652,41 @@ export const useGameStore = create<GameState>()(
             },
           };
         }),
+
+      resetCurrentBowlerAfterUndo: () => {
+        const game = get().currentGame;
+        if (!game) return;
+
+        const events = useMatchStore.getState().events || [];
+        if (!events.length) return;
+
+        // Find last ball that counts as a legal delivery
+        const lastLegalBall = [...events]
+          .reverse()
+          .find((e) => e.countsAsBall && e.bowlerId);
+
+        if (lastLegalBall && lastLegalBall.bowlerId) {
+          console.log(
+            "🔄 Resetting currentBowlerId after undo to:",
+            lastLegalBall.bowlerId,
+          );
+
+          set({
+            currentGame: {
+              ...game,
+              currentBowlerId: lastLegalBall.bowlerId,
+            },
+          });
+        }
+      },
+
+      updateLastBowlerId: (bowlerId: string | null) =>
+        set((state) => ({
+          currentGame: {
+            ...state.currentGame!,
+            lastBowlerId: bowlerId,
+          },
+        })),
 
       resetBatters: () =>
         set((state) =>
