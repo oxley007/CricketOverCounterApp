@@ -37,6 +37,9 @@ export type MatchEvent =
       isExtra?: boolean;
       extraType?: "wide" | "noBall" | "bye" | "legBye";
       prevBatterId?: string;
+      wicketPenaltyAdditionBatter?: number;
+      wicketPenaltyAdditionBowler?: number;
+      wicketPenaltyWicketType?: string;
     }
   | {
       id: string;
@@ -52,6 +55,9 @@ export type MatchEvent =
       };
       countsAsBall: boolean;
       prevBatterId?: string;
+      wicketPenaltyAdditionBatter?: number;
+      wicketPenaltyAdditionBowler?: number;
+      wicketPenaltyWicketType?: string;
     };
 
 export const matchStoreRef = create<MatchState>()(
@@ -67,6 +73,9 @@ export const matchStoreRef = create<MatchState>()(
       wideIsExtraBall: true,
       wicketsAsNegativeRuns: false,
       wicketPenaltyRuns: 5,
+
+      wicketPenaltyAffectsBatter: false,
+      wicketPenaltyAffectsBowler: false,
 
       // ball reminder
       ballReminderEnabled: true,
@@ -114,6 +123,7 @@ export const matchStoreRef = create<MatchState>()(
           extraRuns = Math.max(extraRuns, event.runBreakdown.extras ?? 0);
         }
 
+        /*
         if (wicketsAsNegativeRuns) {
           const isNegativeWicket =
             event.type === "wicket" &&
@@ -128,6 +138,18 @@ export const matchStoreRef = create<MatchState>()(
           if (isNegativeWicket || isNegativeBall) {
             batRuns = -wicketPenaltyRuns;
             extraRuns = event.extraType === "wide" && !wideIsExtraBall ? 1 : 0;
+          }
+        }
+        */
+
+        if (wicketsAsNegativeRuns) {
+          const isNegativeWicket =
+            event.type === "wicket" &&
+            event.kind !== "partnership" &&
+            event.kind !== "retired";
+
+          if (isNegativeWicket) {
+            batRuns = -wicketPenaltyRuns;
           }
         }
 
@@ -360,6 +382,12 @@ export const matchStoreRef = create<MatchState>()(
       setWicketPenaltyRuns: (value: number) =>
         set((state) => ({ ...state, wicketPenaltyRuns: value })),
 
+      setWicketPenaltyAffectsBatter: (value: boolean) =>
+        set((state) => ({ ...state, wicketPenaltyAffectsBatter: value })),
+
+      setWicketPenaltyAffectsBowler: (value: boolean) =>
+        set((state) => ({ ...state, wicketPenaltyAffectsBowler: value })),
+
       setBallReminderEnabled: (value: boolean) =>
         set((state) => ({ ...state, ballReminderEnabled: value })),
 
@@ -381,6 +409,8 @@ export const matchStoreRef = create<MatchState>()(
         wideIsExtraBall: state.wideIsExtraBall,
         wicketsAsNegativeRuns: state.wicketsAsNegativeRuns,
         wicketPenaltyRuns: state.wicketPenaltyRuns,
+        wicketPenaltyAffectsBatter: state.wicketPenaltyAffectsBatter, // ✅ new
+        wicketPenaltyAffectsBowler: state.wicketPenaltyAffectsBowler,
         ballReminderEnabled: state.ballReminderEnabled,
         ballReminderThresholdPercent: state.ballReminderThresholdPercent,
         proUnlocked: state.proUnlocked,

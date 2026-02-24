@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  View,
-  Text,
-  Switch,
-  TextInput,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
 
@@ -26,10 +26,7 @@ export default function BallReminderSettings(props: Props = {}) {
 
   return (
     <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        compact && styles.compact,
-      ]}
+      contentContainerStyle={[styles.container, compact && styles.compact]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.row}>
@@ -39,6 +36,12 @@ export default function BallReminderSettings(props: Props = {}) {
           onValueChange={setBallReminderEnabled}
         />
       </View>
+
+      {showDescription && (
+        <Text style={styles.help}>
+          Vibrates if a ball hasn’t been counted within the expected time.
+        </Text>
+      )}
 
       {ballReminderEnabled && (
         <>
@@ -54,12 +57,6 @@ export default function BallReminderSettings(props: Props = {}) {
             />
             <Text style={styles.suffix}>%</Text>
           </View>
-
-          {showDescription && (
-            <Text style={styles.help}>
-              Vibrates if a ball hasn’t been counted within the expected time.
-            </Text>
-          )}
         </>
       )}
     </ScrollView>
@@ -79,7 +76,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 0,
   },
   inputRow: {
     flexDirection: "row",
@@ -98,7 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginHorizontal: 8,
-    backgroundColor: '#fff'
+    backgroundColor: "#fff",
   },
   suffix: {
     fontSize: 16,
@@ -106,5 +103,6 @@ const styles = StyleSheet.create({
   help: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 16,
   },
 });
