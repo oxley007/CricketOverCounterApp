@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { calculateBatterStats } from "../../state/gameHelpers";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import type { Team } from "../../state/teamStore";
@@ -42,6 +43,7 @@ export default function BattersPicker({
 
   //const batters = useGameStore((s) => s.currentGame?.batters ?? []);
 
+  /*
   const getBatterStats = (playerId: string, batterInningId?: string) => {
     const eventsForBatter = matchEvents.filter(
       (e) =>
@@ -49,10 +51,12 @@ export default function BattersPicker({
         (!batterInningId || e.batterInningId === batterInningId),
     );
 
-    const runs = eventsForBatter.reduce(
-      (sum, e) => sum + (e.runBreakdown?.bat ?? 0),
-      0,
-    );
+    const runs = eventsForBatter.reduce((sum, e) => {
+      const batRuns = e.runBreakdown?.bat ?? 0;
+      const penaltyAddBack = (e as any).wicketPenaltyAdditionBatter ?? 0;
+
+      return sum + batRuns + penaltyAddBack;
+    }, 0);
 
     const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
 
@@ -60,6 +64,7 @@ export default function BattersPicker({
 
     return { runs, balls, strikeRate: strikeRate.toFixed(1) };
   };
+  */
 
   console.log(
     "Persisted batters:",
@@ -75,7 +80,7 @@ export default function BattersPicker({
     if (activeBattersObjects.length === 0) return true;
 
     const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
-      getBatterStats(playerId, batterInningId),
+      calculateBatterStats(matchEvents, playerId, batterInningId),
     );
 
     // Allow change if both have not faced a ball
@@ -107,7 +112,12 @@ export default function BattersPicker({
       const player = battingTeamPlayers.find((p) => p.id === playerId);
       if (!player) return null;
 
-      const { runs, balls } = getBatterStats(playerId, batterInningId);
+      //const { runs, balls } = getBatterStats(playerId, batterInningId);
+      const { runs, balls } = calculateBatterStats(
+        matchEvents,
+        playerId,
+        batterInningId,
+      );
 
       return {
         ...player,

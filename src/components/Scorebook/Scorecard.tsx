@@ -1,6 +1,9 @@
 import React from "react";
 import { Dimensions, FlatList, StyleSheet, Text, View } from "react-native";
-import { getDismissalText } from "../../state/gameHelpers";
+import {
+  calculateBatterStats,
+  getDismissalText,
+} from "../../state/gameHelpers";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
@@ -30,6 +33,7 @@ export default function Scorecard() {
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
   );
 
+  /*
   const getBatterStats = (batterInningId: string) => {
     const eventsForEntry = matchEvents.filter(
       (e) => e.batterInningId === batterInningId,
@@ -46,6 +50,7 @@ export default function Scorecard() {
 
     return { runs, balls, strikeRate };
   };
+  */
 
   /*
   const batterFirstEventTime: Record<string, number> = {};
@@ -76,7 +81,11 @@ export default function Scorecard() {
   */
 
   const scorecard = battingEntries.map((entry) => {
-    const stats = getBatterStats(entry.entryId);
+    const stats = calculateBatterStats(
+      matchEvents,
+      entry.playerId,
+      entry.entryId,
+    );
 
     const dismissal = entry.dismissal;
 

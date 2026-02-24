@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Switch, TextInput, StyleSheet } from "react-native";
+import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
 
 export default function MatchRulesSettings() {
@@ -7,30 +7,31 @@ export default function MatchRulesSettings() {
     wideIsExtraBall,
     wicketsAsNegativeRuns,
     wicketPenaltyRuns,
+    wicketPenaltyAffectsBatter,
+    wicketPenaltyAffectsBowler,
     setWideIsExtraBall,
     setWicketsAsNegativeRuns,
     setWicketPenaltyRuns,
+    setWicketPenaltyAffectsBatter,
+    setWicketPenaltyAffectsBowler,
   } = useMatchStore();
 
   return (
     <View style={styles.container}>
-
       {/* Wide rule */}
       <View style={styles.row}>
         <Text style={styles.label}>Wide as extra ball</Text>
-        <Switch
-          value={wideIsExtraBall}
-          onValueChange={setWideIsExtraBall}
-        />
+        <Switch value={wideIsExtraBall} onValueChange={setWideIsExtraBall} />
       </View>
 
       <Text style={styles.helper}>
-        If off, wides count as runs but do not count as an extra delivery (junior cricket).
+        If off, wides count as runs but do not count as an extra delivery
+        (junior cricket).
       </Text>
 
       {/* Wicket rule */}
       <View style={styles.row}>
-        <Text style={styles.label}>Wickets as negative runs</Text>
+        <Text style={styles.label}>Wickets subtract runs from total score</Text>
         <Switch
           value={wicketsAsNegativeRuns}
           onValueChange={setWicketsAsNegativeRuns}
@@ -38,22 +39,44 @@ export default function MatchRulesSettings() {
       </View>
 
       <Text style={styles.helper}>
-        If on, wickets count as neagtive runs instead of a wicket (junior cricket)
+        If on, wickets count as neagtive runs to total score instead dismissing
+        a batter (junior cricket)
       </Text>
 
       {wicketsAsNegativeRuns && (
-        <View style={styles.inputRow}>
-          <Text style={styles.label}>Runs per wicket</Text>
-          <TextInput
-            value={String(wicketPenaltyRuns)}
-            onChangeText={(v) =>
-              setWicketPenaltyRuns(parseInt(v, 10) || 0)
-            }
-            keyboardType="numeric"
-            style={styles.input}
-            placeholder="-5"
-          />
-        </View>
+        <>
+          {" "}
+          {/* Runs per wicket input */}{" "}
+          <View style={styles.inputRow}>
+            {" "}
+            <Text style={styles.label}>Negative runs per wicket</Text>{" "}
+            <TextInput
+              value={String(wicketPenaltyRuns)}
+              onChangeText={(v) => setWicketPenaltyRuns(parseInt(v, 10) || 0)}
+              keyboardType="numeric"
+              style={styles.input}
+              placeholder="-5"
+            />{" "}
+          </View>{" "}
+          {/* Wicket affects batter */}{" "}
+          <View style={styles.row}>
+            {" "}
+            <Text style={styles.label}>Apply negative runs to batter</Text>{" "}
+            <Switch
+              value={wicketPenaltyAffectsBatter}
+              onValueChange={setWicketPenaltyAffectsBatter}
+            />{" "}
+          </View>{" "}
+          {/* Wicket affects bowler */}{" "}
+          <View style={styles.row}>
+            {" "}
+            <Text style={styles.label}>Apply negative runs to bowler</Text>{" "}
+            <Switch
+              value={wicketPenaltyAffectsBowler}
+              onValueChange={setWicketPenaltyAffectsBowler}
+            />{" "}
+          </View>{" "}
+        </>
       )}
     </View>
   );
@@ -93,7 +116,7 @@ const styles = StyleSheet.create({
   },
   helper: {
     fontSize: 12,
-    color: "#666",
+    color: "#333",
     marginBottom: 10,
   },
 });

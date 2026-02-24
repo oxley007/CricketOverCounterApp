@@ -39,6 +39,8 @@ export default function RunModal({
     wideIsExtraBall,
     wicketsAsNegativeRuns,
     wicketPenaltyRuns,
+    wicketPenaltyAffectsBatter,
+    wicketPenaltyAffectsBowler,
   } = useMatchStore();
   //const { currentGame, updateBatterStats } = useGameStore();
   //const [selectedRuns, setSelectedRuns] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | null>(null);
@@ -71,6 +73,7 @@ export default function RunModal({
   const addWicket = useGameStore((s) => s.addWicket);
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [confirmingWicket, setConfirmingWicket] = useState(false);
+  const [partnershipCount, setPartnershipCount] = useState<1 | 2>(1);
 
   // Automatically submit when a batter is selected from DismissBatterModal
   useEffect(() => {
@@ -78,6 +81,15 @@ export default function RunModal({
       handleSubmit();
     }
   }, [dismissedBatterId]);
+
+  useEffect(() => {
+    if (visible) {
+      resetSelections();
+      setConfirmingWicket(false);
+      setDismissedBatterId(null);
+      setDismissedKind(null);
+    }
+  }, [visible]);
 
   // LOGGING AFTER HOOKS
   console.log("==== HANDLE SUBMIT LOGS ====");
@@ -400,25 +412,39 @@ export default function RunModal({
         extrasRuns = 1;
       }
 
-      const penalty = wicketPenaltyRuns || 0;
+      const penalty = Math.abs(wicketPenaltyRuns || 0);
 
-      addEvent({
+      const wicketType = normalizeWicketKind(selectedWickets[0]);
+
+      // ✅ Build payload FIRST
+      const eventPayload: any = {
         type: "ball",
         batterId: currentGame!.currentStrikeId!,
         batterInningId,
         bowlerId: currentGame?.currentBowlerId,
-        runs: -Math.abs(penalty) + extrasRuns,
+        runs: -penalty + extrasRuns,
         runBreakdown: {
-          bat: -Math.abs(penalty),
+          bat: -penalty,
           extras: extrasRuns,
         },
         isExtra: extrasRuns > 0,
         extraType: normalizeExtraType(selectedExtras[0]),
         countsAsBall,
         prevBatterId: currentGame?.currentStrikeId,
-      });
+        wicketPenaltyWicketType: wicketType,
+      };
 
-      console.log("All events after add:", useMatchStore.getState().events);
+      // ✅ Conditionally add properties BEFORE calling addEvent
+      if (!wicketPenaltyAffectsBatter) {
+        eventPayload.wicketPenaltyAdditionBatter = penalty;
+      }
+
+      if (!wicketPenaltyAffectsBowler) {
+        eventPayload.wicketPenaltyAdditionBowler = penalty;
+      }
+
+      // ✅ Call addEvent ONCE
+      addEvent(eventPayload);
 
       applyStrikeFromLastEvent();
       setDismissedBatterId(null);
@@ -583,34 +609,13 @@ export default function RunModal({
   };
 
   const addPartnershipWicket = (count: 1 | 2) => {
-    const strikeBatterId = currentGame?.currentStrikeId;
-
-    const activeBatter = currentGame?.activeBatters.find(
-      (b) => b.playerId === strikeBatterId,
-    );
-
-    const batterInningId = activeBatter?.batterInningId;
-
-    for (let i = 0; i < count; i++) {
-      addEvent({
-        type: "wicket",
-        batterId: currentGame!.currentStrikeId!,
-        batterInningId,
-        bowlerId: currentGame?.currentBowlerId,
-        kind: "partnership",
-        runs: 0,
-        isExtra: false,
-        countsAsBall: false,
-        runBreakdown: { bat: 0, extras: 0 },
-        prevBatterId: currentGame?.currentStrikeId,
-      } as Omit<MatchEvent, "id" | "timestamp">);
-    }
-
-    console.log("All events after add:", useMatchStore.getState().events);
-
-    resetSelections();
+    setDismissedKind("partnership");
+    setSelectedWickets(["Partnership"]); // optional clarity
     setConfirmingWicket(false);
-    onClose();
+    setShowDismissModal(true);
+
+    // store count somewhere
+    setPartnershipCount(count); // you'll need a piece of state
   };
 
   const toggleWicket = (wicket: string) => {
@@ -945,9 +950,38 @@ export default function RunModal({
           currentBatterId={currentGame?.currentStrikeId ?? null}
           onClose={() => setShowDismissModal(false)}
           onContinue={(selectedId) => {
-            setDismissedBatterId(selectedId);
             setShowDismissModal(false);
-            setStrike(selectedId); // optional, pre-select for change
+
+            // 🟢 PARTNERSHIP FLOW
+            if (dismissedKind === "partnership") {
+              const activeBatter = currentGame?.activeBatters.find(
+                (b) => b.playerId === selectedId,
+              );
+
+              const batterInningId = activeBatter?.batterInningId;
+
+              for (let i = 0; i < partnershipCount; i++) {
+                addEvent({
+                  type: "wicket",
+                  batterId: selectedId,
+                  batterInningId,
+                  bowlerId: currentGame?.currentBowlerId,
+                  kind: "partnership",
+                  runs: 0,
+                  isExtra: false,
+                  countsAsBall: false,
+                  runBreakdown: { bat: 0, extras: 0 },
+                  prevBatterId: currentGame?.currentStrikeId,
+                });
+              }
+
+              handleDismissBatter(selectedId);
+              return;
+            }
+
+            // 🔵 NORMAL WICKET FLOW
+            setDismissedBatterId(selectedId);
+            setStrike(selectedId); // optional
           }}
         />
 

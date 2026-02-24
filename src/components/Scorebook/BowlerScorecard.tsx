@@ -1,5 +1,6 @@
 import React from "react";
 import { Dimensions, FlatList, StyleSheet, Text, View } from "react-native";
+import { calculateBowlerStats } from "../../state/gameHelpers";
 import { LEGAL_BALLS, useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
@@ -37,6 +38,7 @@ export default function BowlerScorecard() {
     let ballsThisOver = 0;
 
     events.forEach((e) => {
+      const penalty = e.wicketPenaltyAdditionBowler ?? 0;
       runs += e.runs ?? 0;
 
       if (e.extraType === "wide") wides++;
@@ -85,7 +87,7 @@ export default function BowlerScorecard() {
   const scorecard = bowlerIds.map((id) => ({
     playerId: id,
     name: playerNameMap[id] ?? id,
-    ...getBowlerStats(id),
+    ...calculateBowlerStats(matchEvents, id), // ✅ uses the helper including wicketPenaltyAdditionBowler
   }));
 
   return (

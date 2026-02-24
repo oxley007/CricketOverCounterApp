@@ -54,16 +54,30 @@ export const calculateBowlerStats = (
   const balls = bowlerEvents.filter((e) => e.countsAsBall).length;
 
   const runs = bowlerEvents.reduce((sum, e) => {
-    const batRuns = e.runBreakdown?.bat || 0;
+    const batRuns = e.runBreakdown?.bat ?? 0;
 
     const isBowlerExtra = e.extraType === "wide" || e.extraType === "noBall";
 
-    const extraRuns = isBowlerExtra ? e.runBreakdown?.extras || 0 : 0;
+    const extraRuns = isBowlerExtra ? (e.runBreakdown?.extras ?? 0) : 0;
 
-    return sum + batRuns + extraRuns; // ✅ byes/legByes ignored
+    const wicketPenaltyAddBack = e.wicketPenaltyAdditionBowler ?? 0;
+
+    return sum + batRuns + extraRuns + wicketPenaltyAddBack;
   }, 0);
 
-  const wickets = bowlerEvents.filter((e) => e.type === "wicket").length;
+  const wickets = bowlerEvents.filter((e) => {
+    // Negative-run wicket system
+    if (e.wicketPenaltyWicketType) {
+      return e.wicketPenaltyWicketType !== "Run Out";
+    }
+
+    // Standard wicket system
+    if (e.type === "wicket" && e.kind) {
+      return e.kind !== "Run Out";
+    }
+
+    return false;
+  }).length;
   const wides = bowlerEvents.filter((e) => e.extraType === "wide").length;
   const noBalls = bowlerEvents.filter((e) => e.extraType === "noBall").length;
 
@@ -76,7 +90,12 @@ export const calculateBowlerStats = (
 
   bowlerEvents.forEach((e) => {
     if (e.countsAsBall) {
-      runsInOver += e.runs || 0;
+      const batRuns = e.runBreakdown?.bat ?? 0;
+      const isBowlerExtra = e.extraType === "wide" || e.extraType === "noBall";
+      const extraRuns = isBowlerExtra ? (e.runBreakdown?.extras ?? 0) : 0;
+      const wicketPenaltyAddBack = e.wicketPenaltyAdditionBowler ?? 0;
+
+      runsInOver += batRuns + extraRuns + wicketPenaltyAddBack;
       ballInOver++;
 
       if (ballInOver === 6) {
@@ -91,4 +110,35 @@ export const calculateBowlerStats = (
   const economy = oversDecimal > 0 ? (runs / oversDecimal).toFixed(2) : "0.00";
 
   return { overs, maidens, runs, wickets, economy, wides, noBalls };
+};
+
+export interface BatterStats {
+  runs: number;
+  balls: number;
+  strikeRate: string;
+}
+
+export const calculateBatterStats = (
+  events: MatchEvent[],
+  playerId: string,
+  batterInningId?: string,
+): BatterStats => {
+  const eventsForBatter = events.filter(
+    (e) =>
+      e.batterId === playerId &&
+      (!batterInningId || e.batterInningId === batterInningId),
+  );
+
+  const runs = eventsForBatter.reduce((sum, e) => {
+    const batRuns = e.runBreakdown?.bat ?? 0;
+    const penaltyAddBack = e.wicketPenaltyAdditionBatter ?? 0;
+
+    return sum + batRuns + penaltyAddBack;
+  }, 0);
+
+  const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
+
+  const strikeRate = balls > 0 ? ((runs / balls) * 100).toFixed(1) : "0.0";
+
+  return { runs, balls, strikeRate };
 };
