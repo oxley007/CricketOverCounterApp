@@ -85,12 +85,13 @@ export default function SelectPlayersModal({
 
   const togglePlayer = (playerId: string) => {
     console.log("we are at least hitting!");
+    console.log(currentGame?.activeBatters, "currentGame?.activeBatters check");
 
     setSelectedIds((prev) => {
       if (pickerType === "bowler") {
         // Single-selection mode for bowler
         const next = [playerId];
-        setSelectedIds(next);
+        //setSelectedIds(next);
         onSelectionChange(next);
 
         const { updateLastBowlerId } = useGameStore.getState();
@@ -127,7 +128,7 @@ export default function SelectPlayersModal({
 
       const batterInningId = playerEntry?.entryId;
 
-      console.log("we are at least hitting! 2", {
+      console.log("we are at least hitting! 2! yay", {
         prev,
         activeBatter,
         playerId,
@@ -144,7 +145,7 @@ export default function SelectPlayersModal({
       const batterEvents = events.filter(
         (ev) => ev.batterInningId === batterInningId && ev.countsAsBall,
       );
-      const ballsFaced = batterEvents.length;
+      //const ballsFaced = batterEvents.length;
 
       console.log(
         "Batter events for current inning:",
@@ -153,74 +154,105 @@ export default function SelectPlayersModal({
         ballsFaced,
       );
 
+      console.log("we are at least hitting! 2", {
+        prev,
+        activeBatter,
+        playerId,
+        currentGameActiveBatters: game.activeBatters,
+        currentGameBattingEntries: game.battingEntries,
+      });
+
       // Check if player is already selected
       const isSelected = prev.some((b) => {
         if (typeof b === "string") return b === playerId;
         return b.playerId === playerId;
       });
 
-      if (isSelected) {
-        if (playerEntry && playerEntry.runs === 0 && ballsFaced === 0) {
-          const newActiveBatters = game.activeBatters.filter(
-            (b) => b.playerId !== playerId,
-          );
-          const newBattingEntries = game.battingEntries.filter(
-            (e) => e.entryId !== playerEntry.entryId,
-          );
+      let nextSelected = [...selectedIds];
+      let newActiveBatters = [...game.activeBatters];
 
-          gameStore.updateCurrentGame({
-            ...game,
-            activeBatters: newActiveBatters,
-            battingEntries: newBattingEntries,
-          });
+      const entryId = playerEntry?.entryId ?? activeBatter?.batterInningId;
+      const ballsFaced = entryId
+        ? events.filter(
+            (ev) => ev.batterInningId === entryId && ev.countsAsBall,
+          ).length
+        : 0;
+      const runs = playerEntry?.runs ?? 0;
 
-          // Remove from prev
-          next = prev.filter((b) =>
-            typeof b === "string" ? b !== playerId : b.playerId !== playerId,
-          );
-        } else {
-          // Can't untoggle if player has faced balls or scored
-          next = prev;
-        }
-      } else if (prev.length >= effectiveMax) {
-        // max selection reached
-        next = prev;
-      } else {
-        // 🔵 Add new batter
-        next = [...prev, playerId];
+      if (isSelected && runs === 0 && ballsFaced === 0 && entryId) {
+        // Remove from selectedIds
+        nextSelected = nextSelected.filter((id) => id !== playerId);
 
-        // Handle retired batter
-        const retiredBatter = game.activeRetired?.find(
-          (b) => b.playerId === playerId,
+        // Remove from activeBatters
+        newActiveBatters = newActiveBatters.filter(
+          (b) => b.playerId !== playerId,
         );
-        if (retiredBatter) {
-          matchStore.removeEventByPredicate?.((event: any) => {
-            return (
-              event.type === "wicket" &&
-              event.kind === "retired" &&
-              event.batterInningId === retiredBatter.batterInningId
-            );
-          });
 
-          gameStore.updateCurrentGame({
-            activeBatters: [...game.activeBatters, retiredBatter],
-            activeRetired: game.activeRetired.filter(
-              (b) => b.playerId !== playerId,
-            ),
-          });
-        } else if (!activeBatter) {
-          // Normal new batter flow
-          const entryId = gameStore.addBatter(playerId);
-          gameStore.updateCurrentGame({
-            activeBatters: [
-              ...game.activeBatters,
-              { playerId, batterInningId: entryId },
-            ],
-          });
+        // Remove the matching battingEntry for this playerId AND batterInningId
+        const newBattingEntries = game.battingEntries.filter(
+          (e) => !(e.playerId === playerId && e.entryId === entryId),
+        );
+
+        // Update game state
+        gameStore.updateCurrentGame({
+          ...game,
+          activeBatters: newActiveBatters,
+          battingEntries: newBattingEntries,
+        });
+      } else if (
+        selectionMode === "single" &&
+        game.activeBatters.length >= effectiveMax
+      ) {
+        // Single-select: replace existing batter
+        const existing = game.activeBatters[0];
+        const updatedBatters = game.activeBatters.filter(
+          (b) => b.playerId !== existing.playerId,
+        );
+
+        gameStore.updateCurrentGame({
+          ...game,
+          activeBatters: updatedBatters,
+        });
+
+        next = [playerId];
+      } else {
+        // Multi-select: just add the new batter if not already selected
+        if (!isSelected) {
+          next = [...prev, playerId];
+
+          const retiredBatter = game.activeRetired?.find(
+            (b) => b.playerId === playerId,
+          );
+          if (retiredBatter) {
+            matchStore.removeEventByPredicate?.((event: any) => {
+              return (
+                event.type === "wicket" &&
+                event.kind === "retired" &&
+                event.batterInningId === retiredBatter.batterInningId
+              );
+            });
+
+            gameStore.updateCurrentGame({
+              activeBatters: [...game.activeBatters, retiredBatter],
+              activeRetired: game.activeRetired.filter(
+                (b) => b.playerId !== playerId,
+              ),
+            });
+          } else if (!activeBatter) {
+            // Normal new batter flow
+            const entryId = gameStore.addBatter(playerId);
+            gameStore.updateCurrentGame({
+              activeBatters: [
+                ...game.activeBatters,
+                { playerId, batterInningId: entryId },
+              ],
+            });
+          }
         }
       }
 
-      onSelectionChange(next);
+      setSelectedIds(nextSelected);
+      onSelectionChange(nextSelected);
       return next;
     });
   };
@@ -256,12 +288,12 @@ export default function SelectPlayersModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          {/* Only render the relevant scorecard */}
-          {pickerType === "batter" && <Scorecard />}
-          {pickerType === "bowler" && <BowlerScorecard />}
-          <Text style={styles.title}>{title}</Text>
-
           <ScrollView style={styles.scroll}>
+            {/* Only render the relevant scorecard */}
+            {pickerType === "batter" && <Scorecard />}
+            {pickerType === "bowler" && <BowlerScorecard />}
+            <Text style={styles.title}>{title}</Text>
+
             {filteredPlayers.length > 0 ? (
               filteredPlayers.map((player) => {
                 const activeBatter = currentGame?.activeBatters?.find(
@@ -281,9 +313,18 @@ export default function SelectPlayersModal({
 
                 const isRetired = !!retiredBatter;
 
+                console.log("do i get to here?");
+                console.log(
+                  currentGame?.activeBatters,
+                  "currentGame?.activeBatters check again.",
+                );
+
                 const selected = currentGame?.activeBatters?.some(
                   (b) => b.playerId === player.id,
                 );
+
+                //const selected = selectedIds.includes(player.id);
+                //const selected = (selectedIds ?? []).includes(player.id);
 
                 return (
                   <View

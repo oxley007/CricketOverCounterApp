@@ -228,14 +228,18 @@ export default function ActionTabs() {
         if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
           Alert.alert(
             "Over Complete",
-            "This over is complete.\n\nAdd the next bowler to continue scoring.\nIf you need to retire a batter, you can continue.",
+            wicketsAsNegativeRuns
+              ? "This over is complete.\n\nAdd the next bowler to continue scoring.\nIf you need to end the current partnership, you can continue."
+              : "This over is complete.\n\nAdd the next bowler to continue scoring.\nIf you need to retire a batter, you can continue.",
             [
               {
                 text: "Back to add a Bowler",
                 style: "cancel",
               },
               {
-                text: "Continue to Retire Batter",
+                text: wicketsAsNegativeRuns
+                  ? "Continue to End Partnership"
+                  : "Continue to Retire Batter",
                 onPress: () => {
                   setRetireOnlyMode(true);
                   setModalVisible(true);
@@ -251,6 +255,10 @@ export default function ActionTabs() {
       },
     },
   ];
+
+  const wicketsAsNegativeRuns = useMatchStore(
+    (state) => state.wicketsAsNegativeRuns,
+  );
 
   return (
     <>

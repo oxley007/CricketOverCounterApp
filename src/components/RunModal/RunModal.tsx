@@ -610,12 +610,54 @@ export default function RunModal({
 
   const addPartnershipWicket = (count: 1 | 2) => {
     setDismissedKind("partnership");
-    setSelectedWickets(["Partnership"]); // optional clarity
+    setSelectedWickets(["Partnership"]);
     setConfirmingWicket(false);
-    setShowDismissModal(true);
 
-    // store count somewhere
-    setPartnershipCount(count); // you'll need a piece of state
+    // 🔴 If ending BOTH batters
+    if (count === 2) {
+      setPartnershipCount(2);
+      const game = useGameStore.getState().currentGame;
+      if (!game) return;
+
+      game.activeBatters.forEach((b) => {
+        addEvent({
+          type: "wicket",
+          batterId: b.playerId,
+          batterInningId: b.batterInningId,
+          bowlerId: game.currentBowlerId,
+          kind: "partnership",
+          runs: 0,
+          isExtra: false,
+          countsAsBall: false,
+          runBreakdown: { bat: 0, extras: 0 },
+          prevBatterId: game.currentStrikeId,
+        });
+      });
+
+      // Remove both batters
+      const gameStore = useGameStore.getState();
+
+      game.activeBatters.forEach((b) => {
+        gameStore.dismissBattingEntry(b.batterInningId, {
+          kind: "partnership",
+          bowlerId: game.currentBowlerId,
+        });
+      });
+
+      gameStore.updateCurrentGame({
+        activeBatters: [],
+        currentStrikeId: null,
+      });
+
+      setTimeout(() => {
+        setShowPlayerSelect("batter");
+      }, 0);
+      return;
+    }
+
+    // 🟢 If only ending ONE batter → need selection
+    setPartnershipCount(1);
+    setShowDismissModal(true);
   };
 
   const toggleWicket = (wicket: string) => {
@@ -693,6 +735,8 @@ export default function RunModal({
   };
 
   const isRetirement = selectedWickets.includes("Retired");
+
+  const maxSelection = partnershipCount === 2 ? 2 : 1;
 
   return (
     <>
@@ -827,7 +871,9 @@ export default function RunModal({
                         onPress={() => addPartnershipWicket(1)}
                       >
                         <Text style={styles.optionText}>End Batter</Text>
-                        <Text style={styles.optionSubText}>Adds 1 wicket</Text>
+                        <Text style={styles.optionSubText}>
+                          Dismiss 1 batter
+                        </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -835,7 +881,9 @@ export default function RunModal({
                         onPress={() => addPartnershipWicket(2)}
                       >
                         <Text style={styles.optionText}>End Partnership</Text>
-                        <Text style={styles.optionSubText}>Adds 2 wickets</Text>
+                        <Text style={styles.optionSubText}>
+                          Dismiss 2 batters
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -847,14 +895,15 @@ export default function RunModal({
                     </Text>
                     <Text style={styles.warningSubtext}>
                       Use a wicket option below to add negative runs, and use{" "}
-                      <Text style={styles.bold}>End Partnership</Text> (adds 2
-                      wickets) or <Text style={styles.bold}>End Batter</Text>{" "}
-                      (adds 1 wicket) to end the partnership.
+                      <Text style={styles.bold}>End Partnership</Text>{" "}
+                      (Dismisses 2 batters) or{" "}
+                      <Text style={styles.bold}>End Batter</Text> (Dismisses 1
+                      batter) to end the partnership.
                     </Text>
                   </View>
                 )}
                 <Text style={styles.sectionTitle}>Wickets</Text>
-                {retireOnlyMode && (
+                {retireOnlyMode && !wicketsAsNegativeRuns && (
                   <Text
                     style={{
                       textAlign: "center",
@@ -896,7 +945,13 @@ export default function RunModal({
                 )}
                 <View style={styles.grid}>
                   {wicketOptions
-                    .filter((w) => (retireOnlyMode ? w === "Retired" : true))
+                    .filter((w) =>
+                      !retireOnlyMode
+                        ? true
+                        : wicketsAsNegativeRuns
+                          ? false
+                          : w === "Retired",
+                    )
                     .map((w) => (
                       <TouchableOpacity
                         key={w}
@@ -996,16 +1051,19 @@ export default function RunModal({
             players={battingTeam.players}
             selectedIds={selectedBatters}
             onSelectionChange={(ids) => {
-              if (ids.length === 0) return;
+              setSelectedBatters(ids);
 
-              const newStrike = ids[0];
-              setStrike(newStrike);
+              if (ids.length === maxSelection) {
+                const newStrike = ids[0];
+                setStrike(newStrike);
 
-              setShowPlayerSelect(null);
-              onClose();
+                setShowPlayerSelect(null);
+                onClose();
+              }
             }}
             selectionMode="multiple"
             pickerType="batter"
+            maxSelection={maxSelection}
           />
         )}
 
