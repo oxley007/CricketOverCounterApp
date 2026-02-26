@@ -1,6 +1,7 @@
 // src/state/gameHelpers.ts
 import type { BattingEntry, CurrentGame } from "./gameStore";
 import type { MatchEvent } from "./matchStore";
+import { matchStoreRef } from "./matchStore";
 
 export const getScorecard = (game?: CurrentGame) => {
   if (!game) return [];
@@ -49,9 +50,43 @@ export const calculateBowlerStats = (
   events: MatchEvent[],
   playerId: string,
 ): BowlerStats => {
+  const { wideIsExtraBall, wideExtraBallThreshold } = matchStoreRef.getState();
+
   const bowlerEvents = events.filter((e) => e.bowlerId === playerId);
 
-  const balls = bowlerEvents.filter((e) => e.countsAsBall).length;
+  /* =========================
+     BALLS (threshold aware)
+  ========================= */
+
+  let balls = 0;
+  let widesThisOver = 0;
+
+  bowlerEvents.forEach((e) => {
+    const isWide = e.extraType === "wide";
+
+    const wideCountsAsLegal =
+      wideExtraBallThreshold > 0
+        ? widesThisOver >= wideExtraBallThreshold
+        : !wideIsExtraBall;
+
+    const countsAsLegal = e.countsAsBall || (isWide && wideCountsAsLegal);
+
+    if (countsAsLegal) {
+      balls++;
+
+      if (balls % 6 === 0) {
+        widesThisOver = 0; // reset per over
+      }
+    }
+
+    if (isWide) {
+      widesThisOver++;
+    }
+  });
+
+  /* =========================
+     RUNS (unchanged)
+  ========================= */
 
   const runs = bowlerEvents.reduce((sum, e) => {
     const batRuns = e.runBreakdown?.bat ?? 0;
@@ -65,34 +100,54 @@ export const calculateBowlerStats = (
     return sum + batRuns + extraRuns + wicketPenaltyAddBack;
   }, 0);
 
+  /* =========================
+     WICKETS (unchanged)
+  ========================= */
+
   const wickets = bowlerEvents.filter((e) => {
-    // Negative-run wicket system
     if (e.wicketPenaltyWicketType) {
       return e.wicketPenaltyWicketType !== "Run Out";
     }
 
-    // Standard wicket system
     if (e.type === "wicket" && e.kind) {
       return e.kind !== "Run Out";
     }
 
     return false;
   }).length;
+
   const wides = bowlerEvents.filter((e) => e.extraType === "wide").length;
+
   const noBalls = bowlerEvents.filter((e) => e.extraType === "noBall").length;
 
   const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
 
-  // Maidens
+  /* =========================
+     MAIDENS (threshold aware)
+  ========================= */
+
   let maidens = 0;
   let ballInOver = 0;
   let runsInOver = 0;
+  let maidenWides = 0;
 
   bowlerEvents.forEach((e) => {
-    if (e.countsAsBall) {
+    const isWide = e.extraType === "wide";
+
+    const wideCountsAsLegal =
+      wideExtraBallThreshold > 0
+        ? maidenWides >= wideExtraBallThreshold
+        : !wideIsExtraBall;
+
+    const countsAsLegal = e.countsAsBall || (isWide && wideCountsAsLegal);
+
+    if (countsAsLegal) {
       const batRuns = e.runBreakdown?.bat ?? 0;
+
       const isBowlerExtra = e.extraType === "wide" || e.extraType === "noBall";
+
       const extraRuns = isBowlerExtra ? (e.runBreakdown?.extras ?? 0) : 0;
+
       const wicketPenaltyAddBack = e.wicketPenaltyAdditionBowler ?? 0;
 
       runsInOver += batRuns + extraRuns + wicketPenaltyAddBack;
@@ -100,16 +155,34 @@ export const calculateBowlerStats = (
 
       if (ballInOver === 6) {
         if (runsInOver === 0) maidens++;
+
         ballInOver = 0;
         runsInOver = 0;
+        maidenWides = 0; // reset per over
       }
     }
+
+    if (isWide) {
+      maidenWides++;
+    }
   });
+
+  /* =========================
+     ECONOMY
+  ========================= */
 
   const oversDecimal = balls / 6;
   const economy = oversDecimal > 0 ? (runs / oversDecimal).toFixed(2) : "0.00";
 
-  return { overs, maidens, runs, wickets, economy, wides, noBalls };
+  return {
+    overs,
+    maidens,
+    runs,
+    wickets,
+    economy,
+    wides,
+    noBalls,
+  };
 };
 
 export interface BatterStats {

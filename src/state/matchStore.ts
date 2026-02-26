@@ -77,6 +77,9 @@ export const matchStoreRef = create<MatchState>()(
       wicketPenaltyAffectsBatter: false,
       wicketPenaltyAffectsBowler: false,
 
+      // in matchStoreRef initial state
+      wideExtraBallThreshold: 0,
+
       // ball reminder
       ballReminderEnabled: true,
       ballReminderThresholdPercent: 33,
@@ -376,6 +379,12 @@ export const matchStoreRef = create<MatchState>()(
       setWideIsExtraBall: (value: boolean) =>
         set((state) => ({ ...state, wideIsExtraBall: value })),
 
+      setWideExtraBallThreshold: (value: number) =>
+        set((state) => ({
+          ...state,
+          wideExtraBallThreshold: Math.max(0, value),
+        })),
+
       setWicketsAsNegativeRuns: (value: boolean) =>
         set((state) => ({ ...state, wicketsAsNegativeRuns: value })),
 
@@ -407,6 +416,7 @@ export const matchStoreRef = create<MatchState>()(
         events: state.events ?? [],
         baseRuns: state.baseRuns,
         wideIsExtraBall: state.wideIsExtraBall,
+        wideExtraBallThreshold: state.wideExtraBallThreshold,
         wicketsAsNegativeRuns: state.wicketsAsNegativeRuns,
         wicketPenaltyRuns: state.wicketPenaltyRuns,
         wicketPenaltyAffectsBatter: state.wicketPenaltyAffectsBatter, // ✅ new

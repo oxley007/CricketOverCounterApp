@@ -9,7 +9,9 @@ export default function MatchRulesSettings() {
     wicketPenaltyRuns,
     wicketPenaltyAffectsBatter,
     wicketPenaltyAffectsBowler,
+    wideExtraBallThreshold,
     setWideIsExtraBall,
+    setWideExtraBallThreshold,
     setWicketsAsNegativeRuns,
     setWicketPenaltyRuns,
     setWicketPenaltyAffectsBatter,
@@ -25,9 +27,34 @@ export default function MatchRulesSettings() {
       </View>
 
       <Text style={styles.helper}>
-        If off, wides count as runs but do not count as an extra delivery
-        (junior cricket).
+        If off, wides count as runs but do not count as extra deliveries (junior
+        cricket). If on, you can optionally limit the number of wides per over
+        that count as extra balls.
       </Text>
+
+      {wideIsExtraBall && (
+        <>
+          <View style={styles.inputRow}>
+            <Text style={styles.label}>Limit wides counted as extra balls</Text>
+            <TextInput
+              value={String(wideExtraBallThreshold)}
+              onChangeText={(v) =>
+                setWideExtraBallThreshold(parseInt(v, 10) || 0)
+              }
+              keyboardType="numeric"
+              style={styles.input}
+              placeholder="0 = unlimited"
+            />
+          </View>
+
+          <Text style={styles.helper}>
+            Set 0 for all wides to count as extra balls, or set X to limit how
+            many wides per over count as extra balls. Example: set 2 to allow
+            the first 2 wides in an over to count as extra balls; any further
+            wides in that over won’t add extra balls (max 8 balls in the over).
+          </Text>
+        </>
+      )}
 
       {/* Wicket rule */}
       <View style={styles.row}>
