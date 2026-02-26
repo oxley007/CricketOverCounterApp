@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { Team } from "../../state/teamStore";
@@ -52,15 +53,18 @@ export default function GameSetupModal({ visible }: Props) {
       season,
     });
 
-    // 2️⃣ Save last season in store
+    // 2️⃣ Start fixture AFTER config exists
+    useFixtureStore.getState().startFixture();
+
+    // 3 Save last season in store
     useGameStore.getState().setLastSeason(season);
 
     console.log("Game store after start:", useGameStore.getState());
 
-    // 3️⃣ Mark setup complete (this closes GameSetupModal)
+    // 4 Mark setup complete (this closes GameSetupModal)
     setSetupComplete(true);
 
-    // 4️⃣ Open settings modal (or whatever modal you want)
+    // 5 Open settings modal (or whatever modal you want)
     useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
   };
 
