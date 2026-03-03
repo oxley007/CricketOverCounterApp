@@ -11,10 +11,12 @@ import {
   getCustomerInfo,
   isRevenueCatAvailable,
 } from "../../../services/revenuecat";
+import { useFixtureStore } from "../../../state/fixtureStore";
 import { useGameStore } from "../../../state/gameStore";
 import { useMatchStore } from "../../../state/matchStore";
 import { useTeamStore } from "../../../state/teamStore";
 
+import { Portal } from "react-native-paper";
 import ActionTabs from "../../../components/ActionTabs";
 import AveragePartnership from "../../../components/AveragePartnership";
 import BallReminderSettings from "../../../components/BallReminder/BallReminderSettings";
@@ -22,10 +24,12 @@ import BallTimerDisplay from "../../../components/BallReminder/BallTimerDisplay"
 import { CurrentOverDisplay } from "../../../components/CurrentOverDisplay/CurrentOverDisplay";
 import CurrentPartnership from "../../../components/CurrentPartnership";
 import CurrentPartnershipDots from "../../../components/CurrentPartnershipDots";
+import EndInningsButton from "../../../components/EndInningsButton";
 import HighestPartnership from "../../../components/HighestPartnership";
 import SubscriptionList from "../../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../../components/iap/UpgradeProBox";
 import OversCounter from "../../../components/OversCounter";
+import PlayerStatsModal from "../../../components/PlayerStatsModal";
 import ResetButton from "../../../components/ResetButton";
 import RotateStrike from "../../../components/RotateStrike";
 import MatchRulesSettings from "../../../components/RunModal/MatchRulesSettings";
@@ -37,6 +41,7 @@ import GameSetupModal from "../../../components/Scorebook/GameSetupModal";
 import BaseRunsInput from "../../../components/Settings/BaseRunsInput";
 import MatchRulesModal from "../../../components/Settings/MatchRulesModal";
 import TotalDots from "../../../components/TotalDots";
+import { getSeasonPlayerStats } from "../../../state/seasonStatsHelpers";
 
 import { useBallReminder } from "../../../hooks/useBallReminder";
 
@@ -63,6 +68,7 @@ export default function ScorebookIndex() {
 
   const hasHydrated = useGameStore((s) => s.hasHydrated);
   const currentGame = useGameStore((s) => s.currentGame);
+  const currentFixture = useFixtureStore((s) => s.currentFixture);
 
   const battingTeamId = currentGame?.battingTeamId ?? null;
   const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
@@ -75,6 +81,10 @@ export default function ScorebookIndex() {
 
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
+
+  const { statsModalVisible, statsModalPlayerId, closeStatsModal } =
+    useGameStore();
+  const fixtures = useFixtureStore((s) => s.fixtures);
 
   useKeepAwake();
 
@@ -178,9 +188,154 @@ export default function ScorebookIndex() {
     );
   }, [teams, gameConfig]);
 
+  const hasPreviousInnings =
+    currentFixture?.innings && currentFixture.innings.length > 0;
+
+  const combinePlayerStats = (playerId: string) => {
+    if (!playerId || !currentGame) return null;
+
+    /* =========================
+         FIND CORRECT TEAM ID
+      ========================= */
+
+    const team = teams.find((t) => t.players.some((p) => p.id === playerId));
+
+    const teamId = team?.id ?? "";
+
+    /* =========================
+         SEASON STATS (ALL FIXTURES)
+      ========================= */
+
+    const seasonStats = getSeasonPlayerStats({
+      fixtures,
+      teamId,
+      season: currentFixture?.season ?? "",
+      playerId,
+    });
+
+    const matchStore =
+      require("../../../state/matchStore").useMatchStore.getState();
+    const currentEvents = matchStore.events ?? [];
+
+    /* =========================
+     CURRENT GAME BATTING (ALL INNINGS)
+========================= */
+
+    const playerEntries =
+      currentGame.battingEntries?.filter((e) => e.playerId === playerId) ?? [];
+
+    const battingCurrent = playerEntries.reduce(
+      (total, entry) => {
+        const entryStats = currentEvents
+          .filter((e) => e.batterInningId === entry.entryId && e.countsAsBall)
+          .reduce(
+            (acc, e) => {
+              acc.balls += 1;
+              acc.runs += e.runs ?? 0;
+              return acc;
+            },
+            { balls: 0, runs: 0 },
+          );
+
+        total.runs += entryStats.runs;
+        total.balls += entryStats.balls;
+
+        return total;
+      },
+      { balls: 0, runs: 0 },
+    );
+
+    /* =========================
+         CURRENT GAME BOWLING
+      ========================= */
+
+    const bowlingCurrent = currentEvents
+      .filter((e) => e.bowlerId === playerId)
+      .reduce(
+        (acc, e) => {
+          if (e.countsAsBall) acc.balls += 1;
+          if (e.runs != null) acc.runs += e.runs;
+          if (e.wicket) acc.wickets += 1;
+          if (e.extra === "wide") acc.wides += 1;
+          if (e.extra === "noBall") acc.noBalls += 1;
+          return acc;
+        },
+        { balls: 0, runs: 0, wickets: 0, wides: 0, noBalls: 0 },
+      );
+
+    /* =========================
+         SEASON OVERS → BALLS
+      ========================= */
+
+    const [seasonOversWhole = "0", seasonOversPart = "0"] =
+      seasonStats.bowling.overs?.split(".") ?? ["0", "0"];
+
+    const seasonBalls =
+      parseInt(seasonOversWhole) * 6 + parseInt(seasonOversPart);
+
+    const totalBallsBowled = seasonBalls + bowlingCurrent.balls;
+    const totalRunsConceded = seasonStats.bowling.runs + bowlingCurrent.runs;
+    const totalWickets = seasonStats.bowling.wickets + bowlingCurrent.wickets;
+    const totalWides = seasonStats.bowling.wides + bowlingCurrent.wides;
+    const totalNoBalls = seasonStats.bowling.noBalls + bowlingCurrent.noBalls;
+
+    /* =========================
+         COMBINE BATTING
+      ========================= */
+
+    const totalRuns = seasonStats.batting.runs + battingCurrent.runs;
+
+    const totalBallsFaced = seasonStats.batting.balls + battingCurrent.balls;
+
+    const totalDismissals = seasonStats.batting.dismissals;
+
+    const average =
+      totalDismissals > 0
+        ? (totalRuns / totalDismissals).toFixed(2)
+        : totalRuns.toFixed(2);
+
+    const strikeRate =
+      totalBallsFaced > 0
+        ? ((totalRuns / totalBallsFaced) * 100).toFixed(1)
+        : "0.0";
+
+    /* =========================
+         FORMAT OVERS + ECONOMY
+      ========================= */
+
+    const oversFormatted = `${Math.floor(totalBallsBowled / 6)}.${
+      totalBallsBowled % 6
+    }`;
+
+    const economy =
+      totalBallsBowled > 0
+        ? ((totalRunsConceded / totalBallsBowled) * 6).toFixed(2)
+        : "0.00";
+
+    return {
+      batting: {
+        ...seasonStats.batting,
+        runs: totalRuns,
+        balls: totalBallsFaced,
+        average,
+        strikeRate,
+      },
+      bowling: {
+        ...seasonStats.bowling,
+        overs: oversFormatted,
+        balls: totalBallsBowled,
+        runs: totalRunsConceded,
+        wickets: totalWickets,
+        economy,
+        wides: totalWides,
+        noBalls: totalNoBalls,
+      },
+    };
+  };
+
   return (
     <View style={styles.screen}>
-      <GameSetupModal visible={!isSetupComplete} />
+      <GameSetupModal visible={!isSetupComplete && !hasPreviousInnings} />
 
       <MatchRulesModal
         visible={showMatchRulesModal}
@@ -201,6 +356,7 @@ export default function ScorebookIndex() {
 
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
+        <EndInningsButton onComplete={handleReset} />
         <ResetButton onReset={handleReset} />
         <CurrentOverDisplay />
 
@@ -293,6 +449,25 @@ export default function ScorebookIndex() {
           </>
         )}
       </ScrollView>
+
+      <Portal>
+        <PlayerStatsModal
+          visible={statsModalVisible}
+          onClose={closeStatsModal}
+          title={
+            statsModalPlayerId
+              ? currentGame?.battingTeamId // optional: find player name via team
+                ? (currentGame.battingEntries.find(
+                    (e) => e.playerId === statsModalPlayerId,
+                  )?.playerId ?? "")
+                : ""
+              : ""
+          }
+          stats={
+            statsModalPlayerId ? combinePlayerStats(statsModalPlayerId) : null
+          }
+        />
+      </Portal>
 
       {Platform.OS === "android" ? (
         <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#12c2e9" }}>

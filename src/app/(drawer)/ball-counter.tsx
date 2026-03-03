@@ -1,58 +1,55 @@
-import {
-  ScrollView,
-  View,
-  StyleSheet,
-  Platform,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useState } from "react";
-import * as SecureStore from "expo-secure-store";
 import { useKeepAwake } from "expo-keep-awake";
+import * as SecureStore from "expo-secure-store";
+import { useEffect, useState } from "react";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useMatchStore } from "../../state/matchStore";
-import { useTeamStore } from "../../state/teamStore";
-import { useStartModalStore } from "../../state/startModalStore";
 import {
   configureRevenueCat,
   getCustomerInfo,
   isRevenueCatAvailable,
 } from "../../services/revenuecat";
+import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
+import { useTeamStore } from "../../state/teamStore";
 
-import OversCounter from "../../components/OversCounter";
 import ActionTabs from "../../components/ActionTabs";
-import ScoreWickets from "../../components/Score/ScoreWickets";
-import ResetButton from "../../components/ResetButton";
-import CurrentPartnership from "../../components/CurrentPartnership";
-import TotalDots from "../../components/TotalDots";
 import AveragePartnership from "../../components/AveragePartnership";
-import HighestPartnership from "../../components/HighestPartnership";
-import RotateStrike from "../../components/RotateStrike";
-import CurrentPartnershipDots from "../../components/CurrentPartnershipDots";
-import BallTimerDisplay from "../../components/BallReminder/BallTimerDisplay";
-import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import BallReminderSettings from "../../components/BallReminder/BallReminderSettings";
-import MatchRulesModal from "../../components/Settings/MatchRulesModal";
+import BallTimerDisplay from "../../components/BallReminder/BallTimerDisplay";
+import { CurrentOverDisplay } from "../../components/CurrentOverDisplay/CurrentOverDisplay";
+import CurrentPartnership from "../../components/CurrentPartnership";
+import CurrentPartnershipDots from "../../components/CurrentPartnershipDots";
+import HighestPartnership from "../../components/HighestPartnership";
+import OversCounter from "../../components/OversCounter";
+import ResetButton from "../../components/ResetButton";
+import RotateStrike from "../../components/RotateStrike";
+import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
+import ScoreWickets from "../../components/Score/ScoreWickets";
 import BaseRunsInput from "../../components/Settings/BaseRunsInput";
+import MatchRulesModal from "../../components/Settings/MatchRulesModal";
+import StartModeModal from "../../components/StartModal/StartModeModal";
+import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../components/iap/UpgradeProBox";
-import { CurrentOverDisplay } from "../../components/CurrentOverDisplay/CurrentOverDisplay";
-import StartModeModal from "../../components/StartModal/StartModeModal";
 
 import { useBallReminder } from "../../hooks/useBallReminder";
 
 export default function Home() {
   return (
-      <View style={{ flex: 1, backgroundColor: "#12c2e9" }}>
-        <HomeContent />
-      </View>
-    );
+    <View style={{ flex: 1, backgroundColor: "#12c2e9" }}>
+      <HomeContent />
+    </View>
+  );
 }
 
 function HomeContent() {
   const events = useMatchStore((state) => state.events);
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
-  const openMatchRulesModal = useMatchStore((state) => state.openMatchRulesModal);
+  const openMatchRulesModal = useMatchStore(
+    (state) => state.openMatchRulesModal,
+  );
   const { showMatchRulesModal, closeMatchRulesModal } = useMatchStore();
   const loadTeams = useTeamStore((state) => state.loadTeams);
   const { selectedMode } = useStartModalStore();

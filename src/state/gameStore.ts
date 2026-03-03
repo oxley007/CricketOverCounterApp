@@ -169,6 +169,11 @@ interface GameState {
 
   dismissBattingEntry: (entryId: string, dismissal: BattingDismissal) => void;
   updateLastBowlerId: (bowlerId: string | null) => void;
+  statsModalPlayerId: string | null;
+  statsModalVisible: boolean;
+
+  openStatsModal: (playerId: string) => void;
+  closeStatsModal: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -319,6 +324,20 @@ export const useGameStore = create<GameState>()(
                 currentGame: {
                   ...state.currentGame,
                   currentBowlerId: playerId,
+                },
+              }
+            : state,
+        ),
+
+      resetBatters: () =>
+        set((state) =>
+          state.currentGame
+            ? {
+                currentGame: {
+                  ...state.currentGame,
+                  activeBatters: [],
+                  activeRetired: [], // NEW
+                  currentStrikeId: undefined,
                 },
               }
             : state,
@@ -688,19 +707,14 @@ export const useGameStore = create<GameState>()(
           },
         })),
 
-      resetBatters: () =>
-        set((state) =>
-          state.currentGame
-            ? {
-                currentGame: {
-                  ...state.currentGame,
-                  activeBatters: [],
-                  activeRetired: [], // NEW
-                  currentStrikeId: undefined,
-                },
-              }
-            : state,
-        ),
+      statsModalPlayerId: null,
+      statsModalVisible: false,
+
+      openStatsModal: (playerId: string) =>
+        set({ statsModalPlayerId: playerId, statsModalVisible: true }),
+      closeStatsModal: () =>
+        set({ statsModalPlayerId: null, statsModalVisible: false }),
+
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
     }),

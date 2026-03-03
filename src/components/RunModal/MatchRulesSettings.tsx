@@ -72,37 +72,32 @@ export default function MatchRulesSettings() {
 
       {wicketsAsNegativeRuns && (
         <>
-          {" "}
-          {/* Runs per wicket input */}{" "}
           <View style={styles.inputRow}>
-            {" "}
-            <Text style={styles.label}>Negative runs per wicket</Text>{" "}
+            <Text style={styles.label}>Negative runs per wicket</Text>
             <TextInput
               value={String(wicketPenaltyRuns)}
               onChangeText={(v) => setWicketPenaltyRuns(parseInt(v, 10) || 0)}
               keyboardType="numeric"
               style={styles.input}
               placeholder="-5"
-            />{" "}
-          </View>{" "}
-          {/* Wicket affects batter */}{" "}
+            />
+          </View>
+
           <View style={styles.row}>
-            {" "}
-            <Text style={styles.label}>Apply negative runs to batter</Text>{" "}
+            <Text style={styles.label}>Apply negative runs to batter</Text>
             <Switch
               value={wicketPenaltyAffectsBatter}
               onValueChange={setWicketPenaltyAffectsBatter}
-            />{" "}
-          </View>{" "}
-          {/* Wicket affects bowler */}{" "}
+            />
+          </View>
+
           <View style={styles.row}>
-            {" "}
-            <Text style={styles.label}>Apply negative runs to bowler</Text>{" "}
+            <Text style={styles.label}>Apply negative runs to bowler</Text>
             <Switch
               value={wicketPenaltyAffectsBowler}
               onValueChange={setWicketPenaltyAffectsBowler}
-            />{" "}
-          </View>{" "}
+            />
+          </View>
         </>
       )}
     </View>
