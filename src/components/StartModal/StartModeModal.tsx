@@ -1,12 +1,30 @@
-import React from "react";
-import { View, Text, Pressable, Modal, StyleSheet, Image } from "react-native";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
-import { router } from "expo-router";
 
 export default function StartModeModal() {
-  const { isOpen, selectBallCounter, selectScorebook } = useStartModalStore();
+  const isOpen = useStartModalStore((s) => s.isOpen);
+  const selectBallCounter = useStartModalStore((s) => s.selectBallCounter);
+  const selectScorebook = useStartModalStore((s) => s.selectScorebook);
   const openMatchRulesModal = useMatchStore((s) => s.openMatchRulesModal);
+  const closeStartModal = useStartModalStore((s) => s.close);
+
+  const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
+  const fixtures = useFixtureStore((s) => s.fixtures);
+
+  // Force re-render whenever store updates (helps with hydration & reset)
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    // Subscribe to store changes
+    const unsub = useStartModalStore.subscribe(
+      (state) => state.isOpen,
+      () => setTick((t) => t + 1), // trigger re-render
+    );
+    return unsub;
+  }, []);
 
   const onBallCounter = () => {
     selectBallCounter();
@@ -33,25 +51,50 @@ export default function StartModeModal() {
           </View>
 
           {/* Ball Counter Card */}
-          <Pressable style={[styles.card, styles.ballCounter]} onPress={onBallCounter}>
+          <Pressable
+            style={[styles.card, styles.ballCounter]}
+            onPress={onBallCounter}
+          >
             <Image
               source={require("../../../assets/4dot6logo-transparent.png")}
               style={styles.cardLogo}
               resizeMode="contain"
             />
-            <Text style={[styles.cardText, styles.ballCounterText]}>Ball Counter</Text>
+            <Text style={[styles.cardText, styles.ballCounterText]}>
+              Ball Counter
+            </Text>
           </Pressable>
 
           {/* Scorebook Card */}
-          <Pressable style={[styles.card, styles.scorebook]} onPress={onScorebook}>
+          <Pressable
+            style={[styles.card, styles.scorebook]}
+            onPress={onScorebook}
+          >
             <Image
               source={require("../../../assets/4dot6logo-transparent-old_inverse.png")}
               style={styles.cardLogo}
               resizeMode="contain"
             />
-            <Text style={[styles.cardText, styles.scorebookText]}>Scorebook</Text>
+            <Text style={[styles.cardText, styles.scorebookText]}>
+              Scorebook
+            </Text>
           </Pressable>
         </View>
+        {/* View Stats Button (only if fixtures exist) */}
+        {fixtures.length > 0 && (
+          <Pressable
+            style={styles.statsButton}
+            onPress={() => {
+              closeStartModal(); // 👈 THIS is what you're missing
+              router.push("/stats");
+            }}
+          >
+            <Text style={styles.statsButtonText}>View Stats</Text>
+          </Pressable>
+        )}
+        <Pressable style={styles.devButton} onPress={clearAllFixtures}>
+          <Text style={styles.devButtonText}>DEV: Clear All Fixtures</Text>
+        </Pressable>
       </View>
     </Modal>
   );
@@ -126,5 +169,31 @@ const styles = StyleSheet.create({
   },
   scorebookText: {
     color: "#12c2e9",
+  },
+  devButton: {
+    marginTop: 30,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#ff3b30",
+    alignItems: "center",
+  },
+  devButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  statsButton: {
+    marginTop: 10,
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: "#0a84ff",
+    alignItems: "center",
+    width: "80%",
+    alignSelf: "center",
+  },
+
+  statsButtonText: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "700",
   },
 });

@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useTeamStore } from "../../state/teamStore";
 
@@ -57,10 +58,14 @@ export default function SelectPlayersModal({
 }: SelectPlayersModalProps) {
   const currentGame = useGameStore((s) => s.currentGame);
   const updatePlayerName = useTeamStore((s) => s.updatePlayerName);
+  const fixtures = useFixtureStore((s) => s.fixtures);
 
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+
+  const teamStore = useTeamStore();
+  const myTeamId = currentGame?.battingTeamId;
 
   console.log(
     "Current Game Active Batters from store:",
@@ -284,6 +289,18 @@ export default function SelectPlayersModal({
 
   const archivePlayer = useTeamStore((s) => s.archivePlayer);
 
+  // enrich filteredPlayers with teamId & myTeam
+  const enrichedPlayers = filteredPlayers.map((p) => {
+    const team = teamStore.teams.find((t) =>
+      t.players.some((pl) => pl.id === p.id),
+    );
+    return {
+      ...p,
+      teamId: team?.id,
+      myTeam: team?.id === myTeamId,
+    };
+  });
+
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.safe}>
@@ -294,19 +311,29 @@ export default function SelectPlayersModal({
             {pickerType === "bowler" && <BowlerScorecard />}
             <Text style={styles.title}>{title}</Text>
 
-            {filteredPlayers.length > 0 ? (
-              filteredPlayers.map((player) => {
-                const activeBatter = currentGame?.activeBatters?.find(
-                  (b) => b.playerId === player.id,
-                );
+            {enrichedPlayers.length > 0 ? (
+              enrichedPlayers.map((player) => {
+                const matchStore =
+                  require("../../state/matchStore").useMatchStore.getState();
+                const currentEvents = matchStore.events ?? [];
 
-                // Get the latest batting entry for this player
                 const playerEntry = currentGame?.battingEntries
                   .filter((e) => e.playerId === player.id)
                   .sort((a, b) => b.inningsNumber - a.inningsNumber)[0];
 
                 const batterInningId = playerEntry?.entryId;
 
+                console.log("Player ID:", player.id);
+                console.log("Player entry:", playerEntry);
+                console.log("BatterInningId:", batterInningId);
+                console.log(
+                  "Matching events:",
+                  currentEvents.filter(
+                    (ev) => ev.batterInningId === batterInningId,
+                  ),
+                );
+
+                const currentBowlingStats = currentEvents;
                 const retiredBatter = currentGame?.activeRetired?.find(
                   (b) => b.playerId === player.id,
                 );
@@ -365,6 +392,26 @@ export default function SelectPlayersModal({
                             </Text>
                           </Pressable>
 
+                          {/* ✅ Stats button now works */}
+
+                          {player.myTeam && (
+                            <Pressable
+                              style={{ marginLeft: 8 }}
+                              onPress={() => {
+                                useGameStore
+                                  .getState()
+                                  .openStatsModal(player.id);
+                                onClose(); // close SelectPlayersModal
+                              }}
+                            >
+                              <MaterialIcons
+                                name="bar-chart"
+                                size={30}
+                                color="red"
+                              />
+                            </Pressable>
+                          )}
+
                           <Pressable onPress={() => startEditing(player)}>
                             <MaterialIcons
                               name="edit"
@@ -394,7 +441,6 @@ export default function SelectPlayersModal({
                                   ],
                                 );
                               } else {
-                                // Unarchive directly
                                 archivePlayer(teamId, player.id, false);
                               }
                             }}

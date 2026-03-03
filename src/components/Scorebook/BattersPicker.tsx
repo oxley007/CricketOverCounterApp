@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { calculateBatterStats } from "../../state/gameHelpers";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
@@ -135,6 +136,29 @@ export default function BattersPicker({
   console.log("Current Batters:", currentBatters);
   console.log("Batting Entries:", currentGame?.battingEntries);
   console.log("currentBatters in BattersPicker:", currentGame?.batters);
+
+  useEffect(() => {
+    console.log("===== BattersPicker Debug =====");
+
+    // Fixture store
+    const fixtureStoreState = useFixtureStore.getState();
+    console.log(
+      "fixtureStore.currentFixture:",
+      fixtureStoreState.currentFixture,
+    );
+    console.log("fixtureStore.fixtures:", fixtureStoreState.fixtures);
+
+    // Game store
+    const gameStoreState = useGameStore.getState();
+    console.log("gameStore.currentGame:", gameStoreState.currentGame);
+    console.log("gameStore.gameConfig:", gameStoreState.gameConfig);
+
+    // Selected batters
+    console.log("selectedBatters prop:", selectedBatters);
+
+    // Batting team players
+    console.log("battingTeam?.players:", battingTeam?.players);
+  }, [battingTeam?.id, selectedBatters.join(",")]);
 
   useEffect(() => {
     if (!hasHydrated) return; // ⚠️ wait for hydration

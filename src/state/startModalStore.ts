@@ -1,9 +1,9 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface StartModalState {
-  isOpen: boolean;
+  isOpen: boolean; // tracks if modal is open
   selectedMode: "ballCounter" | "scorebook" | null;
   hasHydrated: boolean;
 
@@ -11,7 +11,7 @@ interface StartModalState {
   close: () => void;
   selectBallCounter: () => void;
   selectScorebook: () => void;
-  reset: () => void;
+  reset: () => void; // clears selectedMode and opens modal
   setHasHydrated: (v: boolean) => void;
 }
 
@@ -26,24 +26,30 @@ export const useStartModalStore = create<StartModalState>()(
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
-      selectBallCounter: () => set({ selectedMode: "ballCounter", isOpen: false }),
+      selectBallCounter: () =>
+        set({ selectedMode: "ballCounter", isOpen: false }),
       selectScorebook: () => set({ selectedMode: "scorebook", isOpen: false }),
-      reset: () => set({ isOpen: true, selectedMode: null }),
+
+      reset: () =>
+        set((state) => ({
+          selectedMode: null,
+        })),
     }),
     {
       name: "cricket-start-modal",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ selectedMode: s.selectedMode }),
+      partialize: (s) => ({ selectedMode: s.selectedMode, isOpen: s.isOpen }),
 
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
 
+        // first launch: open modal if no selected mode
         if (!state?.selectedMode) {
-          state!.isOpen = true;
+          state?.open(); // use the store's open() method
         } else {
-          state!.isOpen = false;
+          state?.close(); // use the store's close() method
         }
       },
-    }
-  )
+    },
+  ),
 );

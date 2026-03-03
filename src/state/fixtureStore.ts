@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { calculateFixtureResult } from "../utils/calculateFixtureResult";
 import { generateId } from "../utils/generateId";
 import { useGameStore, type BattingEntry, type BowlerStats } from "./gameStore";
 import { useMatchStore, type MatchEvent } from "./matchStore";
@@ -28,6 +29,25 @@ export type InningsSnapshot = {
   totalBalls: number;
 };
 
+export type FixtureResultType =
+  | "runs"
+  | "wickets"
+  | "innings"
+  | "draw"
+  | "abandoned";
+
+export type FixtureResult = {
+  type: FixtureResultType;
+
+  teamTotals: Record<string, number>;
+
+  winnerTeamId?: string;
+
+  margin?: string;
+
+  isDraw: boolean;
+};
+
 export type Fixture = {
   id: string;
   date: number;
@@ -45,6 +65,8 @@ export type Fixture = {
 
   overs: number;
   innings: InningsSnapshot[];
+  abandoned?: boolean;
+  result?: FixtureResult;
   completed: boolean;
 };
 
@@ -58,16 +80,21 @@ interface FixtureState {
   ======================== */
 
   startFixture: () => void;
+  addInnings: () => void;
 
   getCurrentInningsNumber: () => number;
 
   saveCurrentInnings: () => void;
+
+  markFixtureAbandoned: () => void;
 
   completeFixture: () => void;
 
   clearCurrentFixture: () => void;
 
   deleteFixture: (fixtureId: string) => void;
+
+  clearAllFixtures: () => void;
 }
 
 /* =========================================================
@@ -137,35 +164,169 @@ export const useFixtureStore = create<FixtureState>()(
           return;
         }
 
-        const inningsNumber = fixture.innings.length + 1;
+        // ✅ Calculate totals from events (source of truth)
+        const totalRuns = events.reduce(
+          (sum, e) => (e.type === "ball" ? sum + (e.runs ?? 0) : sum),
+          0,
+        );
+        const totalBalls = events.filter(
+          (e) => e.type === "ball" && e.countsAsBall,
+        ).length;
+        const totalWickets = events.filter((e) => e.type === "wicket").length;
 
         const snapshot: InningsSnapshot = {
-          inningsNumber,
-
+          inningsNumber: 0, // placeholder, we’ll set it below
           battingTeamId: currentGame.battingTeamId,
           bowlingTeamId: currentGame.bowlingTeamId ?? "",
-
           matchEvents: [...events],
           battingEntries: [...currentGame.battingEntries],
-          bowlers: [...currentGame.bowlers],
+          bowlers: [],
+          totalRuns,
+          totalWickets,
+          totalBalls,
+        };
 
-          totalRuns: currentGame.totalRuns,
-          totalWickets: currentGame.wickets?.length ?? 0,
-          totalBalls: currentGame.ballCount ?? 0,
+        // 🔍 Look for an empty innings
+        const emptyIndex = fixture.innings.findIndex(
+          (inn) => !inn.battingTeamId,
+        );
+
+        let updatedInnings;
+        if (emptyIndex !== -1) {
+          // Replace the first empty innings
+          snapshot.inningsNumber = emptyIndex + 1;
+          updatedInnings = [...fixture.innings];
+          updatedInnings[emptyIndex] = snapshot;
+          console.log(
+            `♻️ Saved innings into existing empty slot ${emptyIndex + 1}`,
+          );
+        } else {
+          // No empty innings → append
+          snapshot.inningsNumber = fixture.innings.length + 1;
+          updatedInnings = [...fixture.innings, snapshot];
+          console.log(`✅ Saved innings as new ${snapshot.inningsNumber}`);
+        }
+
+        set({
+          currentFixture: {
+            ...fixture,
+            innings: updatedInnings,
+          },
+        });
+
+        // 🔄 Reset live stores for next innings
+        useMatchStore.getState().resetInnings();
+        useGameStore.getState().resetGame();
+      },
+
+      getCurrentInningsNumber: () => {
+        const fixture = get().currentFixture;
+        return fixture?.innings.length ?? 0;
+      },
+
+      addInnings: () => {
+        const fixture = get().currentFixture;
+        if (!fixture) {
+          console.warn("⚠️ No fixture in progress to add innings to");
+          return;
+        }
+
+        // 1️⃣ Try to find an empty innings
+        const emptyInningsIndex = fixture.innings.findIndex(
+          (inn) => !inn.battingTeamId,
+        );
+
+        if (emptyInningsIndex !== -1) {
+          // reuse existing empty innings
+          const battingTeamId =
+            (emptyInningsIndex + 1) % 2 === 1
+              ? fixture.yourTeam.id
+              : fixture.oppositionTeam.id;
+          const bowlingTeamId =
+            (emptyInningsIndex + 1) % 2 === 1
+              ? fixture.oppositionTeam.id
+              : fixture.yourTeam.id;
+
+          const updatedInnings = [...fixture.innings];
+          updatedInnings[emptyInningsIndex] = {
+            ...updatedInnings[emptyInningsIndex],
+            inningsNumber: emptyInningsIndex + 1,
+            battingTeamId,
+            bowlingTeamId,
+            matchEvents: [],
+            battingEntries: [],
+            bowlers: [],
+            totalRuns: 0,
+            totalWickets: 0,
+            totalBalls: 0,
+          };
+
+          set({
+            currentFixture: {
+              ...fixture,
+              innings: updatedInnings,
+            },
+          });
+
+          console.log(
+            `♻️ Reused empty innings at position ${emptyInningsIndex + 1}`,
+          );
+          return;
+        }
+
+        // 2️⃣ No empty innings? append new
+        const inningsNumber = fixture.innings.length + 1;
+        const battingTeamId =
+          inningsNumber % 2 === 1
+            ? fixture.yourTeam.id
+            : fixture.oppositionTeam.id;
+        const bowlingTeamId =
+          inningsNumber % 2 === 1
+            ? fixture.oppositionTeam.id
+            : fixture.yourTeam.id;
+
+        const newInnings: InningsSnapshot = {
+          inningsNumber,
+          battingTeamId,
+          bowlingTeamId,
+          matchEvents: [],
+          battingEntries: [],
+          bowlers: [],
+          totalRuns: 0,
+          totalWickets: 0,
+          totalBalls: 0,
         };
 
         set({
           currentFixture: {
             ...fixture,
-            innings: [...fixture.innings, snapshot],
+            innings: [...fixture.innings, newInnings],
           },
         });
 
-        console.log("✅ Innings saved:", inningsNumber);
+        console.log(`✅ Added new innings: ${inningsNumber}`);
+      },
 
-        // 🔄 Reset live stores for next innings
-        useMatchStore.getState().resetInnings();
-        useGameStore.getState().resetGame();
+      markFixtureAbandoned: () => {
+        const fixture = get().currentFixture;
+        if (!fixture) return;
+
+        const result = calculateFixtureResult({
+          ...fixture,
+          abandoned: true,
+        });
+
+        const updatedFixture: Fixture = {
+          ...fixture,
+          completed: true,
+          abandoned: true,
+          result,
+        };
+
+        set((state) => ({
+          fixtures: [...state.fixtures, updatedFixture],
+          currentFixture: undefined,
+        }));
       },
 
       /* ========================
@@ -176,9 +337,12 @@ export const useFixtureStore = create<FixtureState>()(
         const fixture = get().currentFixture;
         if (!fixture) return;
 
+        const result = calculateFixtureResult(fixture);
+
         const completedFixture: Fixture = {
           ...fixture,
           completed: true,
+          result,
         };
 
         set((state) => ({
@@ -195,6 +359,18 @@ export const useFixtureStore = create<FixtureState>()(
 
       clearCurrentFixture: () => {
         set({ currentFixture: undefined });
+      },
+
+      /* ========================
+   Clear ALL Fixtures (DEV)
+======================== */
+
+      clearAllFixtures: () => {
+        set({
+          fixtures: [],
+          currentFixture: undefined,
+        });
+        console.log("🧨 All fixtures cleared");
       },
 
       /* ========================
