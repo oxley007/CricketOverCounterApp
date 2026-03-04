@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -18,9 +18,10 @@ import TeamPickerModal from "../Teams/TeamPickerModal";
 
 interface Props {
   visible: boolean;
+  onClose: () => void;
 }
 
-export default function GameSetupModal({ visible }: Props) {
+export default function GameSetupModal({ visible, onClose }: Props) {
   const { setSetupComplete, setGameConfig } = useGameStore();
 
   const [showYourTeamPicker, setShowYourTeamPicker] = useState(false);
@@ -35,6 +36,22 @@ export default function GameSetupModal({ visible }: Props) {
   const [season, setSeason] = useState<string>(() => {
     return useGameStore.getState().lastSeason || "";
   });
+
+  useEffect(() => {
+    if (visible) {
+      setYourTeam(null);
+      setOppositionTeam(null);
+      setOvers("20");
+      setSeason(useGameStore.getState().lastSeason || "");
+    }
+
+    return () => {
+      // Cleanup: When the component unmounts, ensure everything is false
+      setShowYourTeamPicker(false);
+      setShowOppositionPicker(false);
+      setShowSeasonPicker(false);
+    };
+  }, [visible]);
 
   const startGame = () => {
     if (!yourTeam || !oppositionTeam) return;
@@ -70,26 +87,34 @@ export default function GameSetupModal({ visible }: Props) {
 
   return (
     <Modal
+      // 1. THIS IS THE KEY FIX: Forces React to treat this as a brand new component
+      key={visible ? "active-setup" : "inactive-setup"}
       visible={visible}
       animationType="slide"
       transparent
       statusBarTranslucent
     >
       <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.overlay}>
-          <View style={styles.container}>
+        {/* 2. pointerEvents="box-none" ensures the overlay itself doesn't catch touches */}
+        <View style={styles.overlay} pointerEvents="box-none">
+          <View
+            style={styles.container}
+            pointerEvents="auto" // Ensures the actual UI box catches touches
+          >
             <Text style={styles.title}>Setup your game</Text>
 
             <ScrollView
               style={styles.scrollContent}
-              contentContainerStyle={{ paddingBottom: 16 }}
-              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled" // Important if you used a keyboard earlier
             >
               {/* Your Team */}
               <Text style={styles.label}>Your Team</Text>
               <Pressable
                 style={styles.selectRow}
-                onPress={() => setShowYourTeamPicker(true)}
+                onPress={() => {
+                  console.log("Opening Your Team Picker");
+                  setShowYourTeamPicker(true);
+                }}
               >
                 <Text
                   style={[
@@ -152,7 +177,10 @@ export default function GameSetupModal({ visible }: Props) {
               <Text style={styles.label}>Season</Text>
               <Pressable
                 style={styles.selectRow}
-                onPress={() => setShowSeasonPicker(true)}
+                onPress={() => {
+                  console.log("Opening Season Picker");
+                  setShowSeasonPicker(true);
+                }}
               >
                 <Text
                   style={[styles.selectText, !season && styles.placeholderText]}
@@ -259,5 +287,22 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: "#999",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: "#eee",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeButtonText: {
+    fontSize: 24,
+    lineHeight: 24,
+    color: "#333",
   },
 });

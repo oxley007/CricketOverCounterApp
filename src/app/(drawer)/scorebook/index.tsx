@@ -81,7 +81,7 @@ export default function ScorebookIndex() {
 
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
-
+  const [isSetupVisible, setIsSetupVisible] = useState(!isSetupComplete);
   const { statsModalVisible, statsModalPlayerId, closeStatsModal } =
     useGameStore();
   const fixtures = useFixtureStore((s) => s.fixtures);
@@ -169,6 +169,17 @@ export default function ScorebookIndex() {
       setStrike(selectedBatters[0]);
     }
   }, [selectedBatters]);
+
+  useEffect(() => {
+    if (!isSetupComplete) {
+      // Force close first, then reopen after a tiny delay
+      setIsSetupVisible(false);
+      const timer = setTimeout(() => setIsSetupVisible(true), 50);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSetupVisible(false); // hide it when setup is complete
+    }
+  }, [isSetupComplete]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -335,7 +346,13 @@ export default function ScorebookIndex() {
 
   return (
     <View style={styles.screen}>
-      <GameSetupModal visible={!isSetupComplete && !hasPreviousInnings} />
+      {/* 1. Only render the component if setup is NOT complete */}
+      {isSetupVisible && (
+        <GameSetupModal
+          visible={isSetupVisible}
+          onClose={() => setIsSetupVisible(false)}
+        />
+      )}
 
       <MatchRulesModal
         visible={showMatchRulesModal}

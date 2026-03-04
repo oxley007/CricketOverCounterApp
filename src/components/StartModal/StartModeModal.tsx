@@ -32,8 +32,12 @@ export default function StartModeModal() {
   };
 
   const onScorebook = () => {
+    closeStartModal(); // 👈 CLOSE THIS FIRST
     selectScorebook();
-    router.replace("/scorebook");
+    // Use a tiny timeout to let the modal close animation finish before navigating
+    setTimeout(() => {
+      router.replace("/scorebook");
+    }, 100);
   };
 
   return (

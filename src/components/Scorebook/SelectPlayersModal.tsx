@@ -6,10 +6,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Alert,
+  FlatList,
   Modal,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -89,28 +89,40 @@ export default function SelectPlayersModal({
   }, [visible, parentSelectedIds, players]);
 
   const togglePlayer = (playerId: string) => {
-    console.log("we are at least hitting!");
-    console.log(currentGame?.activeBatters, "currentGame?.activeBatters check");
+    console.log("=== togglePlayer START ===");
+    console.log("Clicked playerId:", playerId);
+    console.log("Picker type:", pickerType);
+    console.log("Current selectedIds:", selectedIds);
+    console.log("CurrentGame activeBatters:", currentGame?.activeBatters);
+    console.log("CurrentGame battingEntries:", currentGame?.battingEntries);
+    console.log(
+      "activeBatters full detail:",
+      JSON.stringify(currentGame?.activeBatters, null, 2),
+    );
 
     setSelectedIds((prev) => {
+      console.log("Previous selectedIds inside setter:", prev);
+      console.log(
+        "activeBatters BEFORE toggle:",
+        JSON.stringify(currentGame?.activeBatters, null, 2),
+      );
+
       if (pickerType === "bowler") {
-        // Single-selection mode for bowler
+        console.log("Single-selection mode: bowler");
         const next = [playerId];
-        //setSelectedIds(next);
         onSelectionChange(next);
 
         const { updateLastBowlerId } = useGameStore.getState();
         updateLastBowlerId(null);
 
         console.log(
-          "🎯 SelectPlayerModal: Bowler selected → lastBowlerId cleared",
+          "🎯 Bowler selected → lastBowlerId cleared",
           currentGame?.lastBowlerId,
         );
 
         return;
       }
 
-      let next: string[];
       const gameStore = useGameStore.getState();
       const game = gameStore.currentGame;
       if (!game || pickerType !== "batter") {
@@ -121,114 +133,118 @@ export default function SelectPlayersModal({
         return prev;
       }
 
-      // Get the current activeBatter
       const activeBatter = game.activeBatters.find(
         (b) => b.playerId === playerId,
       );
 
-      // Find the player entry for this inning
       const playerEntry = currentGame?.battingEntries
         .filter((e) => e.playerId === playerId)
         .sort((a, b) => b.inningsNumber - a.inningsNumber)[0];
 
       const batterInningId = playerEntry?.entryId;
 
-      console.log("we are at least hitting! 2! yay", {
-        prev,
-        activeBatter,
-        playerId,
-        currentGameActiveBatters: game.activeBatters,
-        currentGameBattingEntries: game.battingEntries,
-      });
+      console.log("activeBatter:", activeBatter);
+      console.log("playerEntry:", playerEntry);
+      console.log("batterInningId:", batterInningId);
+      console.log("Previous selectedIds:", prev);
 
-      // Get all events from matchStore
       const matchStore =
         require("../../state/matchStore").useMatchStore.getState();
       const events = matchStore.events ?? [];
 
-      // Only consider events for this batterInningId
-      const batterEvents = events.filter(
-        (ev) => ev.batterInningId === batterInningId && ev.countsAsBall,
-      );
-      //const ballsFaced = batterEvents.length;
-
-      console.log(
-        "Batter events for current inning:",
-        batterEvents,
-        "Balls faced:",
-        ballsFaced,
-      );
-
-      console.log("we are at least hitting! 2", {
-        prev,
-        activeBatter,
-        playerId,
-        currentGameActiveBatters: game.activeBatters,
-        currentGameBattingEntries: game.battingEntries,
-      });
-
-      // Check if player is already selected
-      const isSelected = prev.some((b) => {
-        if (typeof b === "string") return b === playerId;
-        return b.playerId === playerId;
-      });
-
-      let nextSelected = [...selectedIds];
-      let newActiveBatters = [...game.activeBatters];
-
-      const entryId = playerEntry?.entryId ?? activeBatter?.batterInningId;
-      const ballsFaced = entryId
+      const ballsFaced = batterInningId
         ? events.filter(
-            (ev) => ev.batterInningId === entryId && ev.countsAsBall,
+            (ev) => ev.batterInningId === batterInningId && ev.countsAsBall,
           ).length
         : 0;
       const runs = playerEntry?.runs ?? 0;
 
-      if (isSelected && runs === 0 && ballsFaced === 0 && entryId) {
-        // Remove from selectedIds
-        nextSelected = nextSelected.filter((id) => id !== playerId);
+      console.log("ballsFaced:", ballsFaced, "runs:", runs);
+      console.log(
+        "Current game activeBatters before toggle:",
+        game.activeBatters,
+      );
 
-        // Remove from activeBatters
+      // ✅ check against activeBatters, not selectedIds
+      const isSelected = game.activeBatters.some(
+        (b) => b.playerId === playerId,
+      );
+      console.log("isSelected?", isSelected);
+
+      let nextSelected = [...selectedIds]; // will be synced at the end
+      let newActiveBatters = [...game.activeBatters];
+
+      const entryId = playerEntry?.entryId ?? activeBatter?.batterInningId;
+
+      // ---- REMOVE player if empty ----
+      if (isSelected && runs === 0 && ballsFaced === 0 && entryId) {
+        console.log("Removing player from selectedIds and activeBatters");
+
+        nextSelected = nextSelected.filter((id) => id !== playerId);
         newActiveBatters = newActiveBatters.filter(
           (b) => b.playerId !== playerId,
         );
 
-        // Remove the matching battingEntry for this playerId AND batterInningId
         const newBattingEntries = game.battingEntries.filter(
           (e) => !(e.playerId === playerId && e.entryId === entryId),
         );
 
-        // Update game state
+        console.log("Updating gameStore after removal:", {
+          nextSelected,
+          newActiveBatters,
+          newBattingEntries,
+        });
+
         gameStore.updateCurrentGame({
           ...game,
           activeBatters: newActiveBatters,
           battingEntries: newBattingEntries,
         });
-      } else if (
+
+        console.log(
+          "activeBatters AFTER removal:",
+          JSON.stringify(newActiveBatters, null, 2),
+        );
+      }
+      // ---- SINGLE select mode ----
+      else if (
         selectionMode === "single" &&
         game.activeBatters.length >= effectiveMax
       ) {
-        // Single-select: replace existing batter
+        console.log("Single-select mode: replacing existing batter");
+
         const existing = game.activeBatters[0];
         const updatedBatters = game.activeBatters.filter(
           (b) => b.playerId !== existing.playerId,
         );
+
+        console.log("Existing batter removed:", existing.playerId);
 
         gameStore.updateCurrentGame({
           ...game,
           activeBatters: updatedBatters,
         });
 
-        next = [playerId];
-      } else {
-        // Multi-select: just add the new batter if not already selected
+        nextSelected = [playerId];
+        console.log("Next selectedIds for single-select:", nextSelected);
+      }
+      // ---- MULTI-select: add new batter ----
+      else {
+        console.log("Multi-select mode: adding new batter if not selected");
+
         if (!isSelected) {
-          next = [...prev, playerId];
+          nextSelected = [...prev, playerId];
+          console.log("Next selectedIds after adding:", nextSelected);
 
           const retiredBatter = game.activeRetired?.find(
             (b) => b.playerId === playerId,
           );
+
           if (retiredBatter) {
+            console.log(
+              "Player is retired, removing retired event and re-adding to activeBatters",
+            );
+
             matchStore.removeEventByPredicate?.((event: any) => {
               return (
                 event.type === "wicket" &&
@@ -237,28 +253,64 @@ export default function SelectPlayersModal({
               );
             });
 
+            newActiveBatters = [...game.activeBatters, retiredBatter];
             gameStore.updateCurrentGame({
-              activeBatters: [...game.activeBatters, retiredBatter],
+              ...game,
+              activeBatters: newActiveBatters,
               activeRetired: game.activeRetired.filter(
                 (b) => b.playerId !== playerId,
               ),
             });
           } else if (!activeBatter) {
-            // Normal new batter flow
+            console.log("Normal new batter flow: adding to activeBatters");
+
+            // add batter → this should update battingEntries internally
             const entryId = gameStore.addBatter(playerId);
+
+            // get the latest currentGame after addBatter
+            const updatedGame = useGameStore.getState().currentGame;
+
+            if (!updatedGame) return;
+
+            const updatedActiveBatters = [
+              ...updatedGame.activeBatters,
+              { playerId, batterInningId: entryId },
+            ];
+
+            // update store including the latest battingEntries
             gameStore.updateCurrentGame({
-              activeBatters: [
-                ...game.activeBatters,
-                { playerId, batterInningId: entryId },
-              ],
+              ...updatedGame,
+              activeBatters: updatedActiveBatters,
+              battingEntries: updatedGame.battingEntries ?? [],
             });
+
+            console.log(
+              "activeBatters AFTER addition:",
+              JSON.stringify(gameStore.currentGame?.activeBatters, null, 2),
+            );
+            console.log(
+              "battingEntries AFTER addition:",
+              JSON.stringify(gameStore.currentGame?.battingEntries, null, 2),
+            );
           }
+        } else {
+          console.log("Player already selected, no action taken");
         }
       }
 
+      console.log("Setting selectedIds and notifying parent");
+      nextSelected = newActiveBatters.map((b) => b.playerId); // sync selectedIds with activeBatters
+      console.log("Next selectedIds before setSelectedIds:", nextSelected);
+      console.log(
+        "activeBatters before final update:",
+        JSON.stringify(gameStore.currentGame?.activeBatters, null, 2),
+      );
+
       setSelectedIds(nextSelected);
       onSelectionChange(nextSelected);
-      return next;
+
+      console.log("=== togglePlayer END ===");
+      return nextSelected;
     });
   };
 
@@ -305,176 +357,151 @@ export default function SelectPlayersModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <ScrollView style={styles.scroll}>
-            {/* Only render the relevant scorecard */}
-            {pickerType === "batter" && <Scorecard />}
-            {pickerType === "bowler" && <BowlerScorecard />}
-            <Text style={styles.title}>{title}</Text>
+          <FlatList
+            style={styles.scroll}
+            data={enrichedPlayers}
+            keyExtractor={(player) => player.id}
+            ListHeaderComponent={() => (
+              <>
+                {/* Only render the relevant scorecard */}
+                {pickerType === "batter" && <Scorecard />}
+                {pickerType === "bowler" && <BowlerScorecard />}
+                <Text style={styles.title}>{title}</Text>
+              </>
+            )}
+            renderItem={({ item: player }) => {
+              const matchStore =
+                require("../../state/matchStore").useMatchStore.getState();
+              const currentEvents = matchStore.events ?? [];
 
-            {enrichedPlayers.length > 0 ? (
-              enrichedPlayers.map((player) => {
-                const matchStore =
-                  require("../../state/matchStore").useMatchStore.getState();
-                const currentEvents = matchStore.events ?? [];
+              const playerEntry = currentGame?.battingEntries
+                .filter((e) => e.playerId === player.id)
+                .sort((a, b) => b.inningsNumber - a.inningsNumber)[0];
 
-                const playerEntry = currentGame?.battingEntries
-                  .filter((e) => e.playerId === player.id)
-                  .sort((a, b) => b.inningsNumber - a.inningsNumber)[0];
+              const batterInningId = playerEntry?.entryId;
 
-                const batterInningId = playerEntry?.entryId;
+              const retiredBatter = currentGame?.activeRetired?.find(
+                (b) => b.playerId === player.id,
+              );
+              const isRetired = !!retiredBatter;
 
-                console.log("Player ID:", player.id);
-                console.log("Player entry:", playerEntry);
-                console.log("BatterInningId:", batterInningId);
-                console.log(
-                  "Matching events:",
-                  currentEvents.filter(
-                    (ev) => ev.batterInningId === batterInningId,
-                  ),
-                );
+              const selected = currentGame?.activeBatters?.some(
+                (b) => b.playerId === player.id,
+              );
 
-                const currentBowlingStats = currentEvents;
-                const retiredBatter = currentGame?.activeRetired?.find(
-                  (b) => b.playerId === player.id,
-                );
+              return (
+                <View
+                  key={player.id}
+                  style={[
+                    styles.playerItem,
+                    { backgroundColor: selected ? "#12c2e9" : "#f0f0f0" },
+                  ]}
+                >
+                  <View style={styles.playerRow}>
+                    {editingPlayerId === player.id ? (
+                      <>
+                        <TextInput
+                          value={editedName}
+                          onChangeText={setEditedName}
+                          style={styles.input}
+                          autoFocus
+                        />
+                        <Pressable onPress={() => saveEdit(player.id)}>
+                          <MaterialIcons name="check" size={22} color="green" />
+                        </Pressable>
+                      </>
+                    ) : (
+                      <>
+                        <Pressable
+                          style={{ flex: 1 }}
+                          onPress={() => togglePlayer(player.id)}
+                        >
+                          <Text style={{ color: selected ? "#fff" : "#000" }}>
+                            {player.name}
+                            {isRetired
+                              ? " — retired (tap to continue innings)"
+                              : ""}
+                          </Text>
+                        </Pressable>
 
-                const isRetired = !!retiredBatter;
-
-                console.log("do i get to here?");
-                console.log(
-                  currentGame?.activeBatters,
-                  "currentGame?.activeBatters check again.",
-                );
-
-                const selected = currentGame?.activeBatters?.some(
-                  (b) => b.playerId === player.id,
-                );
-
-                //const selected = selectedIds.includes(player.id);
-                //const selected = (selectedIds ?? []).includes(player.id);
-
-                return (
-                  <View
-                    key={player.id}
-                    style={[
-                      styles.playerItem,
-                      { backgroundColor: selected ? "#12c2e9" : "#f0f0f0" },
-                    ]}
-                  >
-                    <View style={styles.playerRow}>
-                      {editingPlayerId === player.id ? (
-                        <>
-                          <TextInput
-                            value={editedName}
-                            onChangeText={setEditedName}
-                            style={styles.input}
-                            autoFocus
-                          />
-                          <Pressable onPress={() => saveEdit(player.id)}>
-                            <MaterialIcons
-                              name="check"
-                              size={22}
-                              color="green"
-                            />
-                          </Pressable>
-                        </>
-                      ) : (
-                        <>
+                        {/* Stats button */}
+                        {player.myTeam && (
                           <Pressable
-                            style={{ flex: 1 }}
-                            onPress={() => togglePlayer(player.id)}
-                          >
-                            <Text style={{ color: selected ? "#fff" : "#000" }}>
-                              {player.name}
-                              {isRetired
-                                ? " — retired (tap to continue innings)"
-                                : ""}
-                            </Text>
-                          </Pressable>
-
-                          {/* ✅ Stats button now works */}
-
-                          {player.myTeam && (
-                            <Pressable
-                              style={{ marginLeft: 8 }}
-                              onPress={() => {
-                                useGameStore
-                                  .getState()
-                                  .openStatsModal(player.id);
-                                onClose(); // close SelectPlayersModal
-                              }}
-                            >
-                              <MaterialIcons
-                                name="bar-chart"
-                                size={30}
-                                color="red"
-                              />
-                            </Pressable>
-                          )}
-
-                          <Pressable onPress={() => startEditing(player)}>
-                            <MaterialIcons
-                              name="edit"
-                              size={20}
-                              color="#64748b"
-                            />
-                          </Pressable>
-                          <Pressable
+                            style={{ marginLeft: 8 }}
                             onPress={() => {
-                              const teamId =
-                                currentGame?.battingTeamId ||
-                                currentGame?.bowlingTeamId;
-                              if (!teamId) return;
-
-                              if (!player.archived) {
-                                Alert.alert(
-                                  "Archive Player",
-                                  `Are you sure you want to archive ${player.name}?`,
-                                  [
-                                    { text: "Cancel", style: "cancel" },
-                                    {
-                                      text: "Yes, Archive",
-                                      style: "destructive",
-                                      onPress: () =>
-                                        archivePlayer(teamId, player.id, true),
-                                    },
-                                  ],
-                                );
-                              } else {
-                                archivePlayer(teamId, player.id, false);
-                              }
+                              useGameStore.getState().openStatsModal(player.id);
+                              onClose(); // close modal
                             }}
                           >
                             <MaterialIcons
-                              name={player.archived ? "restore" : "delete"}
-                              size={20}
-                              color={player.archived ? "orange" : "#64748b"}
+                              name="bar-chart"
+                              size={30}
+                              color="red"
                             />
                           </Pressable>
-                        </>
-                      )}
-                    </View>
+                        )}
+
+                        <Pressable onPress={() => startEditing(player)}>
+                          <MaterialIcons
+                            name="edit"
+                            size={20}
+                            color="#64748b"
+                          />
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => {
+                            const teamId =
+                              currentGame?.battingTeamId ||
+                              currentGame?.bowlingTeamId;
+                            if (!teamId) return;
+
+                            if (!player.archived) {
+                              Alert.alert(
+                                "Archive Player",
+                                `Are you sure you want to archive ${player.name}?`,
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  {
+                                    text: "Yes, Archive",
+                                    style: "destructive",
+                                    onPress: () =>
+                                      archivePlayer(teamId, player.id, true),
+                                  },
+                                ],
+                              );
+                            } else {
+                              archivePlayer(teamId, player.id, false);
+                            }
+                          }}
+                        >
+                          <MaterialIcons
+                            name={player.archived ? "restore" : "delete"}
+                            size={20}
+                            color={player.archived ? "orange" : "#64748b"}
+                          />
+                        </Pressable>
+                      </>
+                    )}
                   </View>
-                );
-              })
-            ) : (
-              <View style={styles.noPlayers}>
-                <Text style={styles.noPlayersText}>
-                  No players in this list.
-                </Text>
-              </View>
+                </View>
+              );
+            }}
+            ListFooterComponent={() => (
+              <>
+                <Pressable
+                  style={{ marginVertical: 12, alignSelf: "center" }}
+                  onPress={() => setShowArchived((prev) => !prev)}
+                >
+                  <Text style={{ color: "#12c2e9", fontWeight: "600" }}>
+                    {showArchived
+                      ? "Hide Archived Players"
+                      : "Show Archived Players"}
+                  </Text>
+                </Pressable>
+              </>
             )}
-            <Pressable
-              style={{ marginVertical: 12, alignSelf: "center" }}
-              onPress={() => setShowArchived((prev) => !prev)}
-            >
-              <Text style={{ color: "#12c2e9", fontWeight: "600" }}>
-                {showArchived
-                  ? "Hide Archived Players"
-                  : "Show Archived Players"}
-              </Text>
-            </Pressable>
-          </ScrollView>
+          />
 
           {renderFooter?.()}
 
