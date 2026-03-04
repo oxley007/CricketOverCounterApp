@@ -31,24 +31,18 @@ export const useStartModalStore = create<StartModalState>()(
       selectScorebook: () => set({ selectedMode: "scorebook", isOpen: false }),
 
       reset: () =>
-        set((state) => ({
+        set({
           selectedMode: null,
-        })),
+          isOpen: true,
+        }),
     }),
     {
       name: "cricket-start-modal",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ selectedMode: s.selectedMode, isOpen: s.isOpen }),
+      partialize: (s) => ({ selectedMode: s.selectedMode }),
 
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
-
-        // first launch: open modal if no selected mode
-        if (!state?.selectedMode) {
-          state?.open(); // use the store's open() method
-        } else {
-          state?.close(); // use the store's close() method
-        }
       },
     },
   ),

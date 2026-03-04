@@ -1,13 +1,13 @@
 // src/components/Seasons/SeasonPickerModal.tsx
 import React, { useState } from "react";
 import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
   FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore } from "../../state/gameStore";
@@ -43,7 +43,12 @@ export default function SeasonPickerModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+    >
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.overlay}>
           <View style={styles.container}>
@@ -66,10 +71,7 @@ export default function SeasonPickerModal({
                 keyExtractor={(item) => item}
                 contentContainerStyle={{ paddingBottom: 12 }}
                 renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.row}
-                    onPress={() => onSelect(item)}
-                  >
+                  <Pressable style={styles.row} onPress={() => onSelect(item)}>
                     <Text style={styles.rowText}>{item}</Text>
                   </Pressable>
                 )}
