@@ -1,9 +1,10 @@
 import {
-    collection,
-    doc,
-    getDocs,
-    serverTimestamp,
-    setDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 import { Fixture } from "../state/fixtureStore";
 import { Player, Team } from "../state/teamStore";
@@ -179,6 +180,20 @@ function mergeById(local: any[], remote: any[]) {
   });
 
   return Array.from(map.values());
+}
+
+/** Reads proUnlocked from the user doc in Firestore (e.g. for sync on login). */
+export async function loadUserSubscription(): Promise<boolean> {
+  if (!auth.currentUser) return false;
+
+  try {
+    const userRef = doc(db, "users", auth.currentUser.uid);
+    const snap = await getDoc(userRef);
+    return snap.exists() ? (snap.data()?.proUnlocked ?? false) : false;
+  } catch (err) {
+    console.warn("Failed to load subscription from Firestore:", err);
+    return false;
+  }
 }
 
 export async function saveSubscription(isPro: boolean) {
