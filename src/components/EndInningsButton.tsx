@@ -188,9 +188,8 @@ export default function EndInningsButton({
       useGameStore.getState().resetGame();
 
       // 9️⃣ Reset start modal and navigate home
-      router.replace("/").then(() => {
-        useStartModalStore.getState().reset();
-      });
+      router.replace("/");
+      useStartModalStore.getState().reset();
 
       console.log(
         "🏁 Fixture ended and saved successfully:",
@@ -270,9 +269,8 @@ export default function EndInningsButton({
       useGameStore.getState().resetGame();
 
       // 9️⃣ Reset start modal and navigate home
-      router.replace("/").then(() => {
-        useStartModalStore.getState().reset();
-      });
+      router.replace("/");
+      useStartModalStore.getState().reset();
 
       console.log(
         "🟠 Fixture abandoned and saved successfully:",
@@ -308,9 +306,8 @@ export default function EndInningsButton({
     resetGame();
 
     // Reset modal after navigation
-    router.replace("/").then(() => {
-      resetStartModal();
-    });
+    router.replace("/");
+    resetStartModal();
   };
 
   return (
