@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import { auth } from "../services/firebaseConfig";
 import {
   saveFixture,
+  saveSubscription,
   saveTeamWithPlayers,
 } from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
@@ -198,6 +199,15 @@ export default function EndInningsButton({
             }
           }
         }
+
+        // 5c Sync IAP/subscription status to Firestore (best-effort)
+        try {
+          await saveSubscription(
+            useMatchStore.getState().proUnlocked ?? false,
+          );
+        } catch (e) {
+          console.warn("⚠️ Failed to save subscription status:", e);
+        }
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
         const message =
@@ -310,6 +320,15 @@ export default function EndInningsButton({
               console.warn("⚠️ Failed to save team:", team.name, e);
             }
           }
+        }
+
+        // 5c Sync IAP/subscription status to Firestore (best-effort)
+        try {
+          await saveSubscription(
+            useMatchStore.getState().proUnlocked ?? false,
+          );
+        } catch (e) {
+          console.warn("⚠️ Failed to save subscription status:", e);
         }
       } catch (err) {
         console.error("❌ Error saving abandoned fixture to Firebase:", err);
