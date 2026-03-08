@@ -11,6 +11,7 @@ import { useFixtureStore, type Fixture } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
+import { calculateFixtureResult } from "../utils/calculateFixtureResult";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
 import { generateId } from "../utils/generateId";
 import { deepMergeById } from "../services/firestoreMerge";
@@ -135,11 +136,13 @@ export default function EndInningsButton({
       // 2️⃣ Reset guest if needed
       resetGuestIfNeeded();
 
-      // 3️⃣ Save current innings snapshot
+      // 3️⃣ Save current innings snapshot (updates store)
       fixtureStore.saveCurrentInnings();
 
-      // 4️⃣ Take a snapshot of the fixture BEFORE completing it
-      const completedFixture = { ...fixtureStore.currentFixture } as Fixture;
+      // 4️⃣ Re-read fixture from store so we have the innings we just saved
+      const completedFixture = {
+        ...useFixtureStore.getState().currentFixture,
+      } as Fixture;
       if (!completedFixture) {
         console.warn("⚠️ No current fixture to end");
         return;
@@ -150,12 +153,19 @@ export default function EndInningsButton({
         completedFixture.id = generateId();
       }
 
+      // 🔹 Set result and completed before saving so Firestore has final state
+      completedFixture.result = calculateFixtureResult(completedFixture);
+      completedFixture.completed = true;
+
       // 5️⃣ SAVE TO FIRESTORE + merge into local store safely
       try {
         await saveFixture(completedFixture);
 
-        // Merge into local fixtures[]
-        const merged = deepMergeById(fixtureStore.fixtures, [completedFixture]);
+        // Merge into local fixtures[] (use latest store state)
+        const merged = deepMergeById(
+          useFixtureStore.getState().fixtures,
+          [completedFixture],
+        );
         useFixtureStore.setState({
           fixtures: merged,
           currentFixture: completedFixture,
@@ -175,8 +185,8 @@ export default function EndInningsButton({
         throw err; // rethrow so outer finally still runs
       }
 
-      // 6️⃣ Commit to local store (mark as complete)
-      fixtureStore.completeFixture();
+      // 6️⃣ Clear current fixture (completed fixture is already in fixtures from merge)
+      useFixtureStore.setState({ currentFixture: undefined });
 
       // 7️⃣ Update modal for end-game summary
       setModalFixture(completedFixture);
@@ -216,11 +226,13 @@ export default function EndInningsButton({
       // 2️⃣ Reset guest if needed
       resetGuestIfNeeded();
 
-      // 3️⃣ Save current innings snapshot
+      // 3️⃣ Save current innings snapshot (updates store)
       fixtureStore.saveCurrentInnings();
 
-      // 4️⃣ Take snapshot BEFORE marking abandoned
-      const abandonedFixture = { ...fixtureStore.currentFixture } as Fixture;
+      // 4️⃣ Re-read fixture from store so we have the innings we just saved
+      const abandonedFixture = {
+        ...useFixtureStore.getState().currentFixture,
+      } as Fixture;
       if (!abandonedFixture) {
         console.warn("⚠️ No current fixture to abandon");
         return;
@@ -231,12 +243,23 @@ export default function EndInningsButton({
         abandonedFixture.id = generateId();
       }
 
+      // 🔹 Set abandoned, result and completed before saving so Firestore has final state
+      abandonedFixture.abandoned = true;
+      abandonedFixture.result = calculateFixtureResult({
+        ...abandonedFixture,
+        abandoned: true,
+      });
+      abandonedFixture.completed = true;
+
       // 5️⃣ SAVE TO FIRESTORE + merge into local store safely
       try {
         await saveFixture(abandonedFixture);
 
-        // Merge into local fixtures[]
-        const merged = deepMergeById(fixtureStore.fixtures, [abandonedFixture]);
+        // Merge into local fixtures[] (use latest store state)
+        const merged = deepMergeById(
+          useFixtureStore.getState().fixtures,
+          [abandonedFixture],
+        );
         useFixtureStore.setState({
           fixtures: merged,
           currentFixture: abandonedFixture,
@@ -256,8 +279,8 @@ export default function EndInningsButton({
         throw err;
       }
 
-      // 6️⃣ Commit to local store (mark as abandoned)
-      fixtureStore.markFixtureAbandoned();
+      // 6️⃣ Clear current fixture (abandoned fixture is already in fixtures from merge)
+      useFixtureStore.setState({ currentFixture: undefined });
 
       // 7️⃣ Update modal for end-game summary
       setModalFixture(abandonedFixture);
