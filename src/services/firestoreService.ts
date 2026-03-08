@@ -50,12 +50,16 @@ export async function saveFixture(fixture: any): Promise<void> {
   }
 }
 
-export async function saveTeam(team: any) {
-  if (!auth.currentUser) return;
+export async function saveTeam(team: any): Promise<void> {
+  if (!auth.currentUser) {
+    const msg = "No authenticated user; cannot save team";
+    console.warn("⚠️", msg);
+    throw new Error(msg);
+  }
+
+  const userId = auth.currentUser.uid;
 
   try {
-    const userId = auth.currentUser.uid;
-
     await setDoc(
       doc(db, "users", userId, "teams", team.id),
       cleanForFirestore({
@@ -68,15 +72,20 @@ export async function saveTeam(team: any) {
     console.log("✅ Team saved:", team.name);
   } catch (err) {
     console.error("❌ Error saving team:", err);
+    throw err;
   }
 }
 
-export async function savePlayer(teamId: string, player: any) {
-  if (!auth.currentUser) return;
+export async function savePlayer(teamId: string, player: any): Promise<void> {
+  if (!auth.currentUser) {
+    const msg = "No authenticated user; cannot save player";
+    console.warn("⚠️", msg);
+    throw new Error(msg);
+  }
+
+  const userId = auth.currentUser.uid;
 
   try {
-    const userId = auth.currentUser.uid;
-
     await setDoc(
       doc(db, "users", userId, "teams", teamId, "players", player.id),
       cleanForFirestore({
@@ -89,6 +98,15 @@ export async function savePlayer(teamId: string, player: any) {
     console.log("✅ Player saved:", player.name);
   } catch (err) {
     console.error("❌ Error saving player:", err);
+    throw err;
+  }
+}
+
+/** Saves a team and all its players to Firestore. No-op if not authenticated. */
+export async function saveTeamWithPlayers(team: Team): Promise<void> {
+  await saveTeam(team);
+  for (const player of team.players ?? []) {
+    await savePlayer(team.id, player);
   }
 }
 

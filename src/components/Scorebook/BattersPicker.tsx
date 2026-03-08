@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { savePlayer } from "../../services/firestoreService";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { calculateBatterStats } from "../../state/gameHelpers";
 import { useGameStore } from "../../state/gameStore";
@@ -233,6 +234,20 @@ export default function BattersPicker({
     }
   }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]); // ✅ include hasHydrated
 
+  const handleSavePlayer = async (teamId: string, player: any) => {
+    try {
+      await savePlayer(teamId, player);
+    } catch (err) {
+      console.error("❌ Error saving player:", err);
+      Alert.alert(
+        "Error",
+        err instanceof Error && err.message.includes("authenticated user")
+          ? "Please sign in to save players."
+          : "Failed to save player. Try again.",
+      );
+    }
+  };
+
   return (
     <>
       {battingTeam && (
@@ -305,8 +320,9 @@ export default function BattersPicker({
             renderFooter={() => (
               <AddPlayerFooter
                 teamId={selectedBattingTeamId!}
-                onAdded={(name) => {
-                  addPlayerToTeam(selectedBattingTeamId!, name);
+                onAdded={async (name) => {
+                  const player = addPlayerToTeam(selectedBattingTeamId!, name);
+                  if (player) await handleSavePlayer(selectedBattingTeamId!, player);
                 }}
               />
             )}

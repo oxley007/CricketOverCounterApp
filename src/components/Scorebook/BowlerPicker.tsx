@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { savePlayer } from "../../services/firestoreService";
 import {
   calculateBowlerStats,
   type BowlerStats,
@@ -117,6 +118,21 @@ export default function BowlerPicker({
     lastBowlerStats && (!currentBowler || isOverComplete);
 
   const isOverInProgress = ballsInCurrentOver > 0 && ballsInCurrentOver < 6;
+
+  const handleSavePlayer = async (teamId: string, player: any) => {
+    try {
+      await savePlayer(teamId, player);
+    } catch (err) {
+      console.error("❌ Error saving player:", err);
+      Alert.alert(
+        "Error",
+        err instanceof Error && err.message.includes("authenticated user")
+          ? "Please sign in to save players."
+          : "Failed to save player. Try again.",
+      );
+    }
+  };
+
   // ======= RENDER =======
   return (
     <View style={{ flex: 1 }}>
@@ -213,7 +229,10 @@ export default function BowlerPicker({
           renderFooter={() => (
             <AddPlayerFooter
               teamId={bowlingTeam.id}
-              onAdded={(name) => addPlayerToTeam(bowlingTeam.id, name)}
+              onAdded={async (name) => {
+                const player = addPlayerToTeam(bowlingTeam.id, name);
+                if (player) await handleSavePlayer(bowlingTeam.id, player);
+              }}
             />
           )}
         />
