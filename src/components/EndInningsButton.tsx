@@ -5,10 +5,14 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { useRouter } from "expo-router";
 import { auth } from "../services/firebaseConfig";
-import { saveFixture } from "../services/firestoreService";
+import {
+  saveFixture,
+  saveTeamWithPlayers,
+} from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore, type Fixture } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
+import { useTeamStore } from "../state/teamStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { calculateFixtureResult } from "../utils/calculateFixtureResult";
@@ -175,6 +179,25 @@ export default function EndInningsButton({
           "💾 Fixture saved and merged locally:",
           completedFixture.id,
         );
+
+        // 5b Save teams and players used in this fixture (best-effort)
+        const teams = useTeamStore.getState().teams;
+        const yourTeam = completedFixture.yourTeam?.id
+          ? teams.find((t) => t.id === completedFixture.yourTeam!.id)
+          : null;
+        const oppositionTeam = completedFixture.oppositionTeam?.id
+          ? teams.find((t) => t.id === completedFixture.oppositionTeam!.id)
+          : null;
+        for (const team of [yourTeam, oppositionTeam]) {
+          if (team) {
+            try {
+              await saveTeamWithPlayers(team);
+              console.log("💾 Team saved:", team.name);
+            } catch (e) {
+              console.warn("⚠️ Failed to save team:", team.name, e);
+            }
+          }
+        }
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
         const message =
@@ -269,6 +292,25 @@ export default function EndInningsButton({
           "💾 Abandoned fixture saved and merged locally:",
           abandonedFixture.id,
         );
+
+        // 5b Save teams and players used in this fixture (best-effort)
+        const teams = useTeamStore.getState().teams;
+        const yourTeam = abandonedFixture.yourTeam?.id
+          ? teams.find((t) => t.id === abandonedFixture.yourTeam!.id)
+          : null;
+        const oppositionTeam = abandonedFixture.oppositionTeam?.id
+          ? teams.find((t) => t.id === abandonedFixture.oppositionTeam!.id)
+          : null;
+        for (const team of [yourTeam, oppositionTeam]) {
+          if (team) {
+            try {
+              await saveTeamWithPlayers(team);
+              console.log("💾 Team saved:", team.name);
+            } catch (e) {
+              console.warn("⚠️ Failed to save team:", team.name, e);
+            }
+          }
+        }
       } catch (err) {
         console.error("❌ Error saving abandoned fixture to Firebase:", err);
         const message =

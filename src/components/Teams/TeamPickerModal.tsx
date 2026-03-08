@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
+  Alert,
   FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTeamStore, Team } from "../../state/teamStore";
+import { saveTeam } from "../../services/firestoreService";
+import { Team, useTeamStore } from "../../state/teamStore";
 
 interface Props {
   visible: boolean;
@@ -27,23 +29,35 @@ export default function TeamPickerModal({
   const { teams, addTeam } = useTeamStore();
   const [newTeamName, setNewTeamName] = useState("");
 
-  const onAddTeam = () => {
+  const onAddTeam = async () => {
     if (!newTeamName.trim()) return;
 
     const team = addTeam(newTeamName.trim());
+    if (!team) return;
 
     setNewTeamName("");
 
-    // Debug: check the store and current selection
-    console.log("All teams in store:", useTeamStore.getState().teams);
-    console.log("Selected team:", team);
-
-    // Immediately select the new team
-    onSelect(team);
+    try {
+      await saveTeam(team);
+      onSelect(team);
+    } catch (err) {
+      console.error("❌ Error saving team:", err);
+      Alert.alert(
+        "Error",
+        err instanceof Error && err.message.includes("authenticated user")
+          ? "Please sign in to save teams."
+          : "Failed to save team. Try again.",
+      );
+    }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+    >
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.overlay}>
           <View style={styles.container}>
