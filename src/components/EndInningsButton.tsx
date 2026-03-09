@@ -5,6 +5,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { useRouter } from "expo-router";
 import { auth } from "../services/firebaseConfig";
+import { deepMergeById } from "../services/firestoreMerge";
 import {
   saveFixture,
   saveSubscription,
@@ -13,13 +14,12 @@ import {
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore, type Fixture } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
-import { useTeamStore } from "../state/teamStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
-import { calculateFixtureResult } from "../utils/calculateFixtureResult";
+import { useTeamStore } from "../state/teamStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
+import { calculateFixtureResult } from "../utils/calculateFixtureResult";
 import { generateId } from "../utils/generateId";
-import { deepMergeById } from "../services/firestoreMerge";
 import AuthModal from "./AuthModal";
 import EndGameModal from "./EndGameModal";
 import NewInningsButton from "./NewInningsButton";
@@ -167,10 +167,9 @@ export default function EndInningsButton({
         await saveFixture(completedFixture);
 
         // Merge into local fixtures[] (use latest store state)
-        const merged = deepMergeById(
-          useFixtureStore.getState().fixtures,
-          [completedFixture],
-        );
+        const merged = deepMergeById(useFixtureStore.getState().fixtures, [
+          completedFixture,
+        ]);
         useFixtureStore.setState({
           fixtures: merged,
           currentFixture: completedFixture,
@@ -202,20 +201,14 @@ export default function EndInningsButton({
 
         // 5c Sync IAP/subscription status to Firestore (best-effort)
         try {
-          await saveSubscription(
-            useMatchStore.getState().proUnlocked ?? false,
-          );
+          await saveSubscription(useMatchStore.getState().proUnlocked ?? false);
         } catch (e) {
           console.warn("⚠️ Failed to save subscription status:", e);
         }
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
-        const message =
-          err instanceof Error && err.message.includes("authenticated user")
-            ? "Please sign in to save fixtures."
-            : "Failed to save fixture. Try again.";
-        Alert.alert("Error", message);
-        throw err; // rethrow so outer finally still runs
+        Alert.alert("Error", "Failed to save fixture. Try again.");
+        throw err; // rethrow so outer finally runs finally
       }
 
       // 6️⃣ Clear current fixture (completed fixture is already in fixtures from merge)
@@ -230,9 +223,9 @@ export default function EndInningsButton({
       useGameStore.getState().resetBatters();
       useGameStore.getState().resetGame();
 
-      // 9️⃣ Reset start modal and navigate home
-      router.replace("/");
+      // 9️⃣ Reset start modal and navigate to ball counter
       useStartModalStore.getState().reset();
+      router.replace("/ball-counter");
 
       console.log(
         "🏁 Fixture ended and saved successfully:",
@@ -289,10 +282,9 @@ export default function EndInningsButton({
         await saveFixture(abandonedFixture);
 
         // Merge into local fixtures[] (use latest store state)
-        const merged = deepMergeById(
-          useFixtureStore.getState().fixtures,
-          [abandonedFixture],
-        );
+        const merged = deepMergeById(useFixtureStore.getState().fixtures, [
+          abandonedFixture,
+        ]);
         useFixtureStore.setState({
           fixtures: merged,
           currentFixture: abandonedFixture,
@@ -324,19 +316,13 @@ export default function EndInningsButton({
 
         // 5c Sync IAP/subscription status to Firestore (best-effort)
         try {
-          await saveSubscription(
-            useMatchStore.getState().proUnlocked ?? false,
-          );
+          await saveSubscription(useMatchStore.getState().proUnlocked ?? false);
         } catch (e) {
           console.warn("⚠️ Failed to save subscription status:", e);
         }
       } catch (err) {
         console.error("❌ Error saving abandoned fixture to Firebase:", err);
-        const message =
-          err instanceof Error && err.message.includes("authenticated user")
-            ? "Please sign in to save fixtures."
-            : "Failed to save abandoned fixture. Try again.";
-        Alert.alert("Error", message);
+        Alert.alert("Error", "Failed to save abandoned fixture. Try again.");
         throw err;
       }
 
@@ -352,9 +338,9 @@ export default function EndInningsButton({
       useGameStore.getState().resetBatters();
       useGameStore.getState().resetGame();
 
-      // 9️⃣ Reset start modal and navigate home
-      router.replace("/");
+      // 9️⃣ Reset start modal and navigate to ball counter
       useStartModalStore.getState().reset();
+      router.replace("/ball-counter");
 
       console.log(
         "🟠 Fixture abandoned and saved successfully:",
@@ -384,14 +370,13 @@ export default function EndInningsButton({
     fixtureStore.clearCurrentFixture();
 
     // Reset stores
-    // Reset stores
     resetInnings();
     resetBatters();
     resetGame();
 
-    // Reset modal after navigation
-    router.replace("/");
+    // Reset modal and navigate to ball counter
     resetStartModal();
+    router.replace("/ball-counter");
   };
 
   return (
