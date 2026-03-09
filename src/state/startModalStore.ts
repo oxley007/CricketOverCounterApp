@@ -42,7 +42,9 @@ export const useStartModalStore = create<StartModalState>()(
       partialize: (s) => ({ selectedMode: s.selectedMode }),
 
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        if (state) {
+          state.hasHydrated = true;
+        }
       },
     },
   ),

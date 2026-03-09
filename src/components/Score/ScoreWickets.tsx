@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
 import ScoreDelta from "./ScoreDelta";
 
 export default function ScoreWickets() {
   const events = useMatchStore((state) => state.events);
   const baseRuns = useMatchStore((state) => state.baseRuns);
-  const wicketsAsNegativeRuns = useMatchStore((state) => state.wicketsAsNegativeRuns);
+  const wicketsAsNegativeRuns = useMatchStore(
+    (state) => state.wicketsAsNegativeRuns,
+  );
   const wicketPenaltyRuns = useMatchStore((state) => state.wicketPenaltyRuns);
 
   const [deltaQueue, setDeltaQueue] = useState<number[]>([]);
 
   // ---- Calculate total runs ----
   const eventRuns = events.reduce((sum, e) => {
-    let runs = (e.runBreakdown?.bat ?? e.runs ?? 0)
-             + (e.runBreakdown?.extras ?? 0);
+    let runs =
+      (e.runBreakdown?.bat ?? e.runs ?? 0) + (e.runBreakdown?.extras ?? 0);
 
     // If wickets count as negative runs
     if (
@@ -35,7 +37,7 @@ export default function ScoreWickets() {
   // ---- Count wickets for display ----
   // Exclude "retired" wickets from total
   const totalWickets = events.filter(
-    (e) => e.type === "wicket" && e.kind !== "retired"
+    (e) => e.type === "wicket" && e.kind !== "retired",
   ).length;
 
   // ---- Handle delta queue ----
@@ -50,14 +52,14 @@ export default function ScoreWickets() {
 
     // Only scoring negative runs for normal wickets (not retired)
     if (
-        wicketsAsNegativeRuns &&
-        lastEvent.type === "wicket" &&
-        delta === 0 &&
-        lastEvent.kind !== "retired" &&
-        lastEvent.kind !== "partnership"
-      ) {
-        delta = -wicketPenaltyRuns;
-      }
+      wicketsAsNegativeRuns &&
+      lastEvent.type === "wicket" &&
+      delta === 0 &&
+      lastEvent.kind !== "retired" &&
+      lastEvent.kind !== "partnership"
+    ) {
+      delta = -wicketPenaltyRuns;
+    }
 
     if (delta !== 0) {
       setDeltaQueue((q) => [...q, delta]);
@@ -71,15 +73,13 @@ export default function ScoreWickets() {
   return (
     <View>
       {/* Display total runs / wickets */}
-      <Text style={styles.score}>{totalRuns}/{totalWickets}</Text>
+      <Text style={styles.score}>
+        {totalRuns}/{totalWickets}
+      </Text>
 
       {/* Animate run deltas if any */}
       {deltaQueue.map((delta, idx) => (
-        <ScoreDelta
-          key={idx}
-          delta={delta}
-          onComplete={handleDeltaComplete}
-        />
+        <ScoreDelta key={idx} delta={delta} onComplete={handleDeltaComplete} />
       ))}
     </View>
   );
@@ -87,7 +87,7 @@ export default function ScoreWickets() {
 
 const styles = StyleSheet.create({
   score: {
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: "bold",
     color: "#f5f5f5",
   },

@@ -30,7 +30,6 @@ import SubscriptionList from "../../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../../components/iap/UpgradeProBox";
 import OversCounter from "../../../components/OversCounter";
 import PlayerStatsModal from "../../../components/PlayerStatsModal";
-import ResetButton from "../../../components/ResetButton";
 import RotateStrike from "../../../components/RotateStrike";
 import MatchRulesSettings from "../../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../../components/Score/ScoreWickets";
@@ -374,13 +373,15 @@ export default function ScorebookIndex() {
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
         <EndInningsButton onComplete={handleReset} />
-        <ResetButton onReset={handleReset} />
         <CurrentOverDisplay />
 
         <View style={styles.divider} />
 
         <View style={styles.scoreRow}>
           <ScoreWickets />
+        </View>
+
+        <View style={styles.scoreRow}>
           <OversCounter />
         </View>
 
@@ -506,8 +507,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "center",
-    gap: 20,
-    marginBottom: 16,
+    gap: 0,
+    marginBottom: 0,
   },
   statsRow: { flexDirection: "row", alignItems: "stretch" },
   divider: { height: 1, backgroundColor: "#f5f5f5", marginVertical: 10 },

@@ -1,9 +1,16 @@
 // app/(drawer)/_layout.tsx
-import { StyleSheet, View, Image, Platform, useColorScheme } from "react-native";
-import { Drawer } from "expo-router/drawer";
-import { DrawerToggleButton } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
+import { DrawerToggleButton } from "@react-navigation/drawer";
+import { Drawer } from "expo-router/drawer";
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useAuthStore } from "../../state/authStore";
 
 export default function DrawerLayout() {
   return Platform.OS === "android" ? (
@@ -23,6 +30,8 @@ function DrawerContent() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const isGuest = useAuthStore((s) => s.isGuest);
+
   return (
     <Drawer
       screenOptions={{
@@ -38,9 +47,7 @@ function DrawerContent() {
           </View>
         ),
 
-        headerLeft: () => (
-          <DrawerToggleButton tintColor="#000" />
-        ),
+        headerLeft: () => <DrawerToggleButton tintColor="#000" />,
 
         headerTitleAlign: "center",
 
@@ -80,6 +87,28 @@ function DrawerContent() {
           ),
         }}
       />
+
+      {isGuest ? (
+        <Drawer.Screen
+          name="account"
+          options={{
+            title: "Login / Signup",
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="log-in-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      ) : (
+        <Drawer.Screen
+          name="account"
+          options={{
+            title: "Account",
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="person-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Drawer>
   );
 }
@@ -91,7 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 120,  // adjust size as needed
+    width: 120, // adjust size as needed
     height: 40,
   },
 });

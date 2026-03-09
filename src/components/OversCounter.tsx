@@ -99,55 +99,63 @@ export default function OversCounter() {
     oversBowled > 0 ? (totalRuns / oversBowled).toFixed(2) : "0.00";
 
   /* =========================
-   Required Run Rate (RRR)
+   Determine if chasing
 ========================= */
-  let rrr: string | null = null;
+  let canShowTargetAndRRR = false;
 
   if (currentFixture && currentGame?.battingTeamId) {
-    const allInnings = currentFixture.innings;
     const battingTeamId = currentGame.battingTeamId;
 
-    // Sum all completed innings totals for opposition
-    let oppositionTotal = 0;
-    allInnings.forEach((inn) => {
-      if (
-        inn.battingTeamId && // must exist
-        inn.battingTeamId !== battingTeamId && // opposition innings
-        inn.matchEvents?.length > 0 // must actually have been played
-      ) {
-        oppositionTotal += inn.totalRuns;
+    let battingTeamInnings = 0;
+    let oppositionTeamInnings = 0;
+
+    currentFixture.innings.forEach((inn) => {
+      if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
+
+      if (inn.battingTeamId === battingTeamId) {
+        battingTeamInnings++;
+      } else {
+        oppositionTeamInnings++;
       }
     });
 
-    if (oppositionTotal > totalRuns) {
-      const runsRemaining = oppositionTotal + 1 - totalRuns;
-      const totalOvers = currentFixture.overs;
-      const oversRemaining = totalOvers - oversBowled;
+    // Only show target & RRR if opposition has batted more innings than batting team
+    canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
+  }
+
+  /* =========================
+   Target & RRR (if chasing)
+========================= */
+  let target: number | null = null;
+  let rrr: string | null = null;
+
+  if (canShowTargetAndRRR && currentFixture && currentGame?.battingTeamId) {
+    const battingTeamId = currentGame.battingTeamId;
+    let battingTeamPreviousRuns = 0;
+    let oppositionRuns = 0;
+
+    currentFixture.innings.forEach((inn) => {
+      if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
+
+      if (inn.battingTeamId === battingTeamId) {
+        battingTeamPreviousRuns += inn.totalRuns;
+      } else {
+        oppositionRuns += inn.totalRuns;
+      }
+    });
+
+    const runsBehind = oppositionRuns - battingTeamPreviousRuns;
+    if (runsBehind > 0) {
+      // strictly greater than 0
+      target = runsBehind + 1;
+
+      const oversBowled = totalLegalBalls / 6;
+      const runsRemaining = target - totalRuns;
+      const oversRemaining = (currentFixture.overs ?? 0) - oversBowled;
 
       if (oversRemaining > 0) {
         rrr = (runsRemaining / oversRemaining).toFixed(2);
       }
-    }
-  }
-
-  /* =========================
-   Show RRR label if chasing
-========================= */
-  let showRRR = false;
-
-  if (
-    currentFixture &&
-    currentFixture.innings.length > 0 &&
-    currentGame?.battingTeamId
-  ) {
-    const lastInnings =
-      currentFixture.innings[currentFixture.innings.length - 1];
-
-    if (
-      lastInnings?.battingTeamId &&
-      lastInnings.battingTeamId !== currentGame.battingTeamId
-    ) {
-      showRRR = true;
     }
   }
 
@@ -156,6 +164,11 @@ export default function OversCounter() {
       Overs: {displayOvers}
       {"  "}
       <Text style={styles.subText}>RR: {runRate}</Text>
+      {target && (
+        <Text style={styles.subText}>
+          {"  "}Target: {target}
+        </Text>
+      )}
       {rrr && (
         <Text style={styles.subText}>
           {"  "}RRR: {rrr}

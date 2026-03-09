@@ -51,7 +51,7 @@ export default function MatchRulesSettings() {
             Set 0 for all wides to count as extra balls, or set X to limit how
             many wides per over count as extra balls. Example: set 2 to allow
             the first 2 wides in an over to count as extra balls; any further
-            wides in that over won’t add extra balls (max 8 balls in the over).
+            wides in that over won’t add extra balls.
           </Text>
         </>
       )}

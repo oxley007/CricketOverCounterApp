@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useBallReminder } from "../../hooks/useBallReminder";
 import { useMatchStore } from "../../state/matchStore";
 
@@ -52,9 +52,11 @@ export default function BallTimerDisplay() {
         {paused && (
           <Text style={styles.pausedText}>
             {" "}
-            ({pauseReason === "wicket"
+            (
+            {pauseReason === "wicket"
               ? "PAUSED: Wicket"
-              : "PAUSED: End of Over"})
+              : "PAUSED: End of Over"}
+            )
           </Text>
         )}
       </Text>
@@ -72,9 +74,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 8,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
-    marginVertical: 6,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    marginVertical: 0,
   },
   timerText: {
     fontSize: 12,
