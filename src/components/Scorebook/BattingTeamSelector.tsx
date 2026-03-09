@@ -55,7 +55,7 @@ export default function BattingTeamSelector({
             <MaterialIcons name="check" size={18} color="#fff" />
           </View>
 
-          <Text style={styles.selectedText}>{team?.name} batting first</Text>
+          <Text style={styles.selectedText}>{team?.name} batting</Text>
         </View>
 
         <Pressable onPress={onReset} style={styles.changeButton}>

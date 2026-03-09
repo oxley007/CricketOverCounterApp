@@ -171,13 +171,13 @@ export default function SelectPlayersModal({
       );
       console.log("isSelected?", isSelected);
 
-      let nextSelected = [...selectedIds]; // will be synced at the end
+      let nextSelected = [...prev]; // will be synced at the end
       let newActiveBatters = [...game.activeBatters];
 
       const entryId = playerEntry?.entryId ?? activeBatter?.batterInningId;
 
       // ---- REMOVE player if empty ----
-      if (isSelected && runs === 0 && ballsFaced === 0 && entryId) {
+      if (isSelected && ballsFaced === 0 && entryId) {
         console.log("Removing player from selectedIds and activeBatters");
 
         nextSelected = nextSelected.filter((id) => id !== playerId);

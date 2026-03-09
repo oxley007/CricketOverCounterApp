@@ -32,6 +32,7 @@ import StartModeModal from "../../components/StartModal/StartModeModal";
 import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../components/iap/UpgradeProBox";
+import { saveSubscription } from "../../services/firestoreService";
 
 import { useBallReminder } from "../../hooks/useBallReminder";
 
@@ -50,7 +51,8 @@ function HomeContent() {
   const openMatchRulesModal = useMatchStore(
     (state) => state.openMatchRulesModal,
   );
-  const { showMatchRulesModal, closeMatchRulesModal } = useMatchStore();
+  const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
+  const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
   const loadTeams = useTeamStore((state) => state.loadTeams);
   const { selectedMode } = useStartModalStore();
 
@@ -88,6 +90,7 @@ function HomeContent() {
         customerInfo.entitlements.active["pro"]?.isActive ?? false;
 
       setProUnlocked(isProActive);
+      await saveSubscription(isProActive);
     };
 
     init();
