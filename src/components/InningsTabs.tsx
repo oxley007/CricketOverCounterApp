@@ -7,10 +7,10 @@ import {
   View,
 } from "react-native";
 
-import BowlerScorecard from "./Scorebook/BowlerScorecard";
-import Scorecard from "./Scorebook/Scorecard";
 import type { Fixture, InningsSnapshot } from "../state/fixtureStore";
 import { useMatchStore, type MatchEvent } from "../state/matchStore";
+import BowlerScorecard from "./Scorebook/BowlerScorecard";
+import Scorecard from "./Scorebook/Scorecard";
 
 type InningsTabsProps = {
   /** Fixture to show (current or completed). When undefined, shows one tab with live match events. */
@@ -22,10 +22,14 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
   const [activeTab, setActiveTab] = useState(0);
 
   // Build innings list: from fixture when present, else single tab with live events
-  const innings: (InningsSnapshot & { matchEvents?: MatchEvent[] })[] =
-    fixture?.innings?.length
-      ? [...fixture.innings].sort((a, b) => a.inningsNumber - b.inningsNumber)
-      : [{ inningsNumber: 1, matchEvents: liveEvents } as InningsSnapshot & { matchEvents: MatchEvent[] }];
+  const innings: (InningsSnapshot & { matchEvents?: MatchEvent[] })[] = fixture
+    ?.innings?.length
+    ? [...fixture.innings].sort((a, b) => a.inningsNumber - b.inningsNumber)
+    : [
+        { inningsNumber: 1, matchEvents: liveEvents } as InningsSnapshot & {
+          matchEvents: MatchEvent[];
+        },
+      ];
 
   // Which innings index is "current" (empty matchEvents → use live from matchStore)
   const currentInningsIndex = innings.findIndex(
@@ -40,7 +44,9 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
     return [];
   };
 
-  const getSnapshotForInnings = (index: number): InningsSnapshot | undefined => {
+  const getSnapshotForInnings = (
+    index: number,
+  ): InningsSnapshot | undefined => {
     const inn = innings[index];
     if (!inn || !inn.battingTeamId) return undefined;
     return inn as InningsSnapshot;
@@ -56,10 +62,7 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
         {innings.map((inn, index) => (
           <TouchableOpacity
             key={`${inn.inningsNumber}-${index}`}
-            style={[
-              styles.tab,
-              activeTab === index && styles.activeTab,
-            ]}
+            style={[styles.tab, activeTab === index && styles.activeTab]}
             onPress={() => setActiveTab(index)}
           >
             <Text
@@ -78,7 +81,9 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
       <ScrollView style={{ marginTop: 12 }}>
         <Scorecard
           events={events}
-          inningsSnapshot={snapshot?.battingEntries?.length ? snapshot : undefined}
+          inningsSnapshot={
+            snapshot?.battingEntries?.length ? snapshot : undefined
+          }
         />
         <BowlerScorecard events={events} inningsSnapshot={snapshot} />
       </ScrollView>
