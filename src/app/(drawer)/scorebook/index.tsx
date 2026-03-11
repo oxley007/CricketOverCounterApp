@@ -3,7 +3,7 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -16,6 +16,7 @@ import { useGameStore } from "../../../state/gameStore";
 import { useMatchStore } from "../../../state/matchStore";
 import { useTeamStore } from "../../../state/teamStore";
 
+import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
 import ActionTabs from "../../../components/ActionTabs";
 import AveragePartnership from "../../../components/AveragePartnership";
@@ -62,6 +63,7 @@ export default function ScorebookIndex() {
     setProUnlocked,
     events,
   } = useMatchStore();
+  const router = useRouter();
   const { teams, loadTeams } = useTeamStore();
   const gameConfig = useGameStore((s) => s.gameConfig);
 
@@ -428,6 +430,23 @@ export default function ScorebookIndex() {
           />
         )}
 
+        <View style={{ alignItems: "center", marginBottom: 10 }}>
+          <Text
+            style={styles.fullScorecardLink}
+            onPress={() =>
+              router.push({
+                pathname: "/fixture-scorecard",
+                params: {
+                  fixtureId: currentFixture?.id,
+                  from: "scorebook",
+                },
+              })
+            }
+          >
+            Full Scorecard
+          </Text>
+        </View>
+
         {!showStats && (
           <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />
         )}
@@ -512,4 +531,10 @@ const styles = StyleSheet.create({
   },
   statsRow: { flexDirection: "row", alignItems: "stretch" },
   divider: { height: 1, backgroundColor: "#f5f5f5", marginVertical: 10 },
+  fullScorecardLink: {
+    textDecorationLine: "underline",
+    fontSize: 20,
+    color: "#fff",
+    textAlign: "center",
+  },
 });

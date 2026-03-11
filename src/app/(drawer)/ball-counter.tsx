@@ -9,7 +9,8 @@ import {
   getCustomerInfo,
   isRevenueCatAvailable,
 } from "../../services/revenuecat";
-import { useMatchStore } from "../../state/matchStore";
+import { useGameStore } from "../../state/gameStore";
+import { type MatchEvent, useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 
@@ -28,6 +29,7 @@ import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../components/Score/ScoreWickets";
 import BaseRunsInput from "../../components/Settings/BaseRunsInput";
 import MatchRulesModal from "../../components/Settings/MatchRulesModal";
+import GameSetupModal from "../../components/Scorebook/GameSetupModal";
 import StartModeModal from "../../components/StartModal/StartModeModal";
 import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
@@ -45,7 +47,7 @@ export default function Home() {
 }
 
 function HomeContent() {
-  const events = useMatchStore((state) => state.events);
+  const events = useMatchStore((state) => state.events) as MatchEvent[];
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
   const openMatchRulesModal = useMatchStore(
@@ -54,15 +56,17 @@ function HomeContent() {
   const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
   const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
   const loadTeams = useTeamStore((state) => state.loadTeams);
-  const { selectedMode } = useStartModalStore();
+  useStartModalStore(); // subscribe so StartModeModal reacts to hydration changes
+  const isSetupComplete = useGameStore((s) => s.isSetupComplete);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [isSetupVisible, setIsSetupVisible] = useState(!isSetupComplete);
 
   // Keep screen awake
   useKeepAwake();
 
   // Compute completed overs (legal balls only)
-  const overs = events.filter((e) => e.countsAsBall).length / 6;
+  const overs = events.filter((e: MatchEvent) => e.countsAsBall).length / 6;
 
   const showStats = overs <= 6 || proUnlocked;
   const ballReminderEnabled = proUnlocked || overs <= 6;
@@ -76,7 +80,7 @@ function HomeContent() {
       const hasSeen = await SecureStore.getItemAsync("hasSeenMatchRules");
       if (!hasSeen) openMatchRulesModal();
     })();
-  }, []);
+  }, [openMatchRulesModal]);
 
   // RevenueCat init
   useEffect(() => {
@@ -94,7 +98,7 @@ function HomeContent() {
     };
 
     init();
-  }, []);
+  }, [setProUnlocked]);
 
   useEffect(() => {
     (async () => {
@@ -104,7 +108,17 @@ function HomeContent() {
         console.warn("Failed to load teams:", err);
       }
     })();
-  }, []);
+  }, [loadTeams]);
+
+  useEffect(() => {
+    if (!isSetupComplete) {
+      setIsSetupVisible(false);
+      const timer = setTimeout(() => setIsSetupVisible(true), 50);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSetupVisible(false);
+    }
+  }, [isSetupComplete]);
 
   if (__DEV__) {
     console.log("MATCH EVENTS:", events);
@@ -114,6 +128,12 @@ function HomeContent() {
   return (
     <View style={styles.screen}>
       <StartModeModal />
+      {isSetupVisible && (
+        <GameSetupModal
+          visible={isSetupVisible}
+          onClose={() => setIsSetupVisible(false)}
+        />
+      )}
       {/* Match rules modal */}
       <MatchRulesModal
         visible={showMatchRulesModal}

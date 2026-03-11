@@ -2,6 +2,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerToggleButton } from "@react-navigation/drawer";
 import { Drawer } from "expo-router/drawer";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect } from "react";
 import {
   Image,
   Platform,
@@ -10,9 +12,22 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { auth } from "../../services/firebaseConfig";
 import { useAuthStore } from "../../state/authStore";
 
 export default function DrawerLayout() {
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("✅ Firebase session restored:", user.uid);
+      } else {
+        console.log("👤 No logged in user");
+      }
+    });
+
+    return unsub;
+  }, []);
+
   return Platform.OS === "android" ? (
     <SafeAreaProvider>
       <View style={{ flex: 1, padding: 0 }}>
@@ -85,6 +100,24 @@ function DrawerContent() {
           drawerIcon: ({ color, size }) => (
             <Ionicons name="card-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="fixture-scorecard"
+        options={{
+          title: "Fixture Scorecard",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="list-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="match-summary"
+        options={{
+          title: "Match Summary",
+          drawerItemStyle: { display: "none" },
         }}
       />
 

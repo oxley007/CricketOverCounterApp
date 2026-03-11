@@ -11,17 +11,15 @@ import {
 } from "react-native";
 import AuthModal from "../../components/AuthModal";
 import { useFixtureStore } from "../../state/fixtureStore";
-import { useMatchStore } from "../../state/matchStore";
+import { useGameStore } from "../../state/gameStore";
 import { useStartModalStore } from "../../state/startModalStore";
 
 export default function StartModeModal() {
   const isOpen = useStartModalStore((s) => s.isOpen);
   const selectBallCounter = useStartModalStore((s) => s.selectBallCounter);
   const selectScorebook = useStartModalStore((s) => s.selectScorebook);
-  const openMatchRulesModal = useMatchStore((s) => s.openMatchRulesModal);
   const closeStartModal = useStartModalStore((s) => s.close);
   const [authVisible, setAuthVisible] = useState(false);
-  const [paused, setPaused] = useState(false);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
   const fixtures = useFixtureStore((s) => s.fixtures);
@@ -30,21 +28,25 @@ export default function StartModeModal() {
   const [, setTick] = useState(0);
   useEffect(() => {
     // Subscribe to store changes
-    const unsub = useStartModalStore.subscribe(
-      (state) => state.isOpen,
-      () => setTick((t) => t + 1), // trigger re-render
-    );
+    const unsub = useStartModalStore.subscribe(() => {
+      setTick((t) => t + 1);
+    });
     return unsub;
   }, []);
 
   const onBallCounter = () => {
+    closeStartModal();
     selectBallCounter();
-    openMatchRulesModal();
+    useGameStore.getState().setSetupComplete(false);
+    setTimeout(() => {
+      router.replace("/ball-counter");
+    }, 100);
   };
 
   const onScorebook = () => {
     closeStartModal(); // 👈 CLOSE THIS FIRST
     selectScorebook();
+    useGameStore.getState().setSetupComplete(false);
     // Use a tiny timeout to let the modal close animation finish before navigating
     setTimeout(() => {
       router.replace("/scorebook");
@@ -115,7 +117,6 @@ export default function StartModeModal() {
             <Pressable
               style={styles.loginButton}
               onPress={() => {
-                setPaused(true); // hide StartModeModal
                 setAuthVisible(true); // show AuthModal
               }}
             >
@@ -131,7 +132,6 @@ export default function StartModeModal() {
         visible={authVisible}
         onClose={() => {
           setAuthVisible(false);
-          setPaused(false); // show StartModeModal again if it was paused
         }}
       />
     </>

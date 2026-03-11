@@ -1,9 +1,11 @@
 // src/components/EndGameModal.tsx
 import React from "react";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
 
+import InningsTabs from "./InningsTabs";
 import { Fixture } from "../state/fixtureStore";
+import { useStartModalStore } from "../state/startModalStore";
 
 type Props = {
   visible: boolean;
@@ -71,6 +73,10 @@ export default function EndGameModal({ visible, onClose, fixture }: Props) {
         </ScrollView>
 
         <Text style={styles.result}>{resultText}</Text>
+
+        <View style={{ maxHeight: 320, marginVertical: 8 }}>
+          <InningsTabs fixture={fixture} />
+        </View>
 
         <Button
           mode="contained"

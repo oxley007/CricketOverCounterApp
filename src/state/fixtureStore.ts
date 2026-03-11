@@ -386,11 +386,20 @@ export const useFixtureStore = create<FixtureState>()(
       name: "cricket-fixtures",
       storage: createJSONStorage(() => AsyncStorage),
 
+      // normalize old fixtures
+      onRehydrateStorage: () => (state) => {
+        if (state?.fixtures) {
+          state.fixtures = state.fixtures.map((f) => ({
+            ...f,
+            innings: f.innings || [],
+          }));
+        }
+      },
+
       partialize: (state) => ({
         fixtures: state.fixtures,
         currentFixture: state.currentFixture,
       }),
-
       version: 1,
     },
   ),

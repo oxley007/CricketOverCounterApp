@@ -5,20 +5,30 @@ import {
   getDismissalText,
 } from "../../state/gameHelpers";
 import { useGameStore } from "../../state/gameStore";
+import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import type { InningsSnapshot } from "../../state/fixtureStore";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export default function Scorecard() {
+type Props = {
+  events?: MatchEvent[];
+  /** When showing a saved innings, pass snapshot so we render without currentGame */
+  inningsSnapshot?: Pick<InningsSnapshot, "battingEntries">;
+};
+
+export default function Scorecard({ events, inningsSnapshot }: Props) {
+  const storeEvents = useMatchStore((s) => s.events);
+  const matchEvents = events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
   const teams = useTeamStore((s) => s.teams);
-  const matchEvents = useMatchStore((s) => s.events);
 
-  if (!currentGame) return null;
+  const battingEntries = inningsSnapshot?.battingEntries ?? currentGame?.battingEntries;
+  const activeBatters = currentGame?.activeBatters ?? [];
+  const activeRetired = currentGame?.activeRetired ?? [];
 
-  const { activeBatters, battingEntries, currentStrikeId, wickets } =
-    currentGame;
+  if (!battingEntries?.length) return null;
 
   /*
   const batters = Array.from(
@@ -89,14 +99,15 @@ export default function Scorecard() {
 
     const dismissal = entry.dismissal;
 
-    // Check if batter is retired
-    const isRetired = currentGame.activeRetired?.some(
-      (b) =>
-        b.playerId === entry.playerId && b.batterInningId === entry.entryId,
-    );
+    const isRetired =
+      activeRetired.some(
+        (b) =>
+          b.playerId === entry.playerId && b.batterInningId === entry.entryId,
+      ) || dismissal?.kind === "retired";
 
     return {
       key: entry.entryId,
+      entry,
       playerId: entry.playerId,
       playerName: playerNameMap[entry.playerId] ?? entry.playerId,
       bowlerName: isRetired
@@ -145,7 +156,7 @@ export default function Scorecard() {
               numberOfLines={2}
               ellipsizeMode="tail"
             >
-              {item.statusText ?? getDismissalText(item)}
+              {item.statusText ?? getDismissalText(item.entry)}
             </Text>
 
             <Text style={styles.nameCol} numberOfLines={2} ellipsizeMode="tail">
