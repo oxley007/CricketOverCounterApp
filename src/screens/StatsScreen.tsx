@@ -1,3 +1,4 @@
+// src/screens/StatsScreen.tsx
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,6 +7,7 @@ import { useFixtureStore } from "../state/fixtureStore";
 import {
   getSeasonPlayers,
   getSeasonPlayerStats,
+  getSeasonTeamStats,
 } from "../state/seasonStatsHelpers";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
@@ -14,37 +16,28 @@ export default function StatsScreen() {
   const { teams } = useTeamStore();
   const { fixtures } = useFixtureStore();
 
-  console.log("=== ALL FIXTURES ===");
-  fixtures.forEach((f) => {
-    console.log({
-      id: f.id,
-      season: f.season,
-      yourTeamId: f.yourTeam?.id,
-      innings: Array.isArray(f.innings) ? f.innings.length : f.innings,
-      firstInning: f.innings?.[0] ?? null,
-    });
-  });
-
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
-
-  const [modalVisible, setModalVisible] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<"player" | "team">("player");
 
   const startModal = useStartModalStore();
 
   const openGameModeModal = () => {
-    router.replace("/"); // go to home screen
-    setTimeout(() => {
-      startModal.reset(); // open the StartModeModal
-    }, 100); // slight delay to allow navigation
+    router.replace("/");
+    setTimeout(() => startModal.reset(), 100);
   };
+
   /* =========================
      DERIVED TEAMS
   ========================= */
   const yourTeams = useMemo(() => {
-    const map = new Map();
-    fixtures.forEach((f) => map.set(f.yourTeam.id, f.yourTeam.id));
+    const map = new Map<string, boolean>();
+    fixtures.forEach((f) => {
+      const teamId = f.yourTeamId ?? f.yourTeam?.id;
+      if (teamId) map.set(teamId, true);
+    });
     return teams.filter((t) => map.has(t.id));
   }, [fixtures, teams]);
 
@@ -56,16 +49,21 @@ export default function StatsScreen() {
     return Array.from(
       new Set(
         fixtures
-          .filter((f) => f.yourTeam.id === selectedTeamId)
-          .map((f) => f.season),
+          .filter((f) => (f.yourTeamId ?? f.yourTeam?.id) === selectedTeamId)
+          .map((f) => f.season)
+          .filter(Boolean),
       ),
     ).sort();
   }, [fixtures, selectedTeamId]);
 
   /* =========================
-     PLAYER LIST
+     SELECTED TEAM
   ========================= */
   const selectedTeam = teams.find((t) => t.id === selectedTeamId);
+
+  /* =========================
+     PLAYER LIST
+  ========================= */
   const players = useMemo(() => {
     if (!selectedTeam || !selectedSeason) return [];
     return getSeasonPlayers({
@@ -76,7 +74,20 @@ export default function StatsScreen() {
   }, [fixtures, selectedTeam, selectedSeason]);
 
   /* =========================
-     SELECTED PLAYER STATS
+     TEAM STATS
+  ========================= */
+  const selectedTeamStats = useMemo(() => {
+    if (!selectedTeam || !selectedSeason) return null;
+
+    return getSeasonTeamStats({
+      fixtures,
+      team: selectedTeam, // <-- pass the full team object
+      season: selectedSeason,
+    });
+  }, [fixtures, selectedTeam, selectedSeason]);
+
+  /* =========================
+     PLAYER STATS
   ========================= */
   const selectedPlayerStats = useMemo(() => {
     if (!selectedPlayerId || !selectedTeamId || !selectedSeason) return null;
@@ -91,6 +102,7 @@ export default function StatsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Season Stats</Text>
+
       {/* ================= TEAM SELECT ================= */}
       <View style={styles.selectorRow}>
         {yourTeams.map((team) => (
@@ -116,7 +128,9 @@ export default function StatsScreen() {
           </Pressable>
         ))}
       </View>
-      <View style={styles.separator} /> {/* ← separator */}
+
+      <View style={styles.separator} />
+
       {/* ================= SEASON SELECT ================= */}
       <View style={styles.selectorRow}>
         {seasons.map((season) => (
@@ -139,8 +153,26 @@ export default function StatsScreen() {
           </Pressable>
         ))}
       </View>
-      <View style={styles.separator} /> {/* ← separator */}
+
+      <View style={styles.separator} />
+
+      {/* ================= TEAM STATS BUTTON ================= */}
+      {selectedTeam && selectedSeason && (
+        <Pressable
+          style={[styles.selectorCard, styles.teamStatsCard]}
+          onPress={() => {
+            setModalType("team");
+            setModalVisible(true);
+          }}
+        >
+          <Text style={[styles.selectorText, { fontWeight: "700" }]}>
+            {selectedTeam.name} - Team Stats
+          </Text>
+        </Pressable>
+      )}
+
       {/* ================= PLAYER LIST ================= */}
+      <Text style={styles.sectionHeader}>Individual Stats:</Text>
       <FlatList
         data={players}
         keyExtractor={(item) => item.id}
@@ -148,6 +180,7 @@ export default function StatsScreen() {
           <Pressable
             onPress={() => {
               setSelectedPlayerId(item.id);
+              setModalType("player");
               setModalVisible(true);
             }}
             style={styles.selectorCard}
@@ -156,16 +189,21 @@ export default function StatsScreen() {
           </Pressable>
         )}
       />
-      {/* PLAYER STATS MODAL */}
+
+      {/* ================= STATS MODAL ================= */}
       <PlayerStatsModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         title={
-          selectedTeam?.players.find((p) => p.id === selectedPlayerId)?.name ??
-          ""
+          modalType === "player"
+            ? (selectedTeam?.players.find((p) => p.id === selectedPlayerId)
+                ?.name ?? "")
+            : (selectedTeam?.name ?? "")
         }
-        stats={selectedPlayerStats}
+        stats={modalType === "player" ? selectedPlayerStats : selectedTeamStats}
+        type={modalType}
       />
+
       <View style={{ marginBottom: 16 }}>
         <Pressable style={styles.modalButton} onPress={openGameModeModal}>
           <Text style={styles.modalButtonText}>Back to Select Game Mode</Text>
@@ -176,27 +214,16 @@ export default function StatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "#12c2e9",
-  },
+  container: { flex: 1, padding: 16, backgroundColor: "#12c2e9" },
   title: {
-    fontSize: 34, // bigger
+    fontSize: 34,
     fontWeight: "bold",
     marginBottom: 24,
     color: "#fff",
     textAlign: "center",
-    letterSpacing: 1.2, // subtle spacing
-    //textShadowColor: "rgba(0,0,0,0.3)",
-    //textShadowOffset: { width: 1, height: 1 },
-    //textShadowRadius: 4,
+    letterSpacing: 1.2,
   },
-  selectorRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 0,
-  },
+  selectorRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 0 },
   selectorCard: {
     backgroundColor: "#f5f5f5",
     paddingVertical: 12,
@@ -206,17 +233,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     elevation: 3,
   },
-  selectorCardSelected: {
-    backgroundColor: "#c471ed",
-  },
-  selectorText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  selectorTextSelected: {
-    color: "#fff",
-  },
+  selectorCardSelected: { backgroundColor: "#c471ed" },
+  selectorText: { fontSize: 16, fontWeight: "600", color: "#333" },
+  selectorTextSelected: { color: "#fff" },
   modalButton: {
     backgroundColor: "#c471ed",
     paddingVertical: 14,
@@ -226,15 +245,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 3,
   },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
+  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
   separator: {
     height: 1,
     backgroundColor: "rgba(255,255,255,0.6)",
     marginVertical: 12,
     borderRadius: 2,
+  },
+  teamStatsCard: {
+    borderWidth: 2,
+    borderColor: "#ffb74d",
+    backgroundColor: "#f5f5f5",
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#fff",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "left",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.5)",
+    paddingBottom: 4,
   },
 });

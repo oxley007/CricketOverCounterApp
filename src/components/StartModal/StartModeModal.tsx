@@ -114,6 +114,20 @@ export default function StartModeModal() {
                 <Text style={styles.statsButtonText}>View Stats</Text>
               </Pressable>
             )}
+            {/* View Fixtures Button (only if fixtures exist) */}
+            {fixtures.length > 0 && (
+              <Pressable
+                style={styles.statsButton}
+                onPress={() => {
+                  closeStartModal();
+                  router.push("/fixtureList");
+                }}
+              >
+                <Text style={styles.statsButtonText}>
+                  View Fixtures Results
+                </Text>
+              </Pressable>
+            )}
             <Pressable
               style={styles.loginButton}
               onPress={() => {

@@ -3,13 +3,17 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Modal, Portal, Text } from "react-native-paper";
-import type { SeasonPlayerStats } from "../state/seasonStatsHelpers";
+import type {
+  SeasonPlayerStats,
+  SeasonTeamStats,
+} from "../state/seasonStatsHelpers";
 
-type Props = {
+type StatsModalProps = {
   visible: boolean;
   onClose: () => void;
   title: string;
-  stats: SeasonPlayerStats | null;
+  stats: SeasonPlayerStats | SeasonTeamStats | null;
+  type?: "player" | "team"; // optional, defaults to "player"
 };
 
 export default function PlayerStatsModal({
@@ -17,8 +21,11 @@ export default function PlayerStatsModal({
   onClose,
   title,
   stats,
-}: Props) {
+  type = "player",
+}: StatsModalProps) {
   if (!stats) return null;
+
+  const isPlayer = type === "player";
 
   return (
     <Portal>
@@ -39,8 +46,20 @@ export default function PlayerStatsModal({
           <StatRow label="Innings" value={stats.batting.innings} />
           <StatRow label="Dismissals" value={stats.batting.dismissals} />
           <StatRow label="Runs" value={stats.batting.runs} />
-          <StatRow label="Highest Score" value={stats.batting.highestScore} />
-          <StatRow label="Average" value={stats.batting.average} />
+          {/* Highest Score with batter name if team stats */}
+          <StatRow
+            label="Highest Score"
+            value={
+              !isPlayer && stats.batting.highestScorerName
+                ? `${stats.batting.highestScore} (${stats.batting.highestScorerName})`
+                : stats.batting.highestScore
+            }
+          />
+
+          {/* Remove Average for team stats */}
+          {isPlayer && (
+            <StatRow label="Average" value={stats.batting.average} />
+          )}
           <StatRow label="Strike Rate" value={stats.batting.strikeRate} />
           <StatRow label="Balls Faced" value={stats.batting.balls} />
 
@@ -88,11 +107,19 @@ export default function PlayerStatsModal({
 
           {/* Averages & Rates */}
           <StatRow
-            label="Average (runs per wicket)"
+            label={
+              isPlayer
+                ? "Average (runs per wicket)"
+                : "Average (team runs per wicket)"
+            }
             value={stats.bowling.average}
           />
           <StatRow
-            label="Strike Rate (balls per wicket)"
+            label={
+              isPlayer
+                ? "Strike Rate (balls per wicket)"
+                : "Strike Rate (team balls per wicket)"
+            }
             value={stats.bowling.strikeRate}
           />
           <StatRow label="Dot Balls" value={stats.bowling.dotBalls} />
