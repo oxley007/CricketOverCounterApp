@@ -3,13 +3,9 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { Button } from "react-native-paper";
 
 import { auth } from "../services/firebaseConfig";
-import { deepMergeById } from "../services/firestoreMerge";
-import {
-  saveFixture,
-  saveTeamWithPlayers,
-} from "../services/firestoreService";
+import { saveFixture, saveTeamWithPlayers } from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
-import { Fixture, useFixtureStore } from "../state/fixtureStore";
+import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useTeamStore } from "../state/teamStore";
@@ -94,15 +90,14 @@ export default function NewInningsButton({ onComplete }: Props) {
 
       console.log("✅ Fixture saved remotely:", currentFixture.id);
 
-      // Merge into local store
-      const mergedFixtures: Fixture[] = deepMergeById(fixtureStore.fixtures, [
+      // Replace or append in local store so latest fixture (with all innings) wins
+      useFixtureStore.setState((state) => ({
+        fixtures: [
+          ...state.fixtures.filter((f) => f.id !== currentFixture.id),
+          currentFixture,
+        ],
         currentFixture,
-      ]);
-
-      useFixtureStore.setState({
-        fixtures: mergedFixtures,
-        currentFixture,
-      });
+      }));
 
       console.log("💾 Fixture merged locally:", currentFixture.id);
 

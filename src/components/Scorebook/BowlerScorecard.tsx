@@ -1,93 +1,51 @@
 import React from "react";
 import { Dimensions, FlatList, StyleSheet, Text, View } from "react-native";
 import { calculateBowlerStats } from "../../state/gameHelpers";
-import { LEGAL_BALLS, useGameStore } from "../../state/gameStore";
+import { useGameStore } from "../../state/gameStore";
+import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import type { InningsSnapshot } from "../../state/fixtureStore";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export default function BowlerScorecard() {
+type Props = {
+  events?: MatchEvent[];
+  /** Optional snapshot (e.g. when showing a saved innings); not required for rendering */
+  inningsSnapshot?: InningsSnapshot | null;
+};
+
+type BowlerScorecardRow = ReturnType<typeof calculateBowlerStats> & {
+  playerId: string;
+  name: string;
+};
+
+export default function BowlerScorecard({ events, inningsSnapshot }: Props) {
+  const storeEvents = useMatchStore((s) => s.events);
+  const matchEvents: MatchEvent[] = events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
   const teams = useTeamStore((s) => s.teams);
-  const matchEvents = useMatchStore((s) => s.events);
 
-  if (!currentGame) return null;
+  if (!currentGame && (!matchEvents || matchEvents.length === 0)) return null;
 
   // Map player IDs to names
   const playerNameMap = Object.fromEntries(
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
-  );
+  ) as Record<string, string>;
 
   // Get unique bowlers from events
-  const bowlerIds = [
-    ...new Set(matchEvents.map((e) => e.bowlerId).filter(Boolean)),
-  ];
+  const bowlerIds: string[] = Array.from(
+    new Set(
+      matchEvents
+        .map((e: MatchEvent) => e.bowlerId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
 
-  const getBowlerStats = (bowlerId: string) => {
-    const events = matchEvents.filter((e) => e.bowlerId === bowlerId);
-
-    let legalBalls = 0;
-    let runs = 0;
-    let wides = 0;
-    let noBalls = 0;
-    let wickets = 0;
-
-    const overRuns: number[] = [];
-    let currentOverRuns = 0;
-    let ballsThisOver = 0;
-
-    events.forEach((e) => {
-      const penalty = e.wicketPenaltyAdditionBowler ?? 0;
-      runs += e.runs ?? 0;
-
-      if (e.extraType === "wide") wides++;
-      if (e.extraType === "noBall") noBalls++;
-
-      if (e.countsAsBall) {
-        legalBalls++;
-        ballsThisOver++;
-      }
-
-      // Track wickets
-      const wicket = currentGame.wickets.find(
-        (w) => w.ballNumber === e.ballNumber && w.bowlerId === bowlerId,
-      );
-      if (wicket) wickets++;
-
-      currentOverRuns += e.runs ?? 0;
-
-      if (ballsThisOver === LEGAL_BALLS) {
-        overRuns.push(currentOverRuns);
-        currentOverRuns = 0;
-        ballsThisOver = 0;
-      }
-    });
-
-    // Maidens = overs with 0 runs
-    const maidens = overRuns.filter((r) => r === 0).length;
-
-    const overs =
-      Math.floor(legalBalls / LEGAL_BALLS) + "." + (legalBalls % LEGAL_BALLS);
-
-    const economy =
-      legalBalls > 0 ? ((runs / legalBalls) * LEGAL_BALLS).toFixed(2) : "0.00";
-
-    return {
-      overs,
-      maidens,
-      runs,
-      wickets,
-      economy,
-      wides,
-      noBalls,
-    };
-  };
-
-  const scorecard = bowlerIds.map((id) => ({
+  const scorecard: BowlerScorecardRow[] = bowlerIds.map((id: string) => ({
     playerId: id,
     name: playerNameMap[id] ?? id,
-    ...calculateBowlerStats(matchEvents, id), // ✅ uses the helper including wicketPenaltyAdditionBowler
+    ...calculateBowlerStats(matchEvents, id),
   }));
 
   return (

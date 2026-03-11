@@ -124,12 +124,7 @@ export default function BowlerPicker({
       await savePlayer(teamId, player);
     } catch (err) {
       console.error("❌ Error saving player:", err);
-      Alert.alert(
-        "Error",
-        err instanceof Error && err.message.includes("authenticated user")
-          ? "Please sign in to save players."
-          : "Failed to save player. Try again.",
-      );
+      Alert.alert("Error", "Failed to save player. Try again.");
     }
   };
 

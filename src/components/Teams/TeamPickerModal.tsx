@@ -42,12 +42,7 @@ export default function TeamPickerModal({
       onSelect(team);
     } catch (err) {
       console.error("❌ Error saving team:", err);
-      Alert.alert(
-        "Error",
-        err instanceof Error && err.message.includes("authenticated user")
-          ? "Please sign in to save teams."
-          : "Failed to save team. Try again.",
-      );
+      Alert.alert("Error", "Failed to save team. Try again.");
     }
   };
 

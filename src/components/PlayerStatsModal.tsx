@@ -29,12 +29,12 @@ export default function PlayerStatsModal({
       >
         <ScrollView>
           <Text style={styles.title}>{title}</Text>
-
           <Divider style={styles.divider} />
 
           {/* ================= BATTING ================= */}
           <Text style={styles.section}>Batting</Text>
 
+          {/* General */}
           <StatRow label="Matches" value={stats.batting.matches} />
           <StatRow label="Innings" value={stats.batting.innings} />
           <StatRow label="Dismissals" value={stats.batting.dismissals} />
@@ -42,21 +42,74 @@ export default function PlayerStatsModal({
           <StatRow label="Highest Score" value={stats.batting.highestScore} />
           <StatRow label="Average" value={stats.batting.average} />
           <StatRow label="Strike Rate" value={stats.batting.strikeRate} />
+          <StatRow label="Balls Faced" value={stats.batting.balls} />
+
+          <Divider style={styles.dividerSmall} />
+
+          {/* Boundaries & Balls */}
+          <StatRow label="Dot Balls" value={stats.batting.dotBalls} />
+          <StatRow label="Dot Ball %" value={stats.batting.dotBallPct} />
+          <StatRow label="Fours" value={stats.batting.fours} />
+          <StatRow label="Fours %" value={stats.batting.foursPct} />
+          <StatRow label="Sixes" value={stats.batting.sixes} />
+          <StatRow label="Sixes %" value={stats.batting.sixesPct} />
+          <StatRow
+            label="Boundary Runs %"
+            value={stats.batting.boundaryRunsPct}
+          />
+          <StatRow
+            label="Balls per Boundary"
+            value={stats.batting.ballsPerBoundary}
+          />
+
+          <Divider style={styles.dividerSmall} />
+
+          {/* Milestones */}
+          <StatRow label="Not Outs" value={stats.batting.notOuts} />
+          <StatRow label="50s" value={stats.batting.fifties} />
+          <StatRow label="100s" value={stats.batting.hundreds} />
 
           <Divider style={styles.divider} />
 
           {/* ================= BOWLING ================= */}
           <Text style={styles.section}>Bowling</Text>
 
+          {/* General */}
           <StatRow label="Overs" value={stats.bowling.overs} />
+          <StatRow label="Balls Bowled" value={stats.bowling.balls} />
           <StatRow label="Maidens" value={stats.bowling.maidens} />
           <StatRow label="Runs" value={stats.bowling.runs} />
           <StatRow label="Wickets" value={stats.bowling.wickets} />
           <StatRow label="Economy" value={stats.bowling.economy} />
           <StatRow label="Wides" value={stats.bowling.wides} />
           <StatRow label="No Balls" value={stats.bowling.noBalls} />
+
+          <Divider style={styles.dividerSmall} />
+
+          {/* Averages & Rates */}
+          <StatRow
+            label="Average (runs per wicket)"
+            value={stats.bowling.average}
+          />
+          <StatRow
+            label="Strike Rate (balls per wicket)"
+            value={stats.bowling.strikeRate}
+          />
+          <StatRow label="Dot Balls" value={stats.bowling.dotBalls} />
+          <StatRow label="Dot Ball %" value={stats.bowling.dotBallPct} />
+
+          <Divider style={styles.dividerSmall} />
+
+          {/* Boundaries & Balls */}
+          <StatRow label="Fours Conceded" value={stats.bowling.foursConceded} />
+          <StatRow label="Sixes Conceded" value={stats.bowling.sixesConceded} />
+          <StatRow
+            label="Boundary Balls %"
+            value={stats.bowling.boundaryBallsPct}
+          />
         </ScrollView>
-        <Button mode="contained" style={{ marginTop: 20 }} onPress={onClose}>
+
+        <Button mode="contained" style={styles.closeButton} onPress={onClose}>
           Close
         </Button>
       </Modal>
@@ -67,8 +120,8 @@ export default function PlayerStatsModal({
 function StatRow({ label, value }: { label: string; value: any }) {
   return (
     <View style={styles.row}>
-      <Text>{label}</Text>
-      <Text>{value}</Text>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }
@@ -79,7 +132,7 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 20,
     borderRadius: 12,
-    maxHeight: "100%",
+    maxHeight: "90%",
   },
   title: {
     fontSize: 20,
@@ -95,9 +148,23 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 10,
   },
+  dividerSmall: {
+    marginVertical: 6,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginVertical: 4,
+  },
+  label: {
+    fontWeight: "500",
+    color: "#333",
+  },
+  value: {
+    fontWeight: "500",
+    color: "#000",
+  },
+  closeButton: {
+    marginTop: 20,
   },
 });

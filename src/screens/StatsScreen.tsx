@@ -4,8 +4,8 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import PlayerStatsModal from "../components/PlayerStatsModal";
 import { useFixtureStore } from "../state/fixtureStore";
 import {
-    getSeasonPlayers,
-    getSeasonPlayerStats,
+  getSeasonPlayers,
+  getSeasonPlayerStats,
 } from "../state/seasonStatsHelpers";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
@@ -13,6 +13,17 @@ import { useTeamStore } from "../state/teamStore";
 export default function StatsScreen() {
   const { teams } = useTeamStore();
   const { fixtures } = useFixtureStore();
+
+  console.log("=== ALL FIXTURES ===");
+  fixtures.forEach((f) => {
+    console.log({
+      id: f.id,
+      season: f.season,
+      yourTeamId: f.yourTeam?.id,
+      innings: Array.isArray(f.innings) ? f.innings.length : f.innings,
+      firstInning: f.innings?.[0] ?? null,
+    });
+  });
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
