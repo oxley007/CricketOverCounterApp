@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -10,11 +11,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { savePlayer } from "../../services/firestoreService";
 import { useGameStore, WicketEvent } from "../../state/gameStore";
 import { useMatchStore, type MatchEvent } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
 import { buildCurrentOverCircles } from "../../utils/currentOverUtils";
 import BallReminderSettings from "../BallReminder/BallReminderSettings";
+import AddPlayerFooter from "../Scorebook/AddPlayerFooter";
 import DismissBatterModal from "../Scorebook/DismissBatterModal";
 import SelectPlayersModal from "../Scorebook/SelectPlayersModal";
 import BaseRunsInput from "../Settings/BaseRunsInput";
@@ -74,6 +77,16 @@ export default function RunModal({
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [confirmingWicket, setConfirmingWicket] = useState(false);
   const [partnershipCount, setPartnershipCount] = useState<1 | 2>(1);
+  const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
+
+  const handleSavePlayer = async (teamId: string, player: any) => {
+    try {
+      await savePlayer(teamId, player);
+    } catch (err) {
+      console.error("❌ Error saving player:", err);
+      Alert.alert("Error", "Failed to save player. Try again.");
+    }
+  };
 
   // Automatically submit when a batter is selected from DismissBatterModal
   useEffect(() => {
@@ -415,6 +428,7 @@ export default function RunModal({
       const penalty = Math.abs(wicketPenaltyRuns || 0);
 
       const wicketType = normalizeWicketKind(selectedWickets[0]);
+      const { currentGame, setStrike } = useGameStore.getState();
 
       // ✅ Build payload FIRST
       const eventPayload: any = {
@@ -445,6 +459,25 @@ export default function RunModal({
 
       // ✅ Call addEvent ONCE
       addEvent(eventPayload);
+
+      // 🎯 TRIGGER THE AUTO-SWAP
+      const { autoSwapStrikeAfterWicket } = useMatchStore.getState();
+
+      if (
+        autoSwapStrikeAfterWicket &&
+        currentGame &&
+        currentGame.activeBatters.length > 1
+      ) {
+        // Find the batter who ISN'T currently on strike
+        const nonStriker = currentGame.activeBatters.find(
+          (b) => b.playerId !== currentGame.currentStrikeId,
+        );
+
+        if (nonStriker) {
+          console.log("Auto-swapping strike to:", nonStriker.playerId);
+          setStrike(nonStriker.playerId);
+        }
+      }
 
       applyStrikeFromLastEvent();
       setDismissedBatterId(null);
@@ -868,22 +901,21 @@ export default function RunModal({
                     <View style={styles.grid}>
                       <TouchableOpacity
                         style={[styles.optionButton, styles.wicketAction]}
-                        onPress={() => addPartnershipWicket(1)}
-                      >
-                        <Text style={styles.optionText}>End Batter</Text>
-                        <Text style={styles.optionSubText}>
-                          Dismiss 1 batter
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.optionButton, styles.wicketAction]}
                         onPress={() => addPartnershipWicket(2)}
                       >
-                        <Text style={styles.optionText}>End Partnership</Text>
                         <Text style={styles.optionSubText}>
                           Dismiss 2 batters
                         </Text>
+                        <Text style={styles.optionText}>End Partnership</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.optionButton, styles.wicketAction]}
+                        onPress={() => addPartnershipWicket(1)}
+                      >
+                        <Text style={styles.optionSubText}>
+                          Dismiss 1 batter
+                        </Text>
+                        <Text style={styles.optionText}>End Batter</Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -1064,6 +1096,16 @@ export default function RunModal({
             selectionMode="multiple"
             pickerType="batter"
             maxSelection={maxSelection}
+            renderFooter={() => (
+              <AddPlayerFooter
+                teamId={battingTeam.id}
+                onAdded={async (name) => {
+                  const player = addPlayerToTeam(selectedBattingTeamId!, name);
+                  if (player)
+                    await handleSavePlayer(selectedBattingTeamId!, player);
+                }}
+              />
+            )}
           />
         )}
 

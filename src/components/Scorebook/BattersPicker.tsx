@@ -317,7 +317,8 @@ export default function BattersPicker({
                 teamId={selectedBattingTeamId!}
                 onAdded={async (name) => {
                   const player = addPlayerToTeam(selectedBattingTeamId!, name);
-                  if (player) await handleSavePlayer(selectedBattingTeamId!, player);
+                  if (player)
+                    await handleSavePlayer(selectedBattingTeamId!, player);
                 }}
               />
             )}

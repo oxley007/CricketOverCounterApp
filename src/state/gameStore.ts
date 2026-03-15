@@ -278,6 +278,7 @@ export const useGameStore = create<GameState>()(
               ...game,
               battingEntries: [...game.battingEntries, entry],
               currentEntryId: entryId,
+              currentStrikeId: playerId,
             },
           };
         });

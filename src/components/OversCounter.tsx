@@ -109,7 +109,12 @@ export default function OversCounter() {
     let battingTeamInnings = 0;
     let oppositionTeamInnings = 0;
 
-    currentFixture.innings.forEach((inn) => {
+    const innings = Array.isArray(currentFixture?.innings)
+      ? currentFixture.innings
+      : [];
+
+    //currentFixture.innings.forEach((inn) => {
+    innings.forEach((inn) => {
       if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
 
       if (inn.battingTeamId === battingTeamId) {
@@ -134,7 +139,12 @@ export default function OversCounter() {
     let battingTeamPreviousRuns = 0;
     let oppositionRuns = 0;
 
-    currentFixture.innings.forEach((inn) => {
+    const innings = Array.isArray(currentFixture?.innings)
+      ? currentFixture.innings
+      : [];
+
+    //currentFixture.innings.forEach((inn) => {
+    innings.forEach((inn) => {
       if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
 
       if (inn.battingTeamId === battingTeamId) {

@@ -261,37 +261,38 @@ export default function SelectPlayersModal({
                 (b) => b.playerId !== playerId,
               ),
             });
-          } else if (!activeBatter) {
+          } // Inside the togglePlayer function, in the !activeBatter block:
+          else if (!activeBatter) {
             console.log("Normal new batter flow: adding to activeBatters");
 
-            // add batter → this should update battingEntries internally
-            const entryId = gameStore.addBatter(playerId);
+            const newEntryId = `${playerId}-${Date.now()}`;
+            const newEntry = {
+              entryId: newEntryId,
+              playerId: playerId,
+              inningsNumber:
+                (game.battingEntries.filter((e) => e.playerId === playerId)
+                  .length || 0) + 1,
+              battingOrder: (game.battingEntries.length || 0) + 1,
+              runs: 0,
+              balls: 0,
+            };
 
-            // get the latest currentGame after addBatter
-            const updatedGame = useGameStore.getState().currentGame;
-
-            if (!updatedGame) return;
-
-            const updatedActiveBatters = [
-              ...updatedGame.activeBatters,
-              { playerId, batterInningId: entryId },
+            // ✅ 1. Update the variable that is used for the final sync at the end of togglePlayer
+            newActiveBatters = [
+              ...game.activeBatters,
+              { playerId, batterInningId: newEntryId },
             ];
 
-            // update store including the latest battingEntries
+            // 2. Update the store
             gameStore.updateCurrentGame({
-              ...updatedGame,
-              activeBatters: updatedActiveBatters,
-              battingEntries: updatedGame.battingEntries ?? [],
+              ...game,
+              activeBatters: newActiveBatters, // Use the updated variable here too
+              battingEntries: [...game.battingEntries, newEntry],
+              currentEntryId: newEntryId,
+              currentStrikeId: playerId,
             });
 
-            console.log(
-              "activeBatters AFTER addition:",
-              JSON.stringify(gameStore.currentGame?.activeBatters, null, 2),
-            );
-            console.log(
-              "battingEntries AFTER addition:",
-              JSON.stringify(gameStore.currentGame?.battingEntries, null, 2),
-            );
+            console.log("New batter added and strike set to:", playerId);
           }
         } else {
           console.log("Player already selected, no action taken");

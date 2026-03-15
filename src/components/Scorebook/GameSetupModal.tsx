@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -31,6 +32,7 @@ export default function GameSetupModal({ visible, onClose }: Props) {
   const [oppositionTeam, setOppositionTeam] = useState<Team | null>(null);
 
   const [overs, setOvers] = useState("20");
+  const [isUnlimited, setIsUnlimited] = useState(false);
 
   const [showSeasonPicker, setShowSeasonPicker] = useState(false);
   const [season, setSeason] = useState<string>(() => {
@@ -56,6 +58,15 @@ export default function GameSetupModal({ visible, onClose }: Props) {
   const startGame = () => {
     if (!yourTeam || !oppositionTeam) return;
 
+    const finalOvers = isUnlimited ? 0 : parseInt(overs, 10) || 0;
+
+    setGameConfig({
+      yourTeam: { id: yourTeam.id, name: yourTeam.name },
+      oppositionTeam: { id: oppositionTeam.id, name: oppositionTeam.name },
+      overs: finalOvers, // Now saved as an integer
+      season,
+    });
+
     // 1️⃣ Save game config
     setGameConfig({
       yourTeam: {
@@ -66,7 +77,7 @@ export default function GameSetupModal({ visible, onClose }: Props) {
         id: oppositionTeam.id,
         name: oppositionTeam.name,
       },
-      overs: overs === "Unlimited" ? 0 : parseInt(overs, 10),
+      overs: finalOvers,
       season,
     });
 
@@ -167,11 +178,26 @@ export default function GameSetupModal({ visible, onClose }: Props) {
               {/* Overs */}
               <Text style={styles.label}>Overs</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isUnlimited && styles.disabledInput, // 👈 Apply grey style when true
+                ]}
                 placeholder="Enter overs (1-100 or Unlimited)"
                 value={overs}
                 onChangeText={setOvers}
+                keyboardType="numeric"
+                editable={!isUnlimited}
               />
+              <View style={styles.switchRow}>
+                <Text style={styles.smallLabel}>Unlimited</Text>
+                <Switch
+                  value={isUnlimited}
+                  onValueChange={(val) => {
+                    setIsUnlimited(val);
+                    if (val) setOvers("0"); // Set internal high value
+                  }}
+                />
+              </View>
 
               {/* Season */}
               <Text style={styles.label}>Season</Text>
@@ -304,5 +330,39 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 24,
     color: "#333",
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  smallLabel: {
+    fontSize: 12,
+    marginRight: 8,
+    color: "#666",
+  },
+  oversHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  unlimitedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  unlimitedText: {
+    fontSize: 12,
+    marginRight: 8,
+    color: "#666",
+  },
+  disabledInput: {
+    backgroundColor: "#e0e0e0", // Grey background
+    color: "#888", // Dimmed text
+    borderColor: "#ccc", // Lighter border
   },
 });

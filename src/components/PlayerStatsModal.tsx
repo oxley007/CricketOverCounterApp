@@ -1,8 +1,9 @@
 // src/components/PlayerStatsModal.tsx
 
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Modal, Portal, Text } from "react-native-paper";
+import { useMatchStore } from "../state/matchStore";
 import type {
   SeasonPlayerStats,
   SeasonTeamStats,
@@ -13,7 +14,8 @@ type StatsModalProps = {
   onClose: () => void;
   title: string;
   stats: SeasonPlayerStats | SeasonTeamStats | null;
-  type?: "player" | "team"; // optional, defaults to "player"
+  type?: "player" | "team";
+  onUpgrade?: () => void; // <-- add this
 };
 
 export default function PlayerStatsModal({
@@ -22,10 +24,91 @@ export default function PlayerStatsModal({
   title,
   stats,
   type = "player",
+  onUpgrade,
 }: StatsModalProps) {
   if (!stats) return null;
 
   const isPlayer = type === "player";
+  const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+  const showIAPModal = useMatchStore((s) => s.showIAPModal);
+
+  // Batting stats
+  const battingStats = [
+    { label: "Matches", value: stats.batting.matches, free: true },
+    { label: "Innings", value: stats.batting.innings, free: true },
+    { label: "Dismissals", value: stats.batting.dismissals, free: true },
+    { label: "Runs", value: stats.batting.runs },
+    {
+      label: "Highest Score",
+      value:
+        !isPlayer && stats.batting.highestScorerName
+          ? `${stats.batting.highestScore} (${stats.batting.highestScorerName})`
+          : stats.batting.highestScore,
+    },
+    ...(isPlayer ? [{ label: "Average", value: stats.batting.average }] : []),
+    { label: "Strike Rate", value: stats.batting.strikeRate },
+    { label: "Balls Faced", value: stats.batting.balls },
+    { label: "Dot Balls", value: stats.batting.dotBalls },
+    { label: "Dot Ball %", value: stats.batting.dotBallPct },
+    { label: "Fours", value: stats.batting.fours },
+    { label: "Fours %", value: stats.batting.foursPct },
+    { label: "Sixes", value: stats.batting.sixes },
+    { label: "Sixes %", value: stats.batting.sixesPct },
+    { label: "Boundary Runs %", value: stats.batting.boundaryRunsPct },
+    { label: "Balls per Boundary", value: stats.batting.ballsPerBoundary },
+    { label: "Not Outs", value: stats.batting.notOuts },
+    { label: "50s", value: stats.batting.fifties },
+    { label: "100s", value: stats.batting.hundreds },
+  ];
+
+  // Bowling stats
+  const bowlingStats = [
+    { label: "Overs", value: stats.bowling.overs, free: true },
+    { label: "Balls Bowled", value: stats.bowling.balls, free: true },
+    { label: "Maidens", value: stats.bowling.maidens, free: true },
+    { label: "Runs", value: stats.bowling.runs },
+    { label: "Wickets", value: stats.bowling.wickets },
+    { label: "Economy", value: stats.bowling.economy },
+    { label: "Wides", value: stats.bowling.wides },
+    { label: "No Balls", value: stats.bowling.noBalls },
+    {
+      label: isPlayer
+        ? "Average (runs per wicket)"
+        : "Average (team runs per wicket)",
+      value: stats.bowling.average,
+    },
+    {
+      label: isPlayer
+        ? "Strike Rate (balls per wicket)"
+        : "Strike Rate (team balls per wicket)",
+      value: stats.bowling.strikeRate,
+    },
+    { label: "Dot Balls", value: stats.bowling.dotBalls },
+    { label: "Dot Ball %", value: stats.bowling.dotBallPct },
+    { label: "Fours Conceded", value: stats.bowling.foursConceded },
+    { label: "Sixes Conceded", value: stats.bowling.sixesConceded },
+    { label: "Boundary Balls %", value: stats.bowling.boundaryBallsPct },
+  ];
+
+  const renderStat = (
+    stat: { label: string; value: any; free?: boolean },
+    idx: number,
+  ) => {
+    if (stat.free || proUnlocked) {
+      return <StatRow key={idx} label={stat.label} value={stat.value} />;
+    }
+    return (
+      <View key={idx} style={styles.row}>
+        <Text style={styles.label}>{stat.label}</Text>
+        <Text
+          style={styles.proText}
+          onPress={() => showIAPModal && showIAPModal()}
+        >
+          Pro
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <Portal>
@@ -35,105 +118,30 @@ export default function PlayerStatsModal({
         contentContainerStyle={styles.container}
       >
         <ScrollView>
+          {/* ================= CUSTOM PRO BOX ================= */}
+          {!proUnlocked && (
+            <View style={styles.customProBox}>
+              <Text style={styles.customProTitle}>Unlock Pro Stats</Text>
+              <Text style={styles.customProDesc}>
+                Tap "Upgrade" to view pro options and see advanced stats like
+                Average, Strike Rate & Dot Ball % and more!
+              </Text>
+              <Pressable style={styles.customProButton} onPress={onUpgrade}>
+                <Text style={styles.customProButtonText}>Upgrade</Text>
+              </Pressable>
+            </View>
+          )}
+
           <Text style={styles.title}>{title}</Text>
           <Divider style={styles.divider} />
 
-          {/* ================= BATTING ================= */}
           <Text style={styles.section}>Batting</Text>
-
-          {/* General */}
-          <StatRow label="Matches" value={stats.batting.matches} />
-          <StatRow label="Innings" value={stats.batting.innings} />
-          <StatRow label="Dismissals" value={stats.batting.dismissals} />
-          <StatRow label="Runs" value={stats.batting.runs} />
-          {/* Highest Score with batter name if team stats */}
-          <StatRow
-            label="Highest Score"
-            value={
-              !isPlayer && stats.batting.highestScorerName
-                ? `${stats.batting.highestScore} (${stats.batting.highestScorerName})`
-                : stats.batting.highestScore
-            }
-          />
-
-          {/* Remove Average for team stats */}
-          {isPlayer && (
-            <StatRow label="Average" value={stats.batting.average} />
-          )}
-          <StatRow label="Strike Rate" value={stats.batting.strikeRate} />
-          <StatRow label="Balls Faced" value={stats.batting.balls} />
-
-          <Divider style={styles.dividerSmall} />
-
-          {/* Boundaries & Balls */}
-          <StatRow label="Dot Balls" value={stats.batting.dotBalls} />
-          <StatRow label="Dot Ball %" value={stats.batting.dotBallPct} />
-          <StatRow label="Fours" value={stats.batting.fours} />
-          <StatRow label="Fours %" value={stats.batting.foursPct} />
-          <StatRow label="Sixes" value={stats.batting.sixes} />
-          <StatRow label="Sixes %" value={stats.batting.sixesPct} />
-          <StatRow
-            label="Boundary Runs %"
-            value={stats.batting.boundaryRunsPct}
-          />
-          <StatRow
-            label="Balls per Boundary"
-            value={stats.batting.ballsPerBoundary}
-          />
-
-          <Divider style={styles.dividerSmall} />
-
-          {/* Milestones */}
-          <StatRow label="Not Outs" value={stats.batting.notOuts} />
-          <StatRow label="50s" value={stats.batting.fifties} />
-          <StatRow label="100s" value={stats.batting.hundreds} />
+          {battingStats.map(renderStat)}
 
           <Divider style={styles.divider} />
 
-          {/* ================= BOWLING ================= */}
           <Text style={styles.section}>Bowling</Text>
-
-          {/* General */}
-          <StatRow label="Overs" value={stats.bowling.overs} />
-          <StatRow label="Balls Bowled" value={stats.bowling.balls} />
-          <StatRow label="Maidens" value={stats.bowling.maidens} />
-          <StatRow label="Runs" value={stats.bowling.runs} />
-          <StatRow label="Wickets" value={stats.bowling.wickets} />
-          <StatRow label="Economy" value={stats.bowling.economy} />
-          <StatRow label="Wides" value={stats.bowling.wides} />
-          <StatRow label="No Balls" value={stats.bowling.noBalls} />
-
-          <Divider style={styles.dividerSmall} />
-
-          {/* Averages & Rates */}
-          <StatRow
-            label={
-              isPlayer
-                ? "Average (runs per wicket)"
-                : "Average (team runs per wicket)"
-            }
-            value={stats.bowling.average}
-          />
-          <StatRow
-            label={
-              isPlayer
-                ? "Strike Rate (balls per wicket)"
-                : "Strike Rate (team balls per wicket)"
-            }
-            value={stats.bowling.strikeRate}
-          />
-          <StatRow label="Dot Balls" value={stats.bowling.dotBalls} />
-          <StatRow label="Dot Ball %" value={stats.bowling.dotBallPct} />
-
-          <Divider style={styles.dividerSmall} />
-
-          {/* Boundaries & Balls */}
-          <StatRow label="Fours Conceded" value={stats.bowling.foursConceded} />
-          <StatRow label="Sixes Conceded" value={stats.bowling.sixesConceded} />
-          <StatRow
-            label="Boundary Balls %"
-            value={stats.bowling.boundaryBallsPct}
-          />
+          {bowlingStats.map(renderStat)}
         </ScrollView>
 
         <Button mode="contained" style={styles.closeButton} onPress={onClose}>
@@ -175,14 +183,6 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 10,
   },
-  dividerSmall: {
-    marginVertical: 6,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 4,
-  },
   label: {
     fontWeight: "500",
     color: "#333",
@@ -194,4 +194,36 @@ const styles = StyleSheet.create({
   closeButton: {
     marginTop: 20,
   },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 2,
+    alignItems: "center",
+  },
+  proText: {
+    color: "#4caf50", // green text
+    fontWeight: "bold",
+  },
+  customProBox: {
+    backgroundColor: "#e0f7e9",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#4caf50",
+  },
+  customProTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+    color: "#4caf50",
+  },
+  customProDesc: { fontSize: 14, color: "#333", marginBottom: 8 },
+  customProButton: {
+    backgroundColor: "#4caf50",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  customProButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });

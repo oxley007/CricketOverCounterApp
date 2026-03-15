@@ -5,7 +5,9 @@ import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import FixtureCard from "../components/FixtureCard";
+import SubscriptionList from "../components/iap/SubscriptionList";
 import { useFixtureStore } from "../state/fixtureStore";
+import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
 
@@ -20,6 +22,9 @@ export default function FixturesScreen() {
 
   const [selectedFixture, setSelectedFixture] = useState<any | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
 
   const startModal = useStartModalStore();
 
@@ -117,10 +122,18 @@ export default function FixturesScreen() {
       <FlatList
         data={seasonFixtures}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <FixtureCard
             fixture={item}
+            isFreeFixture={index === 0}
             onPress={() => {
+              const isFreeFixture = index === 0;
+
+              if (!proUnlocked && !isFreeFixture) {
+                setShowSubscriptionModal(true);
+                return;
+              }
+
               useFixtureStore.setState({ currentFixture: item });
               setSelectedFixture(item);
               setModalVisible(true);
@@ -139,6 +152,11 @@ export default function FixturesScreen() {
         visible={modalVisible}
         fixture={selectedFixture}
         onClose={() => setModalVisible(false)}
+      />
+
+      <SubscriptionList
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
       />
     </View>
   );

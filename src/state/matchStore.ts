@@ -77,6 +77,8 @@ export const matchStoreRef = create<MatchState>()(
       wicketPenaltyAffectsBatter: false,
       wicketPenaltyAffectsBowler: false,
 
+      autoSwapStrikeAfterWicket: true,
+
       // in matchStoreRef initial state
       wideExtraBallThreshold: 0,
 
@@ -89,6 +91,7 @@ export const matchStoreRef = create<MatchState>()(
 
       // IAP
       proUnlocked: false,
+      proUnlockedScorebook: false,
 
       // -------------------------
       // Actions
@@ -397,6 +400,9 @@ export const matchStoreRef = create<MatchState>()(
       setWicketPenaltyAffectsBowler: (value: boolean) =>
         set((state) => ({ ...state, wicketPenaltyAffectsBowler: value })),
 
+      setAutoSwapStrikeAfterWicket: (val: boolean) =>
+        set({ autoSwapStrikeAfterWicket: val }),
+
       setBallReminderEnabled: (value: boolean) =>
         set((state) => ({ ...state, ballReminderEnabled: value })),
 
@@ -408,6 +414,9 @@ export const matchStoreRef = create<MatchState>()(
 
       setProUnlocked: (value: boolean) =>
         set((state) => ({ ...state, proUnlocked: value })),
+
+      setProUnlockedScorebook: (value: boolean) =>
+        set((state) => ({ ...state, proUnlockedScorebook: value })),
     }),
     {
       name: "cricket-match-events",

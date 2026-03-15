@@ -2,6 +2,7 @@
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import SubscriptionList from "../components/iap/SubscriptionList";
 import PlayerStatsModal from "../components/PlayerStatsModal";
 import { useFixtureStore } from "../state/fixtureStore";
 import {
@@ -21,6 +22,7 @@ export default function StatsScreen() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"player" | "team">("player");
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const startModal = useStartModalStore();
 
@@ -202,6 +204,7 @@ export default function StatsScreen() {
         }
         stats={modalType === "player" ? selectedPlayerStats : selectedTeamStats}
         type={modalType}
+        onUpgrade={() => setShowSubscriptionModal(true)} // <-- add this
       />
 
       <View style={{ marginBottom: 16 }}>
@@ -209,6 +212,11 @@ export default function StatsScreen() {
           <Text style={styles.modalButtonText}>Back to Select Game Mode</Text>
         </Pressable>
       </View>
+
+      <SubscriptionList
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </View>
   );
 }
