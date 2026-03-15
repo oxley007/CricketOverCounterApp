@@ -187,20 +187,38 @@ function mergeById(local: any[], remote: any[]) {
 }
 
 /** Reads proUnlocked from the user doc in Firestore (e.g. for sync on login). */
-export async function loadUserSubscription(): Promise<boolean> {
-  if (!auth.currentUser) return false;
+export async function loadUserSubscription(): Promise<{
+  ballPro: boolean;
+  scorebookPro: boolean;
+}> {
+  if (!auth.currentUser) return { ballPro: false, scorebookPro: false };
 
   try {
     const userRef = doc(db, "users", auth.currentUser.uid);
     const snap = await getDoc(userRef);
-    return snap.exists() ? (snap.data()?.proUnlocked ?? false) : false;
+
+    if (!snap.exists()) {
+      return { ballPro: false, scorebookPro: false };
+    }
+
+    return (
+      snap.data()?.subscriptions ?? {
+        ballPro: false,
+        scorebookPro: false,
+      }
+    );
   } catch (err) {
     console.warn("Failed to load subscription from Firestore:", err);
-    return false;
+    return { ballPro: false, scorebookPro: false };
   }
 }
 
-export async function saveSubscription(isPro: boolean) {
+type SubscriptionStatus = {
+  ballPro: boolean;
+  scorebookPro: boolean;
+};
+
+export async function saveSubscription(subscription: SubscriptionStatus) {
   if (!auth.currentUser) return;
 
   const userId = auth.currentUser.uid;
@@ -209,13 +227,13 @@ export async function saveSubscription(isPro: boolean) {
     await setDoc(
       doc(db, "users", userId),
       {
-        proUnlocked: isPro,
+        subscriptions: subscription,
         updatedAt: serverTimestamp(),
       },
       { merge: true },
     );
 
-    console.log("✅ Subscription state saved:", isPro);
+    console.log("✅ Subscription state saved:", subscription);
   } catch (err) {
     console.error("❌ Error saving subscription:", err);
   }

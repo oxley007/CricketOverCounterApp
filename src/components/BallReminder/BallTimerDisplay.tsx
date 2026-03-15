@@ -6,12 +6,16 @@ import { useMatchStore } from "../../state/matchStore";
 export default function BallTimerDisplay() {
   const events = useMatchStore((state) => state.events);
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
+  const proScorebookUnlocked = useMatchStore(
+    (state) => state.proScorebookUnlocked,
+  );
 
   // Compute completed overs (only legal balls)
   const overs = events.filter((e) => e.countsAsBall).length / 6;
 
   // Show timer if <= 6 overs or Pro unlocked
-  const showTimer = overs <= 6 || proUnlocked;
+  //const showTimer = overs <= 6 || proUnlocked;
+  const showTimer = overs <= 6 || proUnlocked || proScorebookUnlocked;
 
   const {
     formattedTime,

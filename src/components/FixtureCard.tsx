@@ -2,8 +2,11 @@
 
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useMatchStore } from "../state/matchStore";
 
-export default function FixtureCard({ fixture, onPress }: any) {
+export default function FixtureCard({ fixture, onPress, isFreeFixture }: any) {
+  const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+
   const innings = Array.isArray(fixture.innings) ? fixture.innings : [];
 
   const yourTeam = fixture.yourTeam?.name ?? "Your Team";
@@ -40,6 +43,11 @@ export default function FixtureCard({ fixture, onPress }: any) {
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
+      {!proUnlocked && !isFreeFixture && (
+        <View style={styles.proBadge}>
+          <Text style={styles.proBadgeText}>PRO</Text>
+        </View>
+      )}
       <Text style={styles.date}>{date}</Text>
 
       <Text style={styles.opponent}>vs {oppTeam}</Text>
@@ -53,7 +61,11 @@ export default function FixtureCard({ fixture, onPress }: any) {
       </View>
 
       <Text style={styles.result}>{resultText}</Text>
-      <Text style={styles.tapFor}>(Tap for Scorecard))</Text>
+      <Text style={styles.tapFor}>
+        {proUnlocked || isFreeFixture
+          ? "(Tap for Scorecard)"
+          : "(Tap to upgrade to Pro to view scorecard)"}
+      </Text>
     </Pressable>
   );
 }
@@ -97,5 +109,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#999",
     paddingTop: 5,
+  },
+  proBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#ff7043",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+
+  proBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });

@@ -7,6 +7,7 @@ export default function MatchRulesSettings() {
     wideIsExtraBall,
     wicketsAsNegativeRuns,
     wicketPenaltyRuns,
+    autoSwapStrikeAfterWicket,
     wicketPenaltyAffectsBatter,
     wicketPenaltyAffectsBowler,
     wideExtraBallThreshold,
@@ -14,6 +15,7 @@ export default function MatchRulesSettings() {
     setWideExtraBallThreshold,
     setWicketsAsNegativeRuns,
     setWicketPenaltyRuns,
+    setAutoSwapStrikeAfterWicket,
     setWicketPenaltyAffectsBatter,
     setWicketPenaltyAffectsBowler,
   } = useMatchStore();
@@ -48,10 +50,9 @@ export default function MatchRulesSettings() {
           </View>
 
           <Text style={styles.helper}>
-            Set 0 for all wides to count as extra balls, or set X to limit how
-            many wides per over count as extra balls. Example: set 2 to allow
-            the first 2 wides in an over to count as extra balls; any further
-            wides in that over won’t add extra balls.
+            Set to 0 for normal cricket wide rules., or set a limit for how many
+            wides per over count as extra balls (e.g., 2). Any wides beyond this
+            limit will add runs but will not result in an extra delivery.
           </Text>
         </>
       )}
@@ -82,6 +83,18 @@ export default function MatchRulesSettings() {
               placeholder="-5"
             />
           </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Auto-swap strike after wicket</Text>
+            <Switch
+              value={autoSwapStrikeAfterWicket}
+              onValueChange={setAutoSwapStrikeAfterWicket}
+            />
+          </View>
+          <Text style={styles.helper}>
+            If enabled, the on-strike batter will automatically swap after a
+            wicket is recorded
+          </Text>
 
           <View style={styles.row}>
             <Text style={styles.label}>Apply negative runs to batter</Text>

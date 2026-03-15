@@ -27,9 +27,9 @@ import ResetButton from "../../components/ResetButton";
 import RotateStrike from "../../components/RotateStrike";
 import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../components/Score/ScoreWickets";
+import GameSetupModal from "../../components/Scorebook/GameSetupModal";
 import BaseRunsInput from "../../components/Settings/BaseRunsInput";
 import MatchRulesModal from "../../components/Settings/MatchRulesModal";
-import GameSetupModal from "../../components/Scorebook/GameSetupModal";
 import StartModeModal from "../../components/StartModal/StartModeModal";
 import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
@@ -50,6 +50,7 @@ function HomeContent() {
   const events = useMatchStore((state) => state.events) as MatchEvent[];
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
+  const proScorebookUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
   const openMatchRulesModal = useMatchStore(
     (state) => state.openMatchRulesModal,
   );
@@ -68,8 +69,10 @@ function HomeContent() {
   // Compute completed overs (legal balls only)
   const overs = events.filter((e: MatchEvent) => e.countsAsBall).length / 6;
 
-  const showStats = overs <= 6 || proUnlocked;
-  const ballReminderEnabled = proUnlocked || overs <= 6;
+  //const showStats = overs <= 6 || proUnlocked;
+  const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  //const ballReminderEnabled = proUnlocked || overs <= 6;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
 
   // Vibration + flashing reminder
   useBallReminder(ballReminderEnabled);
