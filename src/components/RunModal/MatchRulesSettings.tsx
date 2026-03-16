@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
 
 export default function MatchRulesSettings() {
   const {
@@ -19,6 +20,8 @@ export default function MatchRulesSettings() {
     setWicketPenaltyAffectsBatter,
     setWicketPenaltyAffectsBowler,
   } = useMatchStore();
+
+  const selectedMode = useStartModalStore((state) => state.selectedMode);
 
   return (
     <View style={styles.container}>
@@ -83,34 +86,37 @@ export default function MatchRulesSettings() {
               placeholder="-5"
             />
           </View>
+          {selectedMode === "scorebook" && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>Auto-swap strike after wicket</Text>
+                <Switch
+                  value={autoSwapStrikeAfterWicket}
+                  onValueChange={setAutoSwapStrikeAfterWicket}
+                />
+              </View>
+              <Text style={styles.helper}>
+                If enabled, the on-strike batter will automatically swap after a
+                wicket is recorded
+              </Text>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Auto-swap strike after wicket</Text>
-            <Switch
-              value={autoSwapStrikeAfterWicket}
-              onValueChange={setAutoSwapStrikeAfterWicket}
-            />
-          </View>
-          <Text style={styles.helper}>
-            If enabled, the on-strike batter will automatically swap after a
-            wicket is recorded
-          </Text>
+              <View style={styles.row}>
+                <Text style={styles.label}>Apply negative runs to batter</Text>
+                <Switch
+                  value={wicketPenaltyAffectsBatter}
+                  onValueChange={setWicketPenaltyAffectsBatter}
+                />
+              </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Apply negative runs to batter</Text>
-            <Switch
-              value={wicketPenaltyAffectsBatter}
-              onValueChange={setWicketPenaltyAffectsBatter}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Apply negative runs to bowler</Text>
-            <Switch
-              value={wicketPenaltyAffectsBowler}
-              onValueChange={setWicketPenaltyAffectsBowler}
-            />
-          </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Apply negative runs to bowler</Text>
+                <Switch
+                  value={wicketPenaltyAffectsBowler}
+                  onValueChange={setWicketPenaltyAffectsBowler}
+                />
+              </View>
+            </>
+          )}
         </>
       )}
     </View>

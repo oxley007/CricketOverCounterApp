@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { savePlayer } from "../../services/firestoreService";
 import { useGameStore, WicketEvent } from "../../state/gameStore";
 import { useMatchStore, type MatchEvent } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 import { buildCurrentOverCircles } from "../../utils/currentOverUtils";
 import BallReminderSettings from "../BallReminder/BallReminderSettings";
@@ -79,6 +80,9 @@ export default function RunModal({
   const [partnershipCount, setPartnershipCount] = useState<1 | 2>(1);
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
 
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  const isScorebook = selectedMode === "scorebook";
+
   const handleSavePlayer = async (teamId: string, player: any) => {
     try {
       await savePlayer(teamId, player);
@@ -118,7 +122,8 @@ export default function RunModal({
     selectedExtras,
   );
 
-  const inScorebookMode = !!currentGame;
+  //const inScorebookMode = !!currentGame;
+  const inScorebookMode = isScorebook;
   const battingTeam = useMemo(
     () =>
       currentGame?.battingTeamId
@@ -399,6 +404,7 @@ export default function RunModal({
     };
 
     const applyStrikeFromLastEvent = () => {
+      if (!isScorebook) return;
       const lastEvent = useMatchStore.getState().events.at(-1);
       if (!lastEvent) return;
 
@@ -433,9 +439,9 @@ export default function RunModal({
       // ✅ Build payload FIRST
       const eventPayload: any = {
         type: "ball",
-        batterId: currentGame!.currentStrikeId!,
-        batterInningId,
-        bowlerId: currentGame?.currentBowlerId,
+        batterId: isScorebook ? currentGame?.currentStrikeId : undefined,
+        batterInningId: isScorebook ? batterInningId : undefined,
+        bowlerId: isScorebook ? currentGame?.currentBowlerId : undefined,
         runs: -penalty + extrasRuns,
         runBreakdown: {
           bat: -penalty,
@@ -479,7 +485,9 @@ export default function RunModal({
         }
       }
 
-      applyStrikeFromLastEvent();
+      if (isScorebook) {
+        applyStrikeFromLastEvent();
+      }
       setDismissedBatterId(null);
       setDismissedKind(null);
       resetSelections();
@@ -491,6 +499,30 @@ export default function RunModal({
     // 🟨 Normal wicket
     if (hasWicket) {
       const kind = normalizeWicketKind(selectedWickets[0]);
+
+      // 🔵 HANDLE BALL COUNTER (Non-Scorebook) MODE
+      if (!isScorebook) {
+        addEvent({
+          type: "wicket",
+          kind,
+          runs: 0,
+          isExtra,
+          extraType: normalizeExtraType(selectedExtras[0]),
+          countsAsBall: kind === "retired" ? false : true,
+          runBreakdown: { bat: 0, extras: 0 },
+          // All IDs and wicket objects are undefined in this mode
+          batterId: undefined,
+          batterInningId: undefined,
+          bowlerId: undefined,
+          wicket: undefined,
+        } as Omit<MatchEvent, "id" | "timestamp">);
+
+        // Cleanup UI and EXIT immediately
+        resetSelections();
+        setConfirmingWicket(false);
+        onClose();
+        return; // ⛔ IMPORTANT: stops the code from adding a "ball" event below
+      }
 
       if (dismissedBatterId && dismissedKind) {
         const wicketObj = addWicket(
@@ -558,9 +590,9 @@ export default function RunModal({
 
         addEvent({
           type: "wicket",
-          batterId: currentGame!.currentStrikeId!,
-          batterInningId,
-          bowlerId: currentGame?.currentBowlerId,
+          batterId: isScorebook ? currentGame?.currentStrikeId : undefined,
+          batterInningId: isScorebook ? batterInningId : undefined,
+          bowlerId: isScorebook ? currentGame?.currentBowlerId : undefined,
           kind,
           runs: 0,
           isExtra,
@@ -605,11 +637,15 @@ export default function RunModal({
       }
         */
 
-      applyStrikeFromLastEvent();
+      if (isScorebook) {
+        applyStrikeFromLastEvent();
+      }
       setDismissedBatterId(null);
       setDismissedKind(null);
       resetSelections();
-      handleDismissBatter(currentGame.currentStrikeId!);
+      if (isScorebook && currentGame?.currentStrikeId) {
+        handleDismissBatter(currentGame.currentStrikeId);
+      }
       setConfirmingWicket(false);
       //onClose();
       return;
@@ -618,9 +654,9 @@ export default function RunModal({
     // 🟩 Normal ball
     addEvent({
       type: "ball",
-      batterId: currentGame!.currentStrikeId!,
-      batterInningId,
-      bowlerId: currentGame?.currentBowlerId,
+      batterId: isScorebook ? currentGame?.currentStrikeId : undefined,
+      batterInningId: isScorebook ? batterInningId : undefined,
+      bowlerId: isScorebook ? currentGame?.currentBowlerId : undefined,
       runs,
       isExtra,
       extraType: normalizeExtraType(selectedExtras[0]),
@@ -631,7 +667,9 @@ export default function RunModal({
 
     console.log("All events after add:", useMatchStore.getState().events);
 
-    applyStrikeFromLastEvent();
+    if (isScorebook) {
+      applyStrikeFromLastEvent();
+    }
 
     setShowAdvanced(false);
     setDismissedBatterId(null);
@@ -646,11 +684,35 @@ export default function RunModal({
     setSelectedWickets(["Partnership"]);
     setConfirmingWicket(false);
 
+    const game = useGameStore.getState().currentGame;
+
+    // 🟡 BALL COUNTER MODE
+    if (!isScorebook) {
+      for (let i = 0; i < count; i++) {
+        addEvent({
+          type: "wicket",
+          batterId: undefined,
+          batterInningId: undefined,
+          bowlerId: undefined,
+          kind: "partnership",
+          runs: 0,
+          isExtra: false,
+          countsAsBall: false,
+          runBreakdown: { bat: 0, extras: 0 },
+          prevBatterId: undefined,
+        });
+      }
+
+      onClose();
+      return;
+    }
+
+    // 🔵 SCOREBOOK MODE
+    if (!game) return;
+
     // 🔴 If ending BOTH batters
     if (count === 2) {
       setPartnershipCount(2);
-      const game = useGameStore.getState().currentGame;
-      if (!game) return;
 
       game.activeBatters.forEach((b) => {
         addEvent({
@@ -667,7 +729,6 @@ export default function RunModal({
         });
       });
 
-      // Remove both batters
       const gameStore = useGameStore.getState();
 
       game.activeBatters.forEach((b) => {
@@ -685,10 +746,11 @@ export default function RunModal({
       setTimeout(() => {
         setShowPlayerSelect("batter");
       }, 0);
+
       return;
     }
 
-    // 🟢 If only ending ONE batter → need selection
+    // 🟢 If only ending ONE batter
     setPartnershipCount(1);
     setShowDismissModal(true);
   };
@@ -946,7 +1008,7 @@ export default function RunModal({
                     End of Over — Retire or End Partnership Only
                   </Text>
                 )}
-                {dismissedBatterId && (
+                {isScorebook && dismissedBatterId && (
                   <View
                     style={{
                       flexDirection: "row",
@@ -1025,54 +1087,56 @@ export default function RunModal({
           </View>
         </Wrapper>
 
-        <DismissBatterModal
-          visible={showDismissModal}
-          mode={dismissedKind === "retired" ? "retire" : "dismiss"}
-          batters={batterPlayers.map((p) => {
-            const bEntry = currentGame?.battingEntries.find(
-              (e) => e.playerId === p.id,
-            );
-            return { ...p, retired: bEntry?.retired }; // 🔹 include retired flag
-          })}
-          currentBatterId={currentGame?.currentStrikeId ?? null}
-          onClose={() => setShowDismissModal(false)}
-          onContinue={(selectedId) => {
-            setShowDismissModal(false);
-
-            // 🟢 PARTNERSHIP FLOW
-            if (dismissedKind === "partnership") {
-              const activeBatter = currentGame?.activeBatters.find(
-                (b) => b.playerId === selectedId,
+        {isScorebook && (
+          <DismissBatterModal
+            visible={showDismissModal}
+            mode={dismissedKind === "retired" ? "retire" : "dismiss"}
+            batters={batterPlayers.map((p) => {
+              const bEntry = currentGame?.battingEntries.find(
+                (e) => e.playerId === p.id,
               );
+              return { ...p, retired: bEntry?.retired }; // 🔹 include retired flag
+            })}
+            currentBatterId={currentGame?.currentStrikeId ?? null}
+            onClose={() => setShowDismissModal(false)}
+            onContinue={(selectedId) => {
+              setShowDismissModal(false);
 
-              const batterInningId = activeBatter?.batterInningId;
+              // 🟢 PARTNERSHIP FLOW
+              if (dismissedKind === "partnership") {
+                const activeBatter = currentGame?.activeBatters.find(
+                  (b) => b.playerId === selectedId,
+                );
 
-              for (let i = 0; i < partnershipCount; i++) {
-                addEvent({
-                  type: "wicket",
-                  batterId: selectedId,
-                  batterInningId,
-                  bowlerId: currentGame?.currentBowlerId,
-                  kind: "partnership",
-                  runs: 0,
-                  isExtra: false,
-                  countsAsBall: false,
-                  runBreakdown: { bat: 0, extras: 0 },
-                  prevBatterId: currentGame?.currentStrikeId,
-                });
+                const batterInningId = activeBatter?.batterInningId;
+
+                for (let i = 0; i < partnershipCount; i++) {
+                  addEvent({
+                    type: "wicket",
+                    batterId: selectedId,
+                    batterInningId,
+                    bowlerId: currentGame?.currentBowlerId,
+                    kind: "partnership",
+                    runs: 0,
+                    isExtra: false,
+                    countsAsBall: false,
+                    runBreakdown: { bat: 0, extras: 0 },
+                    prevBatterId: currentGame?.currentStrikeId,
+                  });
+                }
+
+                handleDismissBatter(selectedId);
+                return;
               }
 
-              handleDismissBatter(selectedId);
-              return;
-            }
+              // 🔵 NORMAL WICKET FLOW
+              setDismissedBatterId(selectedId);
+              setStrike(selectedId); // optional
+            }}
+          />
+        )}
 
-            // 🔵 NORMAL WICKET FLOW
-            setDismissedBatterId(selectedId);
-            setStrike(selectedId); // optional
-          }}
-        />
-
-        {showPlayerSelect === "batter" && battingTeam && (
+        {isScorebook && showPlayerSelect === "batter" && battingTeam && (
           <SelectPlayersModal
             visible={true}
             onClose={() => {
@@ -1109,7 +1173,7 @@ export default function RunModal({
           />
         )}
 
-        {confirmingWicket && (
+        {isScorebook && confirmingWicket && (
           <View style={styles.confirmOverlay}>
             <View style={styles.confirmBox}>
               <Text style={styles.confirmTitle}>

@@ -4,6 +4,7 @@ import { StyleSheet, Text } from "react-native";
 import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
+import { useStartModalStore } from "../state/startModalStore";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 
 export default function OversCounter() {
@@ -13,6 +14,9 @@ export default function OversCounter() {
     (state) => state.wicketsAsNegativeRuns,
   );
   const wicketPenaltyRuns = useMatchStore((state) => state.wicketPenaltyRuns);
+
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  const isScorebook = selectedMode === "scorebook";
 
   /* =========================
      Get balls for current over
@@ -103,7 +107,9 @@ export default function OversCounter() {
 ========================= */
   let canShowTargetAndRRR = false;
 
-  if (currentFixture && currentGame?.battingTeamId) {
+  if (currentFixture && currentGame?.battingTeamId && isScorebook) {
+    console.log("hitting this???");
+
     const battingTeamId = currentGame.battingTeamId;
 
     let battingTeamInnings = 0;
@@ -126,6 +132,27 @@ export default function OversCounter() {
 
     // Only show target & RRR if opposition has batted more innings than batting team
     canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
+  } else if (!isScorebook) {
+    console.log("or hitting this?");
+    console.log("--- INNINGS DEBUG ---");
+    console.log("Current Events length:", events.length);
+    currentFixture?.innings?.forEach((inn, idx) => {
+      console.log(`Innings ${idx}:`, {
+        totalRuns: inn.totalRuns,
+        eventsInInnings: inn.matchEvents?.length || 0,
+        isCurrentEventsMatch: inn.matchEvents === events,
+      });
+    });
+
+    console.log("--- FIXTURE DEBUG 2 ---");
+    console.log("Full Fixture:", JSON.stringify(currentFixture, null, 2));
+    console.log("Events array length:", events.length);
+    const innings = Array.isArray(currentFixture?.innings)
+      ? currentFixture.innings
+      : [];
+
+    // Show target & required run rate when the second innings is chasing
+    canShowTargetAndRRR = innings.length === 2 && innings[0].totalRuns > 0;
   }
 
   /* =========================
@@ -134,37 +161,45 @@ export default function OversCounter() {
   let target: number | null = null;
   let rrr: string | null = null;
 
-  if (canShowTargetAndRRR && currentFixture && currentGame?.battingTeamId) {
-    const battingTeamId = currentGame.battingTeamId;
+  if (canShowTargetAndRRR && currentFixture) {
     let battingTeamPreviousRuns = 0;
     let oppositionRuns = 0;
-
     const innings = Array.isArray(currentFixture?.innings)
       ? currentFixture.innings
       : [];
 
-    //currentFixture.innings.forEach((inn) => {
-    innings.forEach((inn) => {
-      if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
-
-      if (inn.battingTeamId === battingTeamId) {
-        battingTeamPreviousRuns += inn.totalRuns;
-      } else {
-        oppositionRuns += inn.totalRuns;
+    if (isScorebook && currentGame?.battingTeamId) {
+      // 🟢 Scorebook Logic
+      const battingTeamId = currentGame.battingTeamId;
+      innings.forEach((inn) => {
+        if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
+        if (inn.battingTeamId === battingTeamId) {
+          battingTeamPreviousRuns += inn.totalRuns || 0;
+        } else {
+          oppositionRuns += inn.totalRuns || 0;
+        }
+      });
+    } else if (canShowTargetAndRRR && !isScorebook) {
+      // 🔵 Ball Counter Logic
+      const currentIdx = innings.length - 1;
+      for (let i = 0; i < currentIdx; i++) {
+        oppositionRuns += innings[i].totalRuns || 0;
       }
-    });
+    }
 
     const runsBehind = oppositionRuns - battingTeamPreviousRuns;
-    if (runsBehind > 0) {
-      // strictly greater than 0
+    if (runsBehind >= 0) {
       target = runsBehind + 1;
 
-      const oversBowled = totalLegalBalls / 6;
       const runsRemaining = target - totalRuns;
-      const oversRemaining = (currentFixture.overs ?? 0) - oversBowled;
+      const totalOversMatch = currentFixture.overs ?? 0;
+      const totalBallsMatch = totalOversMatch * 6;
+      const ballsRemaining = totalBallsMatch - totalLegalBalls;
 
-      if (oversRemaining > 0) {
-        rrr = (runsRemaining / oversRemaining).toFixed(2);
+      if (ballsRemaining > 0 && runsRemaining > 0) {
+        rrr = ((runsRemaining / ballsRemaining) * 6).toFixed(2);
+      } else if (runsRemaining <= 0) {
+        rrr = "0.00";
       }
     }
   }
