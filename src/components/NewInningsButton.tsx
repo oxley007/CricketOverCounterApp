@@ -8,6 +8,7 @@ import { useAuthStore } from "../state/authStore";
 import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
+import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
 import AuthModal from "./AuthModal";
@@ -32,6 +33,9 @@ export default function NewInningsButton({ onComplete }: Props) {
   const isGuest = useAuthStore((s) => s.isGuest);
 
   const [saving, setSaving] = useState(false);
+
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  const isScorebook = selectedMode === "scorebook";
 
   const requireAuth = async (action: () => Promise<void>) => {
     const isGuest = useAuthStore.getState().isGuest;
@@ -133,45 +137,37 @@ export default function NewInningsButton({ onComplete }: Props) {
     resetGuestIfNeeded();
 
     const fixtureStore = useFixtureStore.getState();
+    const matchStore = useMatchStore.getState(); // One declaration for the whole function
     const fixture = fixtureStore.currentFixture;
 
-    console.log("🔹 fixtureStore.currentFixture (initial read):", fixture);
-    console.log(
-      "🔹 gameStore.currentGame (initial):",
-      useGameStore.getState().currentGame,
-    );
+    if (!fixture) return;
 
-    if (!fixture) {
-      console.warn("⚠️ No current fixture");
-      return;
+    // 1. Capture current data - MUST define currentEvents here
+    const currentEvents = [...matchStore.events];
+    const finalInningsRuns = currentEvents.reduce(
+      (sum, e) => sum + (e.runs || 0),
+      0,
+    );
+    const finalInningsWickets = currentEvents.filter(
+      (e) => e.type === "wicket",
+    ).length;
+
+    // 2. Identify the innings we are currently finishing
+    const updatedInnings = [...fixture.innings];
+    const finishedIdx = updatedInnings.length - 1;
+
+    if (finishedIdx >= 0) {
+      updatedInnings[finishedIdx] = {
+        ...updatedInnings[finishedIdx],
+        matchEvents: currentEvents,
+        totalRuns: finalInningsRuns,
+        totalWickets: finalInningsWickets,
+      };
     }
 
-    console.log(
-      "🏏 Current fixture BEFORE any changes:",
-      JSON.stringify(fixture, null, 2),
-    );
-    console.log(
-      "📊 Current game BEFORE any changes:",
-      useGameStore.getState().currentGame,
-    );
-
-    // ======= Save current innings =======
-    saveCurrentInnings();
-    console.log("💾 Saved current innings");
-    console.log(
-      "🔹 fixtureStore.currentFixture (after saveCurrentInnings):",
-      useFixtureStore.getState().currentFixture,
-    );
-
-    // 🔥 RE-READ FIXTURE AFTER SAVE
-    const updatedFixture = useFixtureStore.getState().currentFixture;
-
-    if (!updatedFixture) return;
-
-    // ======= Add new blank innings =======
-    const inningsNumber = updatedFixture.innings.length + 1;
+    // 3. Create the blank placeholder for the next innings
     const newInnings = {
-      inningsNumber,
+      inningsNumber: updatedInnings.length + 1,
       battingTeamId: "",
       bowlingTeamId: "",
       matchEvents: [],
@@ -182,23 +178,22 @@ export default function NewInningsButton({ onComplete }: Props) {
       totalBalls: 0,
     };
 
+    // 4. Update the store
     useFixtureStore.setState({
       currentFixture: {
-        ...updatedFixture,
-        innings: [...updatedFixture.innings, newInnings],
+        ...fixture,
+        innings: [...updatedInnings, newInnings],
       },
     });
 
-    console.log("✅ Added new innings");
-    console.log(
-      "🔹 currentFixture now:",
-      useFixtureStore.getState().currentFixture,
-    );
-
-    // ======= Reset live stores =======
+    // 5. Reset live tracking
     resetInnings();
     resetGame();
     resetBatters();
+
+    console.log("🔄 Reset live stores: innings, game, batters");
+
+    // ... rest of your setup code (setGameConfig, etc.)
     console.log("🔄 Reset live stores: innings, game, batters");
     console.log(
       "🔹 currentGame after reset:",
@@ -216,7 +211,7 @@ export default function NewInningsButton({ onComplete }: Props) {
     console.log("Opposition Team:", oppositionTeam);
     console.log("Overs:", overs, "Season:", season);
 
-    const matchStore = useMatchStore.getState();
+    //const matchStore = useMatchStore.getState();
     const {
       wideIsExtraBall,
       wideExtraBallThreshold,
@@ -294,7 +289,10 @@ export default function NewInningsButton({ onComplete }: Props) {
       useGameStore.getState().currentGame,
     );
 
-    await saveNewInningsFixture();
+    if (isScorebook) {
+      await saveNewInningsFixture();
+      console.log("💾 New innings saved to Firebase");
+    }
     console.log("💾 New innings saved to Firebase");
     console.log("💾 Fixture saved successfully!");
 
@@ -318,7 +316,11 @@ export default function NewInningsButton({ onComplete }: Props) {
         disabled={saving}
         onPress={async () => {
           setSaving(true);
-          await requireAuth(handleTestSetup);
+          if (!isScorebook) {
+            await handleTestSetup(); // run local logic only
+          } else {
+            await requireAuth(handleTestSetup); // only scorebook needs auth
+          }
           setSaving(false);
         }}
         style={styles.addInningsButton}

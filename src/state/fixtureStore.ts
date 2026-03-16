@@ -388,11 +388,22 @@ export const useFixtureStore = create<FixtureState>()(
 
       // normalize old fixtures
       onRehydrateStorage: () => (state) => {
-        if (state?.fixtures) {
+        if (!state) return;
+
+        if (state.fixtures) {
           state.fixtures = state.fixtures.map((f) => ({
             ...f,
-            innings: f.innings || [],
+            innings: Array.isArray(f.innings) ? f.innings : [],
           }));
+        }
+
+        if (state.currentFixture) {
+          state.currentFixture = {
+            ...state.currentFixture,
+            innings: Array.isArray(state.currentFixture.innings)
+              ? state.currentFixture.innings
+              : [],
+          };
         }
       },
 

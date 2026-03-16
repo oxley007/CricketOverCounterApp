@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
 import { Team } from "../../state/teamStore";
 import SeasonPickerModal from "../Seasons/SeasonPickerModal"; // ✅ correct import
 import TeamPickerModal from "../Teams/TeamPickerModal";
@@ -94,6 +96,18 @@ export default function GameSetupModal({ visible, onClose }: Props) {
 
     // 5 Open settings modal (or whatever modal you want)
     useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
+  };
+
+  const goBackToStart = () => {
+    console.log("hitting calncel button eh>");
+
+    useFixtureStore.setState({ currentFixture: undefined });
+
+    const startModal = useStartModalStore.getState();
+    startModal.reset();
+    startModal.open();
+
+    router.replace("/");
   };
 
   return (
@@ -247,6 +261,9 @@ export default function GameSetupModal({ visible, onClose }: Props) {
             >
               <Text style={styles.startButtonText}>Start Game</Text>
             </Pressable>
+            <Pressable style={styles.backButton} onPress={goBackToStart}>
+              <Text style={styles.backButtonText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </SafeAreaView>
@@ -364,5 +381,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0", // Grey background
     color: "#888", // Dimmed text
     borderColor: "#ccc", // Lighter border
+  },
+  backButton: {
+    //position: "absolute",
+    //top: 12,
+    //left: 12,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    zIndex: 20,
+  },
+
+  backButtonText: {
+    fontSize: 16,
+    color: "#666",
   },
 });

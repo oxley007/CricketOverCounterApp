@@ -60,6 +60,9 @@ export default function EndInningsButton({
   const incrementGuestMatches = useAuthStore((s) => s.incrementGuestMatches);
   const isGuest = useAuthStore((s) => s.isGuest);
 
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  //const isScorebook = selectedMode === "scorebook";
+
   const requireAuth = async (action: () => Promise<void>) => {
     const isGuest = useAuthStore.getState().isGuest;
     const guestMatchesPlayed = useAuthStore.getState().guestMatchesPlayed;
@@ -397,6 +400,8 @@ export default function EndInningsButton({
     // Keep it in memory so `match-summary` can render it without relying on fixtures[]
     useFixtureStore.setState({ currentFixture: fixtureSnapshot });
 
+    const modeAtTimeOfReset = selectedMode;
+
     // Reset stores
     resetInnings();
     resetBatters();
@@ -413,7 +418,10 @@ export default function EndInningsButton({
 
     router.replace({
       pathname: "/match-summary",
-      params: { fixtureId: fixtureSnapshot.id },
+      params: {
+        fixtureId: currentFixture?.id,
+        prevMode: modeAtTimeOfReset,
+      },
     });
   };
 
@@ -462,40 +470,46 @@ export default function EndInningsButton({
             <NewInningsButton onComplete={() => setVisible(false)} />
 
             <View style={styles.actionsColumn}>
-              <Button
-                mode="contained"
-                buttonColor="#f97316"
-                disabled={saving}
-                onPress={async () => {
-                  setSaving(true);
-                  await requireAuth(handleAbandonMatch); // or handleAbandonMatch
-                  // keep spinner until navigation completes; handleAbandonMatch clears on error
-                }}
-              >
-                Match Abandoned (save stats, no result)
-              </Button>
+              {selectedMode === "scorebook" && (
+                <>
+                  <Button
+                    mode="contained"
+                    buttonColor="#c471ed"
+                    disabled={saving}
+                    onPress={async () => {
+                      setSaving(true);
+                      await requireAuth(handleEndGame);
+                      // keep spinner until navigation completes; handleEndGame clears on error
+                    }}
+                    style={styles.primaryAction}
+                    labelStyle={{ color: "#fff" }} // make sure text renders
+                  >
+                    End Game (Save, with result)
+                  </Button>
 
-              <Button
-                mode="contained"
-                buttonColor="#c471ed"
-                disabled={saving}
-                onPress={async () => {
-                  setSaving(true);
-                  await requireAuth(handleEndGame);
-                  // keep spinner until navigation completes; handleEndGame clears on error
-                }}
-                style={styles.primaryAction}
-                labelStyle={{ color: "#fff" }} // make sure text renders
-              >
-                End Game (Save, with result)
-              </Button>
+                  <Button
+                    mode="contained"
+                    buttonColor="#f97316"
+                    disabled={saving}
+                    onPress={async () => {
+                      setSaving(true);
+                      await requireAuth(handleAbandonMatch); // or handleAbandonMatch
+                      // keep spinner until navigation completes; handleAbandonMatch clears on error
+                    }}
+                  >
+                    Match Abandoned (save stats, no result)
+                  </Button>
+                </>
+              )}
 
               <Button
                 mode="outlined"
-                buttonColor="#888"
+                buttonColor="transparent"
                 onPress={handleEndGameNoSave}
               >
-                End Game Without Saving
+                {selectedMode === "scorebook"
+                  ? "End Game Without Saving"
+                  : "Reset Ball Counter"}
               </Button>
 
               <Button onPress={() => setVisible(false)}>Cancel</Button>

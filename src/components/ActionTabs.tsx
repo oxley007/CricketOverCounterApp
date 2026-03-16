@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
+import { useStartModalStore } from "../state/startModalStore";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils"; // <- import here
 import RunModal from "./RunModal/RunModal";
 
@@ -19,6 +20,9 @@ export default function ActionTabs() {
   const { addEvent, undoLastEvent } = useMatchStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [retireOnlyMode, setRetireOnlyMode] = useState(false);
+
+  const selectedMode = useStartModalStore((state) => state.selectedMode);
+  const isScorebook = selectedMode === "scorebook";
 
   /*
   const handleUndo = () => {
@@ -105,7 +109,7 @@ export default function ActionTabs() {
         console.log("===================");
 
         // 🛑 Guard – must have bowler
-        if (!currentBowlerId) {
+        if (isScorebook && !currentBowlerId) {
           Alert.alert("Please add a bowler to continue");
           return;
         }
@@ -115,7 +119,7 @@ export default function ActionTabs() {
           (b) => b.playerId === currentGame.currentStrikeId,
         );
 
-        if (!activeStriker) {
+        if (isScorebook && !activeStriker) {
           Alert.alert("Please select the facing batter to continue");
           return;
         }
@@ -126,7 +130,11 @@ export default function ActionTabs() {
           currentBowlerId,
           lastBowlerId,
         });
-        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
+        if (
+          isScorebook &&
+          actualBallsThisOver >= 6 &&
+          currentBowlerId === lastBowlerId
+        ) {
           Alert.alert("Please add the next bowler to continue");
           return;
         }
@@ -136,47 +144,44 @@ export default function ActionTabs() {
         const extras = 0;
 
         // 1️⃣ Add scorebook event
-        addEvent({
+        const event = {
           type: "ball",
-          batterId: currentGame.currentStrikeId,
-          batterInningId: activeStriker.batterInningId,
-          bowlerId: currentBowlerId,
           runs: 0,
           isExtra: false,
           countsAsBall,
           runBreakdown: { bat, extras },
-          prevBatterId: currentGame?.currentStrikeId,
-        });
+        };
+
+        if (isScorebook) {
+          Object.assign(event, {
+            batterId: currentGame.currentStrikeId,
+            batterInningId: activeStriker?.batterInningId,
+            bowlerId: currentBowlerId,
+            prevBatterId: currentGame.currentStrikeId,
+          });
+        }
+
+        addEvent(event);
 
         // 2️⃣ Update batter stats
-        updateBatterStats(
-          currentGame.currentStrikeId,
-          bat,
-          countsAsBall ? 1 : 0,
-        );
+        if (isScorebook) {
+          updateBatterStats(
+            currentGame.currentStrikeId,
+            bat,
+            countsAsBall ? 1 : 0,
+          );
 
-        // 3️⃣ Update bowler stats
-        /*
-        updateBowlerStats(
-          currentBowlerId,
-          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
-          countsAsBall,
-        );
-        */
+          const overBallIndex = actualBallsThisOver % 6;
 
-        // 3️⃣ Update bowler stats with correct ball index
+          updateBowlerStats(
+            currentBowlerId,
+            { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
+            countsAsBall,
+            overBallIndex,
+          );
 
-        const overBallIndex = actualBallsThisOver % 6;
-
-        updateBowlerStats(
-          currentBowlerId,
-          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
-          countsAsBall,
-          overBallIndex, // ✅ use ball index instead of placeholder
-        );
-
-        // 4️⃣ Apply strike change
-        applyStrikeChange({ bat, extras, countsAsBall });
+          applyStrikeChange({ bat, extras, countsAsBall });
+        }
       },
     },
     {
@@ -208,7 +213,7 @@ export default function ActionTabs() {
         console.log("=================");
 
         // Guard – must have a bowler
-        if (!currentBowlerId) {
+        if (isScorebook && !currentBowlerId) {
           Alert.alert("Please add a bowler to continue");
           return;
         }
@@ -218,14 +223,18 @@ export default function ActionTabs() {
           (b) => b.playerId === currentGame?.currentStrikeId,
         );
 
-        if (!activeStriker) {
+        if (isScorebook && !activeStriker) {
           Alert.alert("Please select the facing batter to continue");
           return;
         }
 
         // Guard – only block if over complete
         // ✅ Use actual balls from events instead of tracked ballsThisOver
-        if (actualBallsThisOver >= 6 && currentBowlerId === lastBowlerId) {
+        if (
+          isScorebook &&
+          actualBallsThisOver >= 6 &&
+          currentBowlerId === lastBowlerId
+        ) {
           Alert.alert(
             "Over Complete",
             wicketsAsNegativeRuns

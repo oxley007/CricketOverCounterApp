@@ -1,6 +1,6 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,6 +21,7 @@ import BallTimerDisplay from "../../components/BallReminder/BallTimerDisplay";
 import { CurrentOverDisplay } from "../../components/CurrentOverDisplay/CurrentOverDisplay";
 import CurrentPartnership from "../../components/CurrentPartnership";
 import CurrentPartnershipDots from "../../components/CurrentPartnershipDots";
+import EndInningsButton from "../../components/EndInningsButton";
 import HighestPartnership from "../../components/HighestPartnership";
 import OversCounter from "../../components/OversCounter";
 import ResetButton from "../../components/ResetButton";
@@ -123,6 +124,14 @@ function HomeContent() {
     }
   }, [isSetupComplete]);
 
+  // Handle reset
+  const handleReset = useCallback(() => {
+    useMatchStore.getState().resetInnings();
+    useGameStore.getState().resetGame();
+    //setSelectedBatters([]);
+    //setSelectedBowlerId(null);
+  }, []);
+
   if (__DEV__) {
     console.log("MATCH EVENTS:", events);
     console.log("Overs:", overs, "Pro unlocked:", proUnlocked);
@@ -158,6 +167,7 @@ function HomeContent() {
 
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
+        <EndInningsButton onComplete={handleReset} />
         <ResetButton />
 
         <CurrentOverDisplay />
@@ -165,6 +175,9 @@ function HomeContent() {
 
         <View style={styles.scoreRow}>
           <ScoreWickets />
+        </View>
+
+        <View style={styles.scoreRow}>
           <OversCounter />
         </View>
 

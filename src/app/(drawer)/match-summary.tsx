@@ -11,8 +11,9 @@ import { useStartModalStore } from "../../state/startModalStore";
 import { useUIStore } from "../../state/uiStore";
 
 export default function MatchSummaryScreen() {
-  const { fixtureId } = useLocalSearchParams<{
+  const { fixtureId, prevMode } = useLocalSearchParams<{
     fixtureId?: string | string[];
+    prevMode?: string;
   }>();
   const setSaving = useUIStore((s) => s.setSaving);
   const fixtureIdStr = Array.isArray(fixtureId) ? fixtureId[0] : fixtureId;
@@ -32,15 +33,21 @@ export default function MatchSummaryScreen() {
     return s.currentFixture;
   });
 
+  // This ensures isResetView is only true if we EXPLICITLY pass
+  // something that isn't "scorebook" (like "quick" or "reset")
+  const isResetView = prevMode && prevMode !== "scorebook";
+
   useEffect(() => {
     setSaving(false);
   }, [setSaving]);
 
-  if (!fixture) {
+  if (!fixture && !isResetView) {
     return (
-      <View style={styles.container}>
+      <View style={styles.screen}>
         <Text style={styles.title}>Match Summary</Text>
-        <Text>Fixture not found.</Text>
+        <Text style={{ color: "#fff", textAlign: "center" }}>
+          Fixture not found.
+        </Text>
       </View>
     );
   }
@@ -83,31 +90,43 @@ export default function MatchSummaryScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "Match Summary",
+          title: isResetView ? "Counter Reset" : "Match Summary",
           headerBackVisible: false,
         }}
       />
 
       <View style={styles.screen}>
         <ScrollView contentContainerStyle={styles.container}>
-          <Text style={styles.title}>Match Summary</Text>
-
-          {/* Innings summary card */}
-          <View style={styles.card}>
-            {inningsSummary.map((line, idx) => (
-              <Text key={idx} style={styles.inningsLine}>
-                {line}
+          {isResetView ? (
+            // WHAT TO SHOW IF NOT SCOREBOOK
+            <View style={{ alignItems: "center", marginTop: 50 }}>
+              <Text style={styles.title}>Ball Counter Reset</Text>
+              <Text style={{ color: "#fff", marginBottom: 20 }}>
+                The match data was cleared successfully.
               </Text>
-            ))}
-          </View>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.title}>Match Summary</Text>
 
-          {/* Result */}
-          <Text style={styles.result}>{resultText}</Text>
+              {/* Innings summary card */}
+              <View style={styles.card}>
+                {inningsSummary.map((line, idx) => (
+                  <Text key={idx} style={styles.inningsLine}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
 
-          {/* Tabs */}
-          <View style={styles.card}>
-            <InningsTabs fixture={fixture} />
-          </View>
+              {/* Result */}
+              <Text style={styles.result}>{resultText}</Text>
+
+              {/* Tabs */}
+              <View style={styles.card}>
+                <InningsTabs fixture={fixture} />
+              </View>
+            </>
+          )}
 
           <Button
             mode="contained"
