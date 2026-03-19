@@ -108,6 +108,19 @@ export default function ActionTabs() {
         console.log("lastBowlerId:", lastBowlerId);
         console.log("===================");
 
+        // 1. ADD THIS GUARD FIRST
+        // 🛑 Guard – check if in Scorebook mode and battingTeamId is missing
+        if (
+          !isScorebook &&
+          !useGameStore.getState().currentGame?.battingTeamId
+        ) {
+          Alert.alert(
+            "Teams Required",
+            "Please select the batting team before you start scoring.",
+          );
+          return;
+        }
+
         // 🛑 Guard – must have bowler
         if (isScorebook && !currentBowlerId) {
           Alert.alert("Please add a bowler to continue");
@@ -144,44 +157,47 @@ export default function ActionTabs() {
         const extras = 0;
 
         // 1️⃣ Add scorebook event
-        const event = {
+        addEvent({
           type: "ball",
+          batterId: currentGame.currentStrikeId,
+          batterInningId: activeStriker?.batterInningId || "",
+          bowlerId: currentBowlerId,
           runs: 0,
           isExtra: false,
           countsAsBall,
           runBreakdown: { bat, extras },
-        };
-
-        if (isScorebook) {
-          Object.assign(event, {
-            batterId: currentGame.currentStrikeId,
-            batterInningId: activeStriker?.batterInningId,
-            bowlerId: currentBowlerId,
-            prevBatterId: currentGame.currentStrikeId,
-          });
-        }
-
-        addEvent(event);
+          prevBatterId: currentGame?.currentStrikeId,
+        });
 
         // 2️⃣ Update batter stats
-        if (isScorebook) {
-          updateBatterStats(
-            currentGame.currentStrikeId,
-            bat,
-            countsAsBall ? 1 : 0,
-          );
+        updateBatterStats(
+          currentGame.currentStrikeId,
+          bat,
+          countsAsBall ? 1 : 0,
+        );
 
-          const overBallIndex = actualBallsThisOver % 6;
+        // 3️⃣ Update bowler stats
+        /*
+        updateBowlerStats(
+          currentBowlerId,
+          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
+          countsAsBall,
+        );
+        */
 
-          updateBowlerStats(
-            currentBowlerId,
-            { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
-            countsAsBall,
-            overBallIndex,
-          );
+        // 3️⃣ Update bowler stats with correct ball index
 
-          applyStrikeChange({ bat, extras, countsAsBall });
-        }
+        const overBallIndex = actualBallsThisOver % 6;
+
+        updateBowlerStats(
+          currentBowlerId,
+          { overs: 1, maidens: 0, runs: 0, wickets: 0, extras: 0 },
+          countsAsBall,
+          overBallIndex, // ✅ use ball index instead of placeholder
+        );
+
+        // 4️⃣ Apply strike change
+        applyStrikeChange({ bat, extras, countsAsBall });
       },
     },
     {
@@ -211,6 +227,17 @@ export default function ActionTabs() {
         console.log("currentBowlerId:", currentBowlerId);
         console.log("lastBowlerId:", lastBowlerId);
         console.log("=================");
+
+        if (
+          !isScorebook &&
+          !useGameStore.getState().currentGame?.battingTeamId
+        ) {
+          Alert.alert(
+            "Teams Required",
+            "Please select the batting team before you start scoring.",
+          );
+          return;
+        }
 
         // Guard – must have a bowler
         if (isScorebook && !currentBowlerId) {

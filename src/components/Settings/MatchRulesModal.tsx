@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React from "react";
 import {
   Modal,
@@ -8,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFixtureStore } from "../../state/fixtureStore";
+import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import WicketsNegativeInfo from "./WicketsNegativeInfo";
@@ -23,12 +24,38 @@ export default function MatchRulesModal({
   children: React.ReactNode;
 }) {
   // ✅ Hook is inside the component
-  const startFixture = useFixtureStore((s) => s.startFixture);
-  const addInnings = useFixtureStore((s) => s.addInnings);
+  //const startFixture = useFixtureStore((s) => s.startFixture);
+  //const addInnings = useFixtureStore((s) => s.addInnings);
   const wicketsAsNegativeRuns = useMatchStore((s) => s.wicketsAsNegativeRuns);
 
-  const selectedMode = useStartModalStore((s) => s.selectedMode);
-  const isScorebook = selectedMode === "scorebook";
+  //const selectedMode = useStartModalStore((s) => s.selectedMode);
+  //const isScorebook = selectedMode === "scorebook";
+
+  const handleBack = () => {
+    // Remove any partial fixture
+    //useFixtureStore.setState({ currentFixture: undefined });
+
+    // Reset game state
+    //useMatchStore.getState().resetInnings();
+    useGameStore.getState().resetGame();
+
+    // Reset start modal state
+    const startModal = useStartModalStore.getState();
+    startModal.reset();
+
+    // Close setup modal
+    onClose();
+
+    // Navigate to root
+    router.replace("/");
+
+    // Open start modal after navigation
+    setTimeout(() => {
+      useStartModalStore.getState().open();
+      //startModal.reset();
+      startModal.open();
+    }, 120);
+  };
 
   return (
     <Modal
@@ -55,15 +82,13 @@ export default function MatchRulesModal({
             <Pressable
               style={styles.button}
               onPress={() => {
-                if (!isScorebook) {
-                  startFixture(); // create fixture
-                  addInnings(); // create first innings
-                }
-
                 onClose();
               }}
             >
               <Text style={styles.buttonText}>Save & Continue</Text>
+            </Pressable>
+            <Pressable style={styles.backButton} onPress={handleBack}>
+              <Text style={styles.backButtonText}>Cancel</Text>
             </Pressable>
           </View>
         </View>
@@ -109,5 +134,19 @@ const styles = StyleSheet.create({
     maxHeight: "70%", // ensures scrolling before it grows too big
     backgroundColor: "#ddd",
     borderRadius: 10,
+  },
+  backButton: {
+    //position: "absolute",
+    //top: 12,
+    //left: 12,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    zIndex: 20,
+  },
+
+  backButtonText: {
+    fontSize: 16,
+    color: "#666",
   },
 });

@@ -71,6 +71,9 @@ export default function ScorebookIndex() {
   const hasHydrated = useGameStore((s) => s.hasHydrated);
   const currentGame = useGameStore((s) => s.currentGame);
   const currentFixture = useFixtureStore((s) => s.currentFixture);
+  //const isSetupComplete = useGameStore((s) => s.isSetupComplete);
+  const setupTrigger = useGameStore((s) => s.setupTrigger);
+  //const [isSetupVisible, setIsSetupVisible] = useState(false);
 
   const battingTeamId = currentGame?.battingTeamId ?? null;
   const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
@@ -114,9 +117,36 @@ export default function ScorebookIndex() {
   useEffect(() => {
     (async () => {
       if (!isRevenueCatAvailable()) return;
+
       configureRevenueCat();
+
       const info = await getCustomerInfo();
-      setProUnlocked(info.entitlements.active.pro?.isActive ?? false);
+      const activeEntitlements = info.entitlements.active || {};
+
+      // Ball Counter subscription
+      const isBallActive = activeEntitlements.pro?.isActive ?? false;
+
+      // Scorebook subscription
+      const isScorebookActive =
+        activeEntitlements.scorebook_pro?.isActive ?? false;
+
+      // Update Zustand store
+      const store = useMatchStore.getState();
+      store.setProUnlocked(isBallActive);
+      store.setProUnlockedScorebook(isScorebookActive);
+
+      // Optional: save to Firestore
+      await saveSubscription({
+        ballPro: isBallActive,
+        scorebookPro: isScorebookActive,
+      });
+
+      console.log(
+        "Ball Pro:",
+        isBallActive,
+        "Scorebook Pro:",
+        isScorebookActive,
+      );
     })();
   }, []);
 
@@ -135,7 +165,9 @@ export default function ScorebookIndex() {
   );
   //const showStats = overs <= 6 || proUnlocked;
   //const ballReminderEnabled = overs <= 6 || proUnlocked;
-  const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  const showStats = overs <= 6 || proScorebookUnlocked;
   const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
   useBallReminder(ballReminderEnabled);
 
@@ -174,6 +206,7 @@ export default function ScorebookIndex() {
     }
   }, [selectedBatters]);
 
+  /*
   useEffect(() => {
     if (!isSetupComplete) {
       // Force close first, then reopen after a tiny delay
@@ -184,6 +217,23 @@ export default function ScorebookIndex() {
       setIsSetupVisible(false); // hide it when setup is complete
     }
   }, [isSetupComplete]);
+  */
+
+  useEffect(() => {
+    // If setup is complete, make sure the modal is hidden
+    if (isSetupComplete) {
+      setIsSetupVisible(false);
+      return;
+    }
+
+    // If setup is NOT complete, flash the modal to ensure it mounts
+    setIsSetupVisible(false);
+    const timer = setTimeout(() => {
+      setIsSetupVisible(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [isSetupComplete, setupTrigger]); // setupTrigger still here to catch button taps
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -191,6 +241,20 @@ export default function ScorebookIndex() {
     useGameStore.getState().resetGame();
     setSelectedBatters([]);
     setSelectedBowlerId(null);
+  }, []);
+
+  const handleResetTeams = useCallback(() => {
+    // 1. Clear the nested game data (this makes BattingTeamSelector show the list)
+    useGameStore.getState().resetTeamsOnly();
+
+    // 2. Clear your local component state
+    setSelectedBatters([]);
+    setSelectedBowlerId(null);
+
+    // 3. Clear matchStore events if necessary
+    useMatchStore.getState().resetInnings();
+
+    // Note: Because we didn't call resetGame(), isSetupComplete stays TRUE.
   }, []);
 
   const playingTeams = useMemo(() => {
@@ -409,14 +473,14 @@ export default function ScorebookIndex() {
 
         <BattingTeamSelector
           allTeams={playingTeams}
-          selectedBattingTeamId={battingTeamId}
-          bowlingTeamId={bowlingTeamId}
+          selectedBattingTeamId={currentGame?.battingTeamId ?? null}
+          bowlingTeamId={currentGame?.bowlingTeamId ?? null}
           legalBallsBowled={legalBallsBowled}
           onSelectTeam={(battingId, bowlingId) => {
             console.log("START GAME", battingId, bowlingId);
             startGame(battingId, bowlingId, []);
           }}
-          onReset={handleReset}
+          onReset={handleResetTeams}
         />
 
         <BattersPicker

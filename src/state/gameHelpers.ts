@@ -1,5 +1,5 @@
 // src/state/gameHelpers.ts
-import type { BattingEntry, CurrentGame } from "./gameStore";
+import type { CurrentGame } from "./gameStore";
 import type { MatchEvent } from "./matchStore";
 import { matchStoreRef } from "./matchStore";
 
@@ -19,20 +19,45 @@ export const getScorecard = (game?: CurrentGame) => {
 };
 
 // Optional helper to format "How Out" column
-export const getDismissalText = (entry: BattingEntry) => {
-  if (!entry.dismissal) return "not out";
+export const getDismissalText = (entry: any) => {
+  // 1. Log the entry to see what data the function is actually receiving
+  console.log(
+    "DEBUG: Entry ID:",
+    entry.entryId || entry.playerId,
+    "Full Entry:",
+    JSON.stringify(entry),
+  );
 
-  const bowlerName = entry.dismissal.bowlerName ?? "";
+  const dismissal = entry.dismissal || entry.wicket || entry;
 
-  switch (entry.dismissal.kind) {
+  if (!dismissal || !dismissal.kind) {
+    console.log("DEBUG: No dismissal/kind found for this entry");
+    return "not out";
+  }
+
+  const kind = dismissal.kind.toLowerCase();
+  console.log("DEBUG: Detected kind:", kind);
+
+  switch (kind) {
     case "bowled":
-      return `b ${bowlerName}`;
+      return "bwld";
     case "caught":
-      return `c & b ${bowlerName}`;
-    case "runOut":
-      return "run out";
+      return "cght";
+    case "runout":
+    case "run out":
+      return "r.o";
+    case "lbw":
+      return "lbw";
+    case "stumped":
+      return "stmp";
+    case "hitwicket":
+    case "hit wicket":
+      return "h.w";
+    case "retired":
+      return "retired";
     default:
-      return entry.dismissal.kind;
+      console.log("DEBUG: Hit default case for kind:", kind);
+      return kind;
   }
 };
 
@@ -106,11 +131,11 @@ export const calculateBowlerStats = (
 
   const wickets = bowlerEvents.filter((e) => {
     if (e.wicketPenaltyWicketType) {
-      return e.wicketPenaltyWicketType !== "Run Out";
+      return e.wicketPenaltyWicketType !== "runout";
     }
 
     if (e.type === "wicket" && e.kind) {
-      return e.kind !== "Run Out";
+      return e.kind !== "runout" && e.kind !== "partnership";
     }
 
     return false;

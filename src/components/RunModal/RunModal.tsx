@@ -121,7 +121,6 @@ export default function RunModal({
     "Extras (state):",
     selectedExtras,
   );
-
   //const inScorebookMode = !!currentGame;
   const inScorebookMode = isScorebook;
   const battingTeam = useMemo(
@@ -164,6 +163,15 @@ export default function RunModal({
     );
     return p?.name ?? null;
   }, [currentGame?.currentBowlerId, bowlingTeam]);
+
+  const battingTeamPlayers = useMemo(
+    () =>
+      battingTeam?.players.map((p) => ({
+        ...p,
+        teamId: battingTeam.id,
+      })) ?? [],
+    [battingTeam],
+  );
 
   const runOptions = [1, 2, 3, 4, 5, 6];
   const extraOptions = ["Wide", "No Ball", "Bye", "Leg Bye", "Penalty"];
@@ -640,12 +648,15 @@ export default function RunModal({
       if (isScorebook) {
         applyStrikeFromLastEvent();
       }
+
+      if (isScorebook && currentGame?.currentStrikeId) {
+        handleDismissBatter(currentGame.currentStrikeId, {
+          kind: (dismissedKind as any) || "bowled",
+        });
+      }
       setDismissedBatterId(null);
       setDismissedKind(null);
       resetSelections();
-      if (isScorebook && currentGame?.currentStrikeId) {
-        handleDismissBatter(currentGame.currentStrikeId);
-      }
       setConfirmingWicket(false);
       //onClose();
       return;
@@ -773,7 +784,19 @@ export default function RunModal({
 
   const handleDismissBatter = (
     batterId: string,
-    options?: { retired?: boolean },
+    options?: {
+      retired?: boolean;
+      // Use the exact union type from your error message
+      kind?:
+        | "bowled"
+        | "caught"
+        | "lbw"
+        | "stumped"
+        | "runOut"
+        | "hitWicket"
+        | "retired"
+        | "notOut";
+    },
   ) => {
     const gameStore = useGameStore.getState();
     const game = gameStore.currentGame;
@@ -810,7 +833,7 @@ export default function RunModal({
 
     // 🔴 NORMAL DISMISSAL FLOW
     gameStore.dismissBattingEntry(active.batterInningId, {
-      kind: "bowled", // you already pass real kind elsewhere
+      kind: options?.kind || "bowled", // you already pass real kind elsewhere
       bowlerId: game.currentBowlerId,
     });
 
@@ -1144,7 +1167,7 @@ export default function RunModal({
               onClose(); // also close RunModal
             }}
             title={`Select Next Batter for ${battingTeam.name}`}
-            players={battingTeam.players}
+            players={battingTeamPlayers}
             selectedIds={selectedBatters}
             onSelectionChange={(ids) => {
               setSelectedBatters(ids);
@@ -1160,15 +1183,18 @@ export default function RunModal({
             selectionMode="multiple"
             pickerType="batter"
             maxSelection={maxSelection}
+            // RunModal.tsx
             renderFooter={() => (
-              <AddPlayerFooter
-                teamId={battingTeam.id}
-                onAdded={async (name) => {
-                  const player = addPlayerToTeam(selectedBattingTeamId!, name);
-                  if (player)
-                    await handleSavePlayer(selectedBattingTeamId!, player);
-                }}
-              />
+              <View style={{ paddingBottom: 20 }}>
+                <AddPlayerFooter
+                  teamId={battingTeam.id} // This is correct
+                  onAdded={async (name) => {
+                    // CHANGE THESE TWO LINES:
+                    const player = addPlayerToTeam(battingTeam.id, name);
+                    if (player) await handleSavePlayer(battingTeam.id, player);
+                  }}
+                />
+              </View>
             )}
           />
         )}

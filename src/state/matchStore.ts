@@ -366,6 +366,12 @@ export const matchStoreRef = create<MatchState>()(
           showMatchRulesModal: false,
         }),
 
+      resetInningsOnly: () =>
+        set({
+          events: [],
+          showMatchRulesModal: false,
+        }),
+
       setBaseRuns: (runs: number) =>
         set((state) => ({ ...state, baseRuns: Math.max(0, runs) })),
 

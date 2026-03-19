@@ -37,17 +37,22 @@ export default function StartModeModal() {
   const onBallCounter = () => {
     closeStartModal();
     selectBallCounter();
-    useGameStore.getState().setSetupComplete(false);
+
+    const game = useGameStore.getState();
+    game.triggerSetup();
+
     setTimeout(() => {
       router.replace("/ball-counter");
     }, 100);
   };
 
   const onScorebook = () => {
-    closeStartModal(); // 👈 CLOSE THIS FIRST
+    closeStartModal();
     selectScorebook();
-    useGameStore.getState().setSetupComplete(false);
-    // Use a tiny timeout to let the modal close animation finish before navigating
+
+    const game = useGameStore.getState();
+    game.triggerSetup();
+
     setTimeout(() => {
       router.replace("/scorebook");
     }, 100);
@@ -135,9 +140,6 @@ export default function StartModeModal() {
               }}
             >
               <Text style={styles.loginButtonText}>Login / Sign Up</Text>
-            </Pressable>
-            <Pressable style={styles.devButton} onPress={clearAllFixtures}>
-              <Text style={styles.devButtonText}>DEV: Clear All Fixtures</Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -273,3 +275,9 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
 });
+
+/*
+<Pressable style={styles.devButton} onPress={clearAllFixtures}>
+              <Text style={styles.devButtonText}>DEV: Clear All Fixtures</Text>
+            </Pressable>
+            */

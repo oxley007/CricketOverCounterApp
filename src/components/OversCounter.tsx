@@ -1,6 +1,6 @@
 // OversCounter.tsx
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
@@ -32,6 +32,7 @@ export default function OversCounter() {
 
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   const currentGame = useGameStore((s) => s.currentGame);
+  const baseRuns = useMatchStore((s) => s.baseRuns);
 
   let totalLegalBalls = 0;
   let widesThisOver = 0;
@@ -79,21 +80,26 @@ export default function OversCounter() {
   /* =========================
      Runs (includes negative wickets)
   ========================= */
-  const totalRuns = events.reduce((sum, e) => {
-    let runs = e.runs || 0;
+  const totalRuns =
+    baseRuns +
+    events.reduce((sum, e) => {
+      if (e.type === "ball") {
+        return sum + (e.runs ?? 0);
+      }
 
-    if (
-      wicketsAsNegativeRuns &&
-      e.type === "wicket" &&
-      runs === 0 &&
-      e.kind !== "retired" &&
-      e.kind !== "partnership"
-    ) {
-      runs = -wicketPenaltyRuns;
-    }
+      // Handle wicket penalties if needed
+      if (
+        wicketsAsNegativeRuns &&
+        e.type === "wicket" &&
+        (e.runs ?? 0) === 0 &&
+        e.kind !== "retired" &&
+        e.kind !== "partnership"
+      ) {
+        return sum - wicketPenaltyRuns;
+      }
 
-    return sum + runs;
-  }, 0);
+      return sum;
+    }, 0);
 
   /* =========================
      Run rate
@@ -107,7 +113,7 @@ export default function OversCounter() {
 ========================= */
   let canShowTargetAndRRR = false;
 
-  if (currentFixture && currentGame?.battingTeamId && isScorebook) {
+  if (currentFixture && currentGame?.battingTeamId) {
     console.log("hitting this???");
 
     const battingTeamId = currentGame.battingTeamId;
@@ -132,7 +138,7 @@ export default function OversCounter() {
 
     // Only show target & RRR if opposition has batted more innings than batting team
     canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
-  } else if (!isScorebook) {
+  } /*else if (!isScorebook) {
     console.log("or hitting this?");
     console.log("--- INNINGS DEBUG ---");
     console.log("Current Events length:", events.length);
@@ -153,8 +159,7 @@ export default function OversCounter() {
 
     // Show target & required run rate when the second innings is chasing
     canShowTargetAndRRR = innings.length === 2 && innings[0].totalRuns > 0;
-  }
-
+  }*/
   /* =========================
    Target & RRR (if chasing)
 ========================= */
@@ -168,7 +173,7 @@ export default function OversCounter() {
       ? currentFixture.innings
       : [];
 
-    if (isScorebook && currentGame?.battingTeamId) {
+    if (currentGame?.battingTeamId) {
       // 🟢 Scorebook Logic
       const battingTeamId = currentGame.battingTeamId;
       innings.forEach((inn) => {
@@ -179,13 +184,13 @@ export default function OversCounter() {
           oppositionRuns += inn.totalRuns || 0;
         }
       });
-    } else if (canShowTargetAndRRR && !isScorebook) {
+    } /*else if (canShowTargetAndRRR && !isScorebook) {
       // 🔵 Ball Counter Logic
       const currentIdx = innings.length - 1;
       for (let i = 0; i < currentIdx; i++) {
         oppositionRuns += innings[i].totalRuns || 0;
       }
-    }
+    }*/
 
     const runsBehind = oppositionRuns - battingTeamPreviousRuns;
     if (runsBehind >= 0) {
@@ -205,21 +210,25 @@ export default function OversCounter() {
   }
 
   return (
-    <Text style={styles.text}>
-      Overs: {displayOvers}
-      {"  "}
-      <Text style={styles.subText}>RR: {runRate}</Text>
-      {target && (
-        <Text style={styles.subText}>
-          {"  "}Target: {target}
-        </Text>
-      )}
-      {rrr && (
-        <Text style={styles.subText}>
-          {"  "}RRR: {rrr}
-        </Text>
-      )}
-    </Text>
+    <View>
+      <Text style={styles.text}>
+        Overs: {displayOvers}
+        {"  "}
+        <Text style={styles.subText}>RR: {runRate}</Text>
+      </Text>
+      <Text style={styles.text}>
+        {target && (
+          <Text style={styles.subText}>
+            {"  "}Target: {target}
+          </Text>
+        )}
+        {rrr && (
+          <Text style={styles.subText}>
+            {"  "}RRR: {rrr}
+          </Text>
+        )}
+      </Text>
+    </View>
   );
 }
 

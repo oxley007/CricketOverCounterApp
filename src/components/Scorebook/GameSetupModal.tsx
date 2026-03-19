@@ -62,13 +62,6 @@ export default function GameSetupModal({ visible, onClose }: Props) {
 
     const finalOvers = isUnlimited ? 0 : parseInt(overs, 10) || 0;
 
-    setGameConfig({
-      yourTeam: { id: yourTeam.id, name: yourTeam.name },
-      oppositionTeam: { id: oppositionTeam.id, name: oppositionTeam.name },
-      overs: finalOvers, // Now saved as an integer
-      season,
-    });
-
     // 1️⃣ Save game config
     setGameConfig({
       yourTeam: {
@@ -98,16 +91,52 @@ export default function GameSetupModal({ visible, onClose }: Props) {
     useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
   };
 
-  const goBackToStart = () => {
-    console.log("hitting calncel button eh>");
+  const handleBackOld = () => {
+    // Remove any partial fixture
+    //useFixtureStore.setState({ currentFixture: undefined });
 
-    useFixtureStore.setState({ currentFixture: undefined });
+    // Reset stores
+    //useMatchStore.getState().resetInnings();
+    useGameStore.getState().resetGame();
 
+    // Close setup modal
+    onClose();
+
+    // Navigate home
+    router.replace("/");
+
+    // Open StartModeModal AFTER navigation
+    setTimeout(() => {
+      const startModal = useStartModalStore.getState();
+      startModal.reset();
+      startModal.open();
+    }, 120);
+  };
+
+  const handleBack = () => {
+    // Remove any partial fixture
+    //useFixtureStore.setState({ currentFixture: undefined });
+
+    // Reset game state
+    //useMatchStore.getState().resetInnings();
+    useGameStore.getState().resetGame();
+
+    // Reset start modal state
     const startModal = useStartModalStore.getState();
     startModal.reset();
-    startModal.open();
 
+    // Close setup modal
+    onClose();
+
+    // Navigate to root
     router.replace("/");
+
+    // Open start modal after navigation
+    setTimeout(() => {
+      useStartModalStore.getState().open();
+      //startModal.reset();
+      startModal.open();
+    }, 120);
   };
 
   return (
@@ -261,7 +290,7 @@ export default function GameSetupModal({ visible, onClose }: Props) {
             >
               <Text style={styles.startButtonText}>Start Game</Text>
             </Pressable>
-            <Pressable style={styles.backButton} onPress={goBackToStart}>
+            <Pressable style={styles.backButton} onPress={handleBack}>
               <Text style={styles.backButtonText}>Cancel</Text>
             </Pressable>
           </View>

@@ -27,7 +27,19 @@ export type InningsSnapshot = {
   totalRuns: number;
   totalWickets: number;
   totalBalls: number;
+
+  isPlaceholder?: boolean;
 };
+
+/* =========================================================
+   Helpers
+========================================================= */
+
+const isEmptyInnings = (inn: InningsSnapshot) => inn.isPlaceholder === true;
+
+/* =========================================================
+   Store
+========================================================= */
 
 export type FixtureResultType =
   | "runs"
@@ -157,7 +169,7 @@ export const useFixtureStore = create<FixtureState>()(
         }
 
         const { currentGame } = useGameStore.getState();
-        const { events } = useMatchStore.getState();
+        const { events, baseRuns } = useMatchStore.getState();
 
         if (!currentGame) {
           console.log("⚠️ No current game found");
@@ -165,10 +177,8 @@ export const useFixtureStore = create<FixtureState>()(
         }
 
         // ✅ Calculate totals from events (source of truth)
-        const totalRuns = events.reduce(
-          (sum, e) => (e.type === "ball" ? sum + (e.runs ?? 0) : sum),
-          0,
-        );
+        const totalRuns =
+          baseRuns + events.reduce((sum, e) => sum + (e.runs ?? 0), 0);
         const totalBalls = events.filter(
           (e) => e.type === "ball" && e.countsAsBall,
         ).length;
@@ -184,12 +194,11 @@ export const useFixtureStore = create<FixtureState>()(
           totalRuns,
           totalWickets,
           totalBalls,
+          isPlaceholder: false,
         };
 
         // 🔍 Look for an empty innings
-        const emptyIndex = fixture.innings.findIndex(
-          (inn) => !inn.battingTeamId,
-        );
+        const emptyIndex = fixture.innings.findIndex(isEmptyInnings);
 
         let updatedInnings;
         if (emptyIndex !== -1) {
@@ -232,9 +241,7 @@ export const useFixtureStore = create<FixtureState>()(
         }
 
         // 1️⃣ Try to find an empty innings
-        const emptyInningsIndex = fixture.innings.findIndex(
-          (inn) => !inn.battingTeamId,
-        );
+        const emptyInningsIndex = fixture.innings.findIndex(isEmptyInnings);
 
         if (emptyInningsIndex !== -1) {
           // reuse existing empty innings
@@ -254,7 +261,7 @@ export const useFixtureStore = create<FixtureState>()(
             battingTeamId,
             bowlingTeamId,
             matchEvents: [],
-            battingEntries: [],
+            battingEntries: battingEntries ?? [],
             bowlers: [],
             totalRuns: 0,
             totalWickets: 0,
@@ -295,6 +302,7 @@ export const useFixtureStore = create<FixtureState>()(
           totalRuns: 0,
           totalWickets: 0,
           totalBalls: 0,
+          isPlaceholder: true,
         };
 
         set({
