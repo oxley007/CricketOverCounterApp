@@ -72,6 +72,8 @@ export type CurrentGame = {
   wickets: WicketEvent[];
   ballCount: number;
   currentEntryId?: string;
+
+  explicitBowlerSelection?: boolean;
 };
 
 export type WicketEvent = {
@@ -174,6 +176,9 @@ interface GameState {
 
   openStatsModal: (playerId: string) => void;
   closeStatsModal: () => void;
+  setupTrigger: number;
+  triggerSetup: () => void;
+  resetTeamsOnly: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -718,6 +723,19 @@ export const useGameStore = create<GameState>()(
 
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
+      setupTrigger: 0,
+      triggerSetup: () =>
+        set((state) => ({ setupTrigger: state.setupTrigger + 1 })),
+      // Inside matchStore.ts
+      // Inside your gameStore set() block:
+
+      resetTeamsOnly: () =>
+        set((state) => ({
+          // Use undefined instead of null to fix the TS error
+          currentGame: undefined,
+
+          // We leave isSetupComplete and setupTrigger alone!
+        })),
     }),
     {
       name: "cricket-game-store",

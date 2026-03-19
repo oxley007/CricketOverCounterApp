@@ -37,6 +37,8 @@ type Props = {
 
 //type Props = { visible: boolean; onClose: () => void };
 
+// ...imports remain the same
+
 export default function SubscriptionModal({ visible, onClose }: Props) {
   const Wrapper = Platform.OS === "android" ? SafeAreaView : View;
 
@@ -56,12 +58,10 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
     if (isRevenueCatAvailable()) {
       try {
-        // Select offering based on platform
         const offerings: any = await getOfferings();
         console.log("Full offerings:", offerings);
 
         const currentOffering = offerings?.current;
-
         console.log("Current offering:", currentOffering);
         console.log("Available packages:", currentOffering?.availablePackages);
 
@@ -69,17 +69,32 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
         let filteredPackages = allPackages;
 
-        filteredPackages = allPackages.filter((pkg: any) =>
-          pkg.product.identifier.includes("scorebook"),
-        );
+        if (selectedMode === "scorebook") {
+          filteredPackages = allPackages.filter((pkg: any) =>
+            pkg.product.identifier.includes("scorebook"),
+          );
+        } else if (selectedMode === "ballCounter") {
+          filteredPackages = allPackages.filter((pkg: any) =>
+            pkg.product.identifier.includes("ball"),
+          );
+        } else {
+          filteredPackages = allPackages.filter(
+            (pkg: any) =>
+              pkg.product.identifier.includes("scorebook") ||
+              pkg.product.identifier.includes("ball"),
+          );
+        }
 
         setPackages(filteredPackages);
 
-        // Get customer info and entitlements
         const customerInfo = await getCustomerInfo();
         const activeEntitlements = customerInfo?.entitlements.active || {};
+        console.log("💡 Active entitlements on fetch:", activeEntitlements);
+
         setEntitlements(activeEntitlements);
-        setProUnlocked(activeEntitlements["ball_pro"]?.isActive ?? false);
+
+        // update stores
+        setProUnlocked(activeEntitlements["pro"]?.isActive ?? false);
         setProUnlockedScorebook(
           activeEntitlements["scorebook_pro"]?.isActive ?? false,
         );
@@ -88,9 +103,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         setPackages([]);
         setEntitlements({});
         setProUnlocked(false);
+        setProUnlockedScorebook(false);
       }
     } else {
-      // Mock data for testing in Expo Go / simulator
       setPackages([
         {
           identifier: "monthly",
@@ -111,6 +126,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       ]);
       setEntitlements({});
       setProUnlocked(false);
+      setProUnlockedScorebook(false);
     }
 
     setLoading(false);
@@ -131,18 +147,21 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
     const listener = addCustomerInfoUpdateListener(async (customerInfo) => {
       const active = customerInfo.entitlements.active || {};
+      console.log("🔔 Customer info update:", active);
 
-      const isBallActive = active["ball_pro"]?.isActive ?? false;
+      const isBallActive = active["pro"]?.isActive ?? false;
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
-
       setEntitlements(active);
 
-      // Keep Firestore in sync
       try {
         await saveSubscription({
+          ballPro: isBallActive,
+          scorebookPro: isScorebookActive,
+        });
+        console.log("✅ Subscription state saved (listener):", {
           ballPro: isBallActive,
           scorebookPro: isScorebookActive,
         });
@@ -152,18 +171,15 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     });
 
     return () => {
-      if (typeof listener === "function") {
-        listener();
-      } else if (listener?.remove) {
-        listener.remove();
-      }
+      if (typeof listener === "function") listener();
+      else if (listener?.remove) listener.remove();
     };
   }, []);
 
   const handlePurchase = async (pkg: Package) => {
     if (!isRevenueCatAvailable()) {
       alert(`Mock purchase: ${pkg.product.title}`);
-      setProUnlocked(true); // mock purchase sets pro
+      setProUnlocked(true);
       return;
     }
 
@@ -171,14 +187,28 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       setPurchasing(pkg.identifier);
 
       const { customerInfo } = await purchasePackage(pkg);
+      console.log("💡 Purchased package:", pkg.identifier);
+      console.log(
+        "📦 customerInfo after purchase:",
+        JSON.stringify(customerInfo, null, 2),
+      );
 
       const active = customerInfo?.entitlements.active || {};
+      console.log("🔹 active entitlements:", active);
 
-      const isBallActive = active["ball_pro"]?.isActive ?? false;
+      const isBallActive = active["pro"]?.isActive ?? false;
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+
+      console.log(
+        "🎯 isBallActive:",
+        isBallActive,
+        "isScorebookActive:",
+        isScorebookActive,
+      );
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
+      setEntitlements(active);
 
       if (isBallActive || isScorebookActive) {
         try {
@@ -186,20 +216,24 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             ballPro: isBallActive,
             scorebookPro: isScorebookActive,
           });
+          console.log("✅ Subscription state saved (purchase):", {
+            ballPro: isBallActive,
+            scorebookPro: isScorebookActive,
+          });
         } catch (e) {
           console.warn("Failed to save subscription to Firestore:", e);
         }
 
-        if (isBallActive && !isScorebookActive) {
+        if (isBallActive && !isScorebookActive)
           alert("Ball Counter subscription activated 🎉");
-        } else if (!isBallActive && isScorebookActive) {
+        else if (!isBallActive && isScorebookActive)
           alert("Scorebook subscription activated 🎉");
-        } else {
-          alert("All premium features unlocked 🎉");
-        }
+        else alert("All premium features unlocked 🎉");
+
         onClose();
       }
     } catch (err: any) {
+      console.error("❌ Purchase error:", err);
       if (!err.userCancelled) alert(err?.message || "Purchase failed");
     } finally {
       setPurchasing(null);
@@ -208,6 +242,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
   const { height } = Dimensions.get("window");
   const RECOMMENDED_ID = "pro_season_ball"; // 👈 change if your identifier differs
+
+  console.log("Subscription entitlements (render):", entitlements);
 
   return (
     <Modal
@@ -218,7 +254,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     >
       <Wrapper style={{ flex: 1 }}>
         <View style={styles.overlay}>
-          <View style={[styles.modal, { maxHeight: height * 0.75 }]}>
+          <View style={[styles.modal, { maxHeight: height * 0.9 }]}>
             {/* Header */}
             <Text style={styles.title}>Upgrade Your Scoring</Text>
             <Text style={styles.subtitle}>
@@ -232,7 +268,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               {selectedMode === "scorebook" && (
                 <Text style={styles.promoText}>
                   • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
-                  from all previous fixtures{"\n"}• Cloud storage of your data
+                  from all previous fixtures{"\n"}• Cloud storage of your stats
                   {"\n"}• Live partnership runs and dots{"\n"}• Average &
                   highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
                   rotation %{"\n"}• Ball reminder
@@ -252,11 +288,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                     Pro Scorebook
                   </Text>
                   <Text style={styles.promoText}>
-                    • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
-                    from all previous fixtures{"\n"}• Cloud storage of your data
-                    {"\n"}• Live partnership runs and dots{"\n"}• Average &
-                    highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
-                    rotation %{"\n"}• Ball reminder
+                    • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}•
+                    All Team Stats{"\n"}• Scorecards from all previous fixtures
+                    {"\n"}• Cloud storage of your data
                   </Text>
                 </View>
               )}
@@ -275,7 +309,6 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 >
                   Privacy Policy
                 </Text>
-
                 {Platform.OS === "ios" && (
                   <>
                     <Text style={styles.promoLegalSeparator}> | </Text>
@@ -294,12 +327,27 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               </Text>
             </View>
 
-            {/* Legal */}
             <Text style={styles.legal}>
               Subscriptions renew automatically and can be cancelled anytime via
               your App Store account. Apple sends a reminder at least 24 hours
               before renewal.
             </Text>
+
+            {/* Show active entitlements */}
+            {Object.keys(entitlements).length > 0 && (
+              <View style={{ marginBottom: 10 }}>
+                {entitlements["pro"]?.isActive && (
+                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                    ✅ Ball Counter Pro active
+                  </Text>
+                )}
+                {entitlements["scorebook_pro"]?.isActive && (
+                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                    ✅ Scorebook Pro active
+                  </Text>
+                )}
+              </View>
+            )}
 
             {loading ? (
               <View style={styles.loading}>
@@ -315,7 +363,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 ) : (
                   packages.map((pkg) => {
                     const isRecommended = pkg.identifier === RECOMMENDED_ID;
-                    const isSubscribed = entitlements["pro"]?.isActive;
+
+                    // 🔹 NEW: check subscription dynamically against entitlements
+                    const isSubscribed = Object.values(entitlements).some(
+                      (ent: any) => {
+                        if (!ent.isActive) return false;
+                        return ent.productIdentifier === pkg.identifier;
+                      },
+                    );
 
                     return (
                       <View
@@ -350,18 +405,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                           style={[
                             styles.subscribeButton,
                             isRecommended && styles.recommendedButton,
-                            (purchasing === pkg.identifier || isSubscribed) &&
-                              styles.disabledButton,
                           ]}
                           onPress={() => handlePurchase(pkg)}
-                          disabled={!!purchasing || isSubscribed}
                         >
                           <Text style={styles.subscribeText}>
-                            {isSubscribed
-                              ? "Subscribed"
-                              : purchasing === pkg.identifier
-                                ? "Purchasing…"
-                                : "Subscribe"}
+                            {isSubscribed ? "Subscribed" : "Subscribe"}
                           </Text>
                         </Pressable>
                       </View>
@@ -378,7 +426,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <Pressable
               style={styles.restoreButton}
               onPress={async () => {
-                /* ... restore logic remains same ... */
+                /* restore logic */
               }}
             >
               <Text style={styles.restoreText}>Restore Purchases</Text>

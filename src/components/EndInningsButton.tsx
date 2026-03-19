@@ -388,7 +388,8 @@ export default function EndInningsButton({
       resetBatters();
       resetGame();
       resetStartModal();
-      useGameStore.getState().setSetupComplete(true);
+      useGameStore.getState().setSetupComplete(false);
+      useGameStore.getState().triggerSetup();
       router.replace("/");
       return;
     }
@@ -414,7 +415,13 @@ export default function EndInningsButton({
     resetStartModal();
 
     // 🔑 reset game setup modal state
-    useGameStore.getState().setSetupComplete(true);
+    // 🔑 Reset game setup modal state to FALSE so it re-opens next time
+    useGameStore.getState().setSetupComplete(false);
+
+    // Ensure the trigger is also reset or incremented if needed
+    useGameStore.getState().triggerSetup();
+
+    //router.replace("/");
 
     router.replace({
       pathname: "/match-summary",
@@ -514,25 +521,26 @@ export default function EndInningsButton({
 
               <Button onPress={() => setVisible(false)}>Cancel</Button>
             </View>
+            {selectedMode === "scorebook" && (
+              <View style={{ alignItems: "center", marginBottom: 10 }}>
+                <Text
+                  style={styles.fullScorecardLink}
+                  onPress={() => {
+                    setVisible(false);
 
-            <View style={{ alignItems: "center", marginBottom: 10 }}>
-              <Text
-                style={styles.fullScorecardLink}
-                onPress={() => {
-                  setVisible(false);
-
-                  router.push({
-                    pathname: "/fixture-scorecard",
-                    params: {
-                      fixtureId: currentFixture?.id,
-                      from: "scorebook",
-                    },
-                  });
-                }}
-              >
-                Full Scorecard
-              </Text>
-            </View>
+                    router.push({
+                      pathname: "/fixture-scorecard",
+                      params: {
+                        fixtureId: currentFixture?.id,
+                        from: "scorebook",
+                      },
+                    });
+                  }}
+                >
+                  Full Scorecard
+                </Text>
+              </View>
+            )}
           </ScrollView>
         </Modal>
       </Portal>

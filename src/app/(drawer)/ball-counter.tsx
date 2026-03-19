@@ -1,9 +1,10 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BattingTeamSelector from "../../components/Scorebook/BattingTeamSelector";
 import {
   configureRevenueCat,
   getCustomerInfo,
@@ -24,7 +25,6 @@ import CurrentPartnershipDots from "../../components/CurrentPartnershipDots";
 import EndInningsButton from "../../components/EndInningsButton";
 import HighestPartnership from "../../components/HighestPartnership";
 import OversCounter from "../../components/OversCounter";
-import ResetButton from "../../components/ResetButton";
 import RotateStrike from "../../components/RotateStrike";
 import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../components/Score/ScoreWickets";
@@ -63,6 +63,14 @@ function HomeContent() {
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isSetupVisible, setIsSetupVisible] = useState(!isSetupComplete);
+  const setupTrigger = useGameStore((s) => s.setupTrigger);
+
+  const gameConfig = useGameStore((s) => s.gameConfig);
+  const { teams } = useTeamStore();
+  const currentGame = useGameStore((s) => s.currentGame);
+  const { startGame } = useGameStore();
+  const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
+  const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
 
   // Keep screen awake
   useKeepAwake();
@@ -71,6 +79,7 @@ function HomeContent() {
   const overs = events.filter((e: MatchEvent) => e.countsAsBall).length / 6;
 
   //const showStats = overs <= 6 || proUnlocked;
+  //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
   const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
   //const ballReminderEnabled = proUnlocked || overs <= 6;
   const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
@@ -94,11 +103,33 @@ function HomeContent() {
       configureRevenueCat();
       const customerInfo = await getCustomerInfo();
 
-      const isProActive =
-        customerInfo.entitlements.active["pro"]?.isActive ?? false;
+      const activeEntitlements = customerInfo.entitlements.active || {};
 
-      setProUnlocked(isProActive);
-      await saveSubscription(isProActive);
+      const isBallActive = activeEntitlements["pro"]?.isActive ?? false; // matches your entitlement
+      const isScorebookActive =
+        activeEntitlements["scorebook_pro"]?.isActive ?? false; // might be undefined
+
+      setProUnlocked(isBallActive);
+      useMatchStore.getState().setProUnlockedScorebook(isScorebookActive); // <- make sure you call the correct setter
+
+      //console.log("ENTITLEMENTS:", customerInfo.entitlements.active);
+      //console.log("proUnlocked:", proUnlocked);
+      //console.log("proScorebookUnlocked:", proScorebookUnlocked);
+      //console.log("showStats:", showStats);
+
+      /*
+      const active = customerInfo.entitlements.active || {};
+
+      const isBallActive = active["ball_pro"]?.isActive ?? false;
+      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+
+      setProUnlocked(isBallActive);
+      useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
+      */
+      await saveSubscription({
+        ballPro: isBallActive,
+        scorebookPro: isScorebookActive,
+      });
     };
 
     init();
@@ -114,6 +145,7 @@ function HomeContent() {
     })();
   }, [loadTeams]);
 
+  /*
   useEffect(() => {
     if (!isSetupComplete) {
       setIsSetupVisible(false);
@@ -124,12 +156,64 @@ function HomeContent() {
     }
   }, [isSetupComplete]);
 
+  useEffect(() => {
+    setIsSetupVisible(false);
+    const timer = setTimeout(() => setIsSetupVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, [setupTrigger]);
+  */
+
+  useEffect(() => {
+    // If setup is complete, make sure the modal is hidden
+    if (isSetupComplete) {
+      setIsSetupVisible(false);
+      return;
+    }
+
+    // If setup is NOT complete, flash the modal to ensure it mounts
+    setIsSetupVisible(false);
+    const timer = setTimeout(() => {
+      setIsSetupVisible(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [isSetupComplete, setupTrigger]); // setupTrigger still here to catch button taps
+
   // Handle reset
   const handleReset = useCallback(() => {
     useMatchStore.getState().resetInnings();
     useGameStore.getState().resetGame();
     //setSelectedBatters([]);
     //setSelectedBowlerId(null);
+  }, []);
+
+  const legalBallsBowled = useMemo(
+    () => events.filter((e) => e.countsAsBall).length,
+    [events],
+  );
+
+  const playingTeams = useMemo(() => {
+    if (!gameConfig) return [];
+
+    return teams.filter(
+      (t) =>
+        t.id === gameConfig.yourTeam.id ||
+        t.id === gameConfig.oppositionTeam.id,
+    );
+  }, [teams, gameConfig]);
+
+  const handleResetTeams = useCallback(() => {
+    // 1. Clear the nested game data (this makes BattingTeamSelector show the list)
+    useGameStore.getState().resetTeamsOnly();
+
+    // 2. Clear your local component state
+    setSelectedBatters([]);
+    setSelectedBowlerId(null);
+
+    // 3. Clear matchStore events if necessary
+    useMatchStore.getState().resetInnings();
+
+    // Note: Because we didn't call resetGame(), isSetupComplete stays TRUE.
   }, []);
 
   if (__DEV__) {
@@ -168,7 +252,6 @@ function HomeContent() {
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
         <EndInningsButton onComplete={handleReset} />
-        <ResetButton />
 
         <CurrentOverDisplay />
         <View style={styles.divider} />
@@ -182,6 +265,18 @@ function HomeContent() {
         </View>
 
         <View style={styles.divider} />
+
+        <BattingTeamSelector
+          allTeams={playingTeams}
+          selectedBattingTeamId={currentGame?.battingTeamId ?? null}
+          bowlingTeamId={currentGame?.bowlingTeamId ?? null}
+          legalBallsBowled={legalBallsBowled}
+          onSelectTeam={(battingId, bowlingId) => {
+            console.log("START GAME", battingId, bowlingId);
+            startGame(battingId, bowlingId, []);
+          }}
+          onReset={handleResetTeams}
+        />
 
         {!showStats && (
           <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />
@@ -249,8 +344,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "center",
-    gap: 20,
-    marginBottom: 16,
+    gap: 0,
+    marginBottom: 0,
   },
   statsRow: {
     flexDirection: "row",

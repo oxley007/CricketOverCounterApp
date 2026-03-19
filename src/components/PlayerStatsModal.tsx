@@ -1,8 +1,9 @@
-// src/components/PlayerStatsModal.tsx
+"use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Modal, Portal, Text } from "react-native-paper";
+import { getCustomerInfo, isRevenueCatAvailable } from "../services/revenuecat";
 import { useMatchStore } from "../state/matchStore";
 import type {
   SeasonPlayerStats,
@@ -15,7 +16,7 @@ type StatsModalProps = {
   title: string;
   stats: SeasonPlayerStats | SeasonTeamStats | null;
   type?: "player" | "team";
-  onUpgrade?: () => void; // <-- add this
+  onUpgrade?: () => void;
 };
 
 export default function PlayerStatsModal({
@@ -26,18 +27,49 @@ export default function PlayerStatsModal({
   type = "player",
   onUpgrade,
 }: StatsModalProps) {
-  if (!stats) return null;
+  useEffect(() => {
+    (async () => {
+      if (!visible) return;
+      if (!isRevenueCatAvailable()) return;
+
+      const info = await getCustomerInfo();
+
+      console.log("LOG  Subscription entitlements:", info.entitlements.active);
+
+      // ✅ Check all active entitlements for Ball Counter and Scorebook
+      const activeEntitlements = Object.values(info.entitlements.active || {});
+
+      let isBallProActive = false;
+      let isScorebookProActive = false;
+
+      activeEntitlements.forEach((entitlement) => {
+        const id = entitlement.productIdentifier || "";
+        console.log("DEBUG  Checking entitlement:", id);
+        if (id.includes("ball")) isBallProActive = true;
+        if (id.includes("scorebook")) isScorebookProActive = true;
+      });
+
+      console.log("DEBUG  isBallProActive:", isBallProActive);
+      console.log("DEBUG  isScorebookProActive:", isScorebookProActive);
+
+      // Update Zustand store
+      useMatchStore.getState().setProUnlocked(isBallProActive);
+      useMatchStore.getState().setProUnlockedScorebook(isScorebookProActive);
+    })();
+  }, [visible]);
 
   const isPlayer = type === "player";
   const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
   const showIAPModal = useMatchStore((s) => s.showIAPModal);
+
+  if (!stats) return null;
 
   // Batting stats
   const battingStats = [
     { label: "Matches", value: stats.batting.matches, free: true },
     { label: "Innings", value: stats.batting.innings, free: true },
     { label: "Dismissals", value: stats.batting.dismissals, free: true },
-    { label: "Runs", value: stats.batting.runs },
+    { label: "Runs", value: stats.batting.runs, free: true },
     {
       label: "Highest Score",
       value:
@@ -66,7 +98,7 @@ export default function PlayerStatsModal({
     { label: "Overs", value: stats.bowling.overs, free: true },
     { label: "Balls Bowled", value: stats.bowling.balls, free: true },
     { label: "Maidens", value: stats.bowling.maidens, free: true },
-    { label: "Runs", value: stats.bowling.runs },
+    { label: "Runs", value: stats.bowling.runs, free: true },
     { label: "Wickets", value: stats.bowling.wickets },
     { label: "Economy", value: stats.bowling.economy },
     { label: "Wides", value: stats.bowling.wides },
@@ -173,12 +205,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 10,
+    color: "#000",
   },
   section: {
     fontSize: 16,
     fontWeight: "600",
     marginTop: 10,
     marginBottom: 6,
+    color: "#000",
   },
   divider: {
     marginVertical: 10,
@@ -201,7 +235,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   proText: {
-    color: "#4caf50", // green text
+    color: "#4caf50",
     fontWeight: "bold",
   },
   customProBox: {

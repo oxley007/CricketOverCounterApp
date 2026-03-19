@@ -23,7 +23,7 @@ export default function NewInningsButton({ onComplete }: Props) {
   const [log, setLog] = useState("");
 
   // Live store resets
-  const resetInnings = useMatchStore((s) => s.resetInnings);
+  const resetInnings = useMatchStore((s) => s.resetInningsOnly);
   const resetGame = useGameStore((s) => s.resetGame);
   const resetBatters = useGameStore((s) => s.resetBatters);
   const saveCurrentInnings = useFixtureStore((s) => s.saveCurrentInnings);
@@ -134,84 +134,43 @@ export default function NewInningsButton({ onComplete }: Props) {
   };
 
   const handleTestSetup = async () => {
+    // 1️⃣ Reset guest if needed
     resetGuestIfNeeded();
 
+    // 2️⃣ Grab stores
     const fixtureStore = useFixtureStore.getState();
-    const matchStore = useMatchStore.getState(); // One declaration for the whole function
+    const matchStore = useMatchStore.getState();
     const fixture = fixtureStore.currentFixture;
 
     if (!fixture) return;
 
-    // 1. Capture current data - MUST define currentEvents here
-    const currentEvents = [...matchStore.events];
-    const finalInningsRuns = currentEvents.reduce(
-      (sum, e) => sum + (e.runs || 0),
-      0,
-    );
-    const finalInningsWickets = currentEvents.filter(
-      (e) => e.type === "wicket",
-    ).length;
+    console.log("🔹 Starting test setup for fixture:", fixture.id);
 
-    // 2. Identify the innings we are currently finishing
-    const updatedInnings = [...fixture.innings];
-    const finishedIdx = updatedInnings.length - 1;
+    // 3️⃣ Save current innings (SOURCE OF TRUTH)
+    console.log("💾 Saving current innings...");
+    saveCurrentInnings();
 
-    if (finishedIdx >= 0) {
-      updatedInnings[finishedIdx] = {
-        ...updatedInnings[finishedIdx],
-        matchEvents: currentEvents,
-        totalRuns: finalInningsRuns,
-        totalWickets: finalInningsWickets,
-      };
-    }
-
-    // 3. Create the blank placeholder for the next innings
-    const newInnings = {
-      inningsNumber: updatedInnings.length + 1,
-      battingTeamId: "",
-      bowlingTeamId: "",
-      matchEvents: [],
-      battingEntries: [],
-      bowlers: [],
-      totalRuns: 0,
-      totalWickets: 0,
-      totalBalls: 0,
-    };
-
-    // 4. Update the store
-    useFixtureStore.setState({
-      currentFixture: {
-        ...fixture,
-        innings: [...updatedInnings, newInnings],
-      },
-    });
-
-    // 5. Reset live tracking
-    resetInnings();
-    resetGame();
-    resetBatters();
-
-    console.log("🔄 Reset live stores: innings, game, batters");
-
-    // ... rest of your setup code (setGameConfig, etc.)
-    console.log("🔄 Reset live stores: innings, game, batters");
     console.log(
-      "🔹 currentGame after reset:",
-      useGameStore.getState().currentGame,
+      "📌 Fixture after save:",
+      JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
     );
 
-    // ======= Now run your exact existing Test Game Setup code =======
-    const yourTeam = fixture.yourTeam;
-    const oppositionTeam = fixture.oppositionTeam;
-    const overs = fixture.overs ?? 20;
-    const season = fixture.season ?? useGameStore.getState().lastSeason ?? "";
+    // 4️⃣ Extract teams, overs, season (after save)
+    const updatedFixture = useFixtureStore.getState().currentFixture;
+    if (!updatedFixture) return;
+
+    const yourTeam = updatedFixture.yourTeam;
+    const oppositionTeam = updatedFixture.oppositionTeam;
+    const overs = updatedFixture.overs ?? 20;
+    const season =
+      updatedFixture.season ?? useGameStore.getState().lastSeason ?? "";
 
     console.log("⚔️ Teams and config:");
     console.log("Your Team:", yourTeam);
     console.log("Opposition Team:", oppositionTeam);
     console.log("Overs:", overs, "Season:", season);
 
-    //const matchStore = useMatchStore.getState();
+    // 5️⃣ Pull match rules BEFORE we reset anything else
     const {
       wideIsExtraBall,
       wideExtraBallThreshold,
@@ -224,6 +183,7 @@ export default function NewInningsButton({ onComplete }: Props) {
 
     console.log("📏 Match rules from store:", matchStore);
 
+    // 6️⃣ Setup next game (CRITICAL: before addInnings)
     useGameStore.getState().setGameConfig({
       yourTeam: { id: yourTeam.id, name: yourTeam.name },
       oppositionTeam: { id: oppositionTeam.id, name: oppositionTeam.name },
@@ -236,14 +196,13 @@ export default function NewInningsButton({ onComplete }: Props) {
       useGameStore.getState().gameConfig,
     );
 
-    useFixtureStore.getState().startFixture();
-    console.log("🏁 Fixture started");
-
     useGameStore.getState().setLastSeason(season);
     useGameStore.getState().setSetupComplete(true);
+
     console.log("✅ Setup marked complete");
 
-    const isNewGame = !useGameStore.getState().isSetupComplete;
+    // 7️⃣ Apply match rules cleanly
+    const isNewGame = false; // we just set setupComplete → not a new game
 
     useMatchStore.setState({
       wideIsExtraBall,
@@ -255,16 +214,39 @@ export default function NewInningsButton({ onComplete }: Props) {
       baseRuns,
       showMatchRulesModal: isNewGame,
     });
+
     console.log("📝 Applied match rules headless");
 
-    if (isNewGame) {
-      useMatchStore.getState().openMatchRulesModal();
-      console.log("🖼 Opened match rules modal (new game)");
-    }
+    // 8️⃣ Prepare new innings batting entries
+    const nextBattingTeamId =
+      (updatedFixture.innings.length + 1) % 2 === 1
+        ? yourTeam.id
+        : oppositionTeam.id;
 
-    // 🔟 Log summary
+    // Get all teams from store
+    const teams = useTeamStore.getState().teams;
+
+    // Get players for this team
+    const nextTeam = teams.find((t) => t.id === nextBattingTeamId);
+    const battingEntries =
+      nextTeam?.players.map((p) => ({
+        playerId: p.id,
+        entryId: `${p.id}-${Date.now()}`, // unique per innings
+        dismissal: null,
+      })) ?? [];
+
+    // Add next innings with prepared batters
+    useFixtureStore.getState().addInnings(battingEntries);
+    console.log("➕ New innings added with batting entries");
+
+    console.log(
+      "📌 Fixture after adding innings:",
+      JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
+    );
+
+    // 9️⃣ Log summary (unchanged)
     setLog(
-      `✅ Test game setup complete with new innings.\n` +
+      `✅ Game setup complete with new innings.\n` +
         `Your team: ${yourTeam.name} (${yourTeam.id})\n` +
         `Opposition: ${oppositionTeam.name} (${oppositionTeam.id})\n` +
         `Overs: ${overs}\n` +
@@ -281,30 +263,29 @@ export default function NewInningsButton({ onComplete }: Props) {
 
     console.log("💾 Saving fixture for user:", auth.currentUser?.uid);
     console.log(
-      "🔹 fixture to save:",
-      useFixtureStore.getState().currentFixture,
-    );
-    console.log(
       "🔹 currentGame being saved:",
       useGameStore.getState().currentGame,
     );
 
+    // 🔟 Save to Firebase if scorebook mode
     if (isScorebook) {
       await saveNewInningsFixture();
       console.log("💾 New innings saved to Firebase");
     }
-    console.log("💾 New innings saved to Firebase");
+
     console.log("💾 Fixture saved successfully!");
 
     console.log(
       "📌 Final fixture state:",
       JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
     );
+
     console.log(
       "📌 Final currentGame state:",
       useGameStore.getState().currentGame,
     );
 
+    // 1️⃣1️⃣ Done
     onComplete?.();
   };
 

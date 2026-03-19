@@ -1,6 +1,10 @@
 // app/(drawer)/_layout.tsx
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerToggleButton } from "@react-navigation/drawer";
+import {
+  DrawerContentScrollView,
+  DrawerItemList,
+  DrawerToggleButton,
+} from "@react-navigation/drawer";
 import { Drawer } from "expo-router/drawer";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect } from "react";
@@ -30,7 +34,7 @@ export default function DrawerLayout() {
 
   return Platform.OS === "android" ? (
     <SafeAreaProvider>
-      <View style={{ flex: 1, padding: 0 }}>
+      <View style={{ flex: 1 }}>
         <DrawerContent />
       </View>
     </SafeAreaProvider>
@@ -44,11 +48,49 @@ export default function DrawerLayout() {
 function DrawerContent() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-
   const isGuest = useAuthStore((s) => s.isGuest);
+
+  const hiddenRoutes = [
+    "index",
+    "ball-counter",
+    "fixtureList",
+    "stats",
+    "match-summary",
+    "fixture-scorecard",
+    "scorebook",
+    "scorebook/indexScorebook",
+    "scorebook/index",
+  ];
 
   return (
     <Drawer
+      drawerContent={(props) => {
+        const filteredRoutes = props.state.routes.filter(
+          (route) => !hiddenRoutes.includes(route.name),
+        );
+
+        const filteredRouteNames = filteredRoutes.map((r) => r.name);
+
+        const filteredIndex = Math.max(
+          0,
+          filteredRoutes.findIndex(
+            (r) => r.key === props.state.routes[props.state.index]?.key,
+          ),
+        );
+
+        const filteredState = {
+          ...props.state,
+          routes: filteredRoutes,
+          routeNames: filteredRouteNames,
+          index: filteredIndex === -1 ? 0 : filteredIndex,
+        };
+
+        return (
+          <DrawerContentScrollView {...props}>
+            <DrawerItemList {...props} state={filteredState} />
+          </DrawerContentScrollView>
+        );
+      }}
       screenOptions={{
         headerShown: true,
 
@@ -84,16 +126,6 @@ function DrawerContent() {
       }}
     >
       <Drawer.Screen
-        name="index"
-        options={{
-          title: "Home",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Drawer.Screen
         name="upgrade"
         options={{
           title: "Upgrade to Pro",
@@ -104,44 +136,18 @@ function DrawerContent() {
       />
 
       <Drawer.Screen
-        name="fixture-scorecard"
+        name="account"
         options={{
-          title: "Fixture Scorecard",
+          title: isGuest ? "Login / Signup" : "Account",
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+            <Ionicons
+              name={isGuest ? "log-in-outline" : "person-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
-
-      <Drawer.Screen
-        name="match-summary"
-        options={{
-          title: "Match Summary",
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-
-      {isGuest ? (
-        <Drawer.Screen
-          name="account"
-          options={{
-            title: "Login / Signup",
-            drawerIcon: ({ color, size }) => (
-              <Ionicons name="log-in-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      ) : (
-        <Drawer.Screen
-          name="account"
-          options={{
-            title: "Account",
-            drawerIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
     </Drawer>
   );
 }
@@ -149,11 +155,11 @@ function DrawerContent() {
 const styles = StyleSheet.create({
   logoContainer: {
     flex: 1,
-    alignItems: "center", // centers the logo horizontally
+    alignItems: "center",
     justifyContent: "center",
   },
   logo: {
-    width: 120, // adjust size as needed
+    width: 120,
     height: 40,
   },
 });

@@ -79,7 +79,8 @@ export default function BattersPicker({
 
     const activeBattersObjects = currentGame?.activeBatters ?? [];
 
-    if (activeBattersObjects.length === 0) return true;
+    //if (activeBattersObjects.length === 0) return true;
+    if (activeBattersObjects.length < 2) return true;
 
     const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
       calculateBatterStats(matchEvents, playerId, batterInningId),
@@ -101,7 +102,12 @@ export default function BattersPicker({
     return false;
   })();
 
-  const battingTeamPlayers = battingTeam?.players ?? [];
+  //const battingTeamPlayers = battingTeam?.players ?? [];
+  const battingTeamPlayers =
+    battingTeam?.players.map((p) => ({
+      ...p,
+      teamId: battingTeam.id,
+    })) ?? [];
 
   // currentGame.activeBatters is string[], not objects
   const battersIds = currentGame?.activeBatters ?? [];
@@ -276,9 +282,6 @@ export default function BattersPicker({
                       onPress={() => setStrike(p.id)}
                     >
                       <View style={styles.batterRow}>
-                        <Text style={styles.strikeIcon}>
-                          {onStrike ? "⚡" : "  "}
-                        </Text>
                         <Text style={styles.selectedBatterText}>
                           {p.name} — {p.runs} ({p.balls}) SR: {strikeRate}
                         </Text>
@@ -313,14 +316,19 @@ export default function BattersPicker({
             maxSelection={2}
             pickerType="batter"
             renderFooter={() => (
-              <AddPlayerFooter
-                teamId={selectedBattingTeamId!}
-                onAdded={async (name) => {
-                  const player = addPlayerToTeam(selectedBattingTeamId!, name);
-                  if (player)
-                    await handleSavePlayer(selectedBattingTeamId!, player);
-                }}
-              />
+              <View style={{ paddingBottom: 20 }}>
+                <AddPlayerFooter
+                  teamId={selectedBattingTeamId!}
+                  onAdded={async (name) => {
+                    const player = addPlayerToTeam(
+                      selectedBattingTeamId!,
+                      name,
+                    );
+                    if (player)
+                      await handleSavePlayer(selectedBattingTeamId!, player);
+                  }}
+                />
+              </View>
             )}
           />
         </>
@@ -352,23 +360,28 @@ const styles = StyleSheet.create({
   },
   selectedBattersContainer: {
     backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    marginVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-    borderLeftWidth: 5,
-    borderLeftColor: "#12c2e9",
+    //borderRadius: 14,
+    //padding: 16,
+    //marginVertical: 8,
+    //shadowColor: "#000",
+    //shadowOpacity: 0.08,
+    //shadowRadius: 6,
+    //shadowOffset: { width: 0, height: 3 },
+    //elevation: 3,
+    //borderLeftWidth: 5,
+    //borderLeftColor: "#12c2e9",
   },
   selectedBatterItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  selectedBatterText: { fontSize: 16, color: "#0f172a", fontWeight: "500" },
+  selectedBatterText: {
+    fontSize: 16,
+    color: "#0f172a",
+    fontWeight: "500",
+    paddingLeft: 5,
+  },
   batterRow: { flexDirection: "row", alignItems: "center" },
   strikeIcon: {
     width: 20,

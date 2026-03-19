@@ -40,7 +40,14 @@ export default function BowlerPicker({
   const events = useMatchStore((s) => s.events);
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
 
-  const bowlingTeamPlayers = bowlingTeam?.players ?? [];
+  const [lastOverBallCount, setLastOverBallCount] = useState(0);
+
+  //const bowlingTeamPlayers = bowlingTeam?.players ?? [];
+  const bowlingTeamPlayers =
+    bowlingTeam?.players.map((p) => ({
+      ...p,
+      teamId: bowlingTeam.id,
+    })) ?? [];
 
   const currentBowlerId = useGameStore((s) => s.currentGame?.currentBowlerId);
 
@@ -66,26 +73,30 @@ export default function BowlerPicker({
   useEffect(() => {
     if (!currentBowler) return;
 
-    if (ballCount > 0 && ballCount % 6 === 0) {
-      console.log("🏏 End of over detected");
-      console.log("ballCount:", ballCount);
-      console.log("currentBowler:", currentBowler.name);
-
+    if (
+      ballCount > 0 &&
+      ballCount % 6 === 0 &&
+      ballCount !== lastOverBallCount
+    ) {
       const overStats = calculateBowlerStats(events, currentBowler.id);
 
       setLastBowlerStats({
         name: currentBowler.name,
         stats: overStats,
       });
+
+      setLastOverBallCount(ballCount);
     }
-  }, [ballCount, currentBowler, events]);
+  }, [ballCount, currentBowler, events, lastOverBallCount]);
 
   // ======= RESET LAST BOWLER WHEN NEW ONE SELECTED =======
+  /*
   useEffect(() => {
     if (currentBowler) {
       setLastBowlerStats(null);
     }
   }, [currentBowler]);
+  */
 
   // ======= FUNCTIONS =======
   const handleSelectBowler = (playerId: string) => {
@@ -114,8 +125,7 @@ export default function BowlerPicker({
 
   const shouldShowChangeBowler = ballCount % 6 === 0 || ballCount === 0;
 
-  const showLastBowlerUI =
-    lastBowlerStats && (!currentBowler || isOverComplete);
+  const showLastBowlerUI = lastBowlerStats && !currentBowler;
 
   const isOverInProgress = ballsInCurrentOver > 0 && ballsInCurrentOver < 6;
 
@@ -222,13 +232,15 @@ export default function BowlerPicker({
           selectionMode="single"
           pickerType="bowler"
           renderFooter={() => (
-            <AddPlayerFooter
-              teamId={bowlingTeam.id}
-              onAdded={async (name) => {
-                const player = addPlayerToTeam(bowlingTeam.id, name);
-                if (player) await handleSavePlayer(bowlingTeam.id, player);
-              }}
-            />
+            <View style={{ paddingBottom: 20 }}>
+              <AddPlayerFooter
+                teamId={bowlingTeam.id}
+                onAdded={async (name) => {
+                  const player = addPlayerToTeam(bowlingTeam.id, name);
+                  if (player) await handleSavePlayer(bowlingTeam.id, player);
+                }}
+              />
+            </View>
           )}
         />
       )}
@@ -284,7 +296,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   statsText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#334155",
     marginTop: 2,
   },

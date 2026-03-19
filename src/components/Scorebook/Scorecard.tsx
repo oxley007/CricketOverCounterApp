@@ -1,5 +1,6 @@
 import React from "react";
 import { Dimensions, FlatList, StyleSheet, Text, View } from "react-native";
+import type { InningsSnapshot } from "../../state/fixtureStore";
 import {
   calculateBatterStats,
   getDismissalText,
@@ -8,23 +9,25 @@ import { useGameStore } from "../../state/gameStore";
 import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
-import type { InningsSnapshot } from "../../state/fixtureStore";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type Props = {
   events?: MatchEvent[];
   /** When showing a saved innings, pass snapshot so we render without currentGame */
-  inningsSnapshot?: Pick<InningsSnapshot, "battingEntries">;
+  //inningsSnapshot?: Pick<InningsSnapshot, "battingEntries">;
+  inningsSnapshot?: Pick<InningsSnapshot, "battingEntries" | "matchEvents">;
 };
 
 export default function Scorecard({ events, inningsSnapshot }: Props) {
   const storeEvents = useMatchStore((s) => s.events);
-  const matchEvents = events ?? storeEvents;
+  //const matchEvents = events ?? storeEvents;
+  const matchEvents = inningsSnapshot?.matchEvents ?? events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
   const teams = useTeamStore((s) => s.teams);
 
-  const battingEntries = inningsSnapshot?.battingEntries ?? currentGame?.battingEntries;
+  const battingEntries =
+    inningsSnapshot?.battingEntries ?? currentGame?.battingEntries;
   const activeBatters = currentGame?.activeBatters ?? [];
   const activeRetired = currentGame?.activeRetired ?? [];
 
@@ -99,22 +102,28 @@ export default function Scorecard({ events, inningsSnapshot }: Props) {
 
     const dismissal = entry.dismissal;
 
+    const isRunOut =
+      dismissal?.kind === "runout" || dismissal?.kind === "runOut";
+
     const isRetired =
       activeRetired.some(
         (b) =>
           b.playerId === entry.playerId && b.batterInningId === entry.entryId,
       ) || dismissal?.kind === "retired";
 
+    const isPartnership = dismissal?.kind?.toLowerCase() === "partnership";
+
     return {
       key: entry.entryId,
       entry,
       playerId: entry.playerId,
       playerName: playerNameMap[entry.playerId] ?? entry.playerId,
-      bowlerName: isRetired
-        ? "-"
-        : dismissal?.bowlerId
-          ? (playerNameMap[dismissal.bowlerId] ?? "Unknown")
-          : "-",
+      bowlerName:
+        isRetired || isRunOut || isPartnership
+          ? "-"
+          : dismissal?.bowlerId
+            ? (playerNameMap[dismissal.bowlerId] ?? "Unknown")
+            : "-",
       dismissal,
       statusText: isRetired ? "Retired" : undefined,
       ...stats,
