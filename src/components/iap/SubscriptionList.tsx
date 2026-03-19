@@ -1,20 +1,43 @@
-import { Modal, View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Dimensions, Platform, Linking } from "react-native";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Dimensions,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { saveSubscription } from "../../services/firestoreService";
+import {
+  addCustomerInfoUpdateListener,
   configureRevenueCat,
+  getCustomerInfo,
   getOfferings,
   isRevenueCatAvailable,
   purchasePackage,
-  getCustomerInfo,
-  addCustomerInfoUpdateListener,
-  restorePurchases,
 } from "../../services/revenuecat";
 import { useMatchStore } from "../../state/matchStore";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useStartModalStore } from "../../state/startModalStore";
 
-type Package = { identifier: string; product: { priceString: string; title?: string; description?: string } };
+type Package = {
+  identifier: string;
+  product: { priceString: string; title?: string; description?: string };
+};
 
-type Props = { visible: boolean; onClose: () => void };
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+  mode?: "ball" | "scorebook" | "all";
+};
+
+//type Props = { visible: boolean; onClose: () => void };
+
+// ...imports remain the same
 
 export default function SubscriptionModal({ visible, onClose }: Props) {
   const Wrapper = Platform.OS === "android" ? SafeAreaView : View;
@@ -23,50 +46,87 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<any>({});
+  const selectedMode = useStartModalStore((state) => state.selectedMode);
 
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
+  const setProUnlockedScorebook = useMatchStore(
+    (state) => state.setProUnlockedScorebook,
+  );
 
   const fetchOfferings = async () => {
     setLoading(true);
 
     if (isRevenueCatAvailable()) {
       try {
-        // Select offering based on platform
         const offerings: any = await getOfferings();
         console.log("Full offerings:", offerings);
 
         const currentOffering = offerings?.current;
-
         console.log("Current offering:", currentOffering);
         console.log("Available packages:", currentOffering?.availablePackages);
 
-        setPackages(currentOffering?.availablePackages || []);
+        const allPackages = currentOffering?.availablePackages || [];
 
-        // Get customer info and entitlements
+        let filteredPackages = allPackages;
+
+        if (selectedMode === "scorebook") {
+          filteredPackages = allPackages.filter((pkg: any) =>
+            pkg.product.identifier.includes("scorebook"),
+          );
+        } else if (selectedMode === "ballCounter") {
+          filteredPackages = allPackages.filter((pkg: any) =>
+            pkg.product.identifier.includes("ball"),
+          );
+        } else {
+          filteredPackages = allPackages.filter(
+            (pkg: any) =>
+              pkg.product.identifier.includes("scorebook") ||
+              pkg.product.identifier.includes("ball"),
+          );
+        }
+
+        setPackages(filteredPackages);
+
         const customerInfo = await getCustomerInfo();
         const activeEntitlements = customerInfo?.entitlements.active || {};
+        console.log("💡 Active entitlements on fetch:", activeEntitlements);
+
         setEntitlements(activeEntitlements);
+
+        // update stores
         setProUnlocked(activeEntitlements["pro"]?.isActive ?? false);
+        setProUnlockedScorebook(
+          activeEntitlements["scorebook_pro"]?.isActive ?? false,
+        );
       } catch (err) {
         console.error(err);
         setPackages([]);
         setEntitlements({});
         setProUnlocked(false);
+        setProUnlockedScorebook(false);
       }
     } else {
-      // Mock data for testing in Expo Go / simulator
       setPackages([
         {
           identifier: "monthly",
-          product: { priceString: "$4.99", title: "Monthly Plan", description: "Mock monthly subscription" },
+          product: {
+            priceString: "$4.99",
+            title: "Monthly Plan",
+            description: "Mock monthly subscription",
+          },
         },
         {
           identifier: "yearly",
-          product: { priceString: "$49.99", title: "Yearly Plan", description: "Mock yearly subscription" },
+          product: {
+            priceString: "$49.99",
+            title: "Yearly Plan",
+            description: "Mock yearly subscription",
+          },
         },
       ]);
       setEntitlements({});
       setProUnlocked(false);
+      setProUnlockedScorebook(false);
     }
 
     setLoading(false);
@@ -76,7 +136,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     if (!visible) return;
 
     if (isRevenueCatAvailable()) {
-      configureRevenueCat(); // must run first
+      configureRevenueCat();
     }
 
     fetchOfferings();
@@ -85,31 +145,41 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   useEffect(() => {
     if (!isRevenueCatAvailable()) return;
 
-    const listener = addCustomerInfoUpdateListener((customerInfo) => {
-      setEntitlements(customerInfo.entitlements.active || {});
-      setProUnlocked(customerInfo.entitlements.active["pro"]?.isActive ?? false);
+    const listener = addCustomerInfoUpdateListener(async (customerInfo) => {
+      const active = customerInfo.entitlements.active || {};
+      console.log("🔔 Customer info update:", active);
+
+      const isBallActive = active["pro"]?.isActive ?? false;
+      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+
+      setProUnlocked(isBallActive);
+      setProUnlockedScorebook(isScorebookActive);
+      setEntitlements(active);
+
+      try {
+        await saveSubscription({
+          ballPro: isBallActive,
+          scorebookPro: isScorebookActive,
+        });
+        console.log("✅ Subscription state saved (listener):", {
+          ballPro: isBallActive,
+          scorebookPro: isScorebookActive,
+        });
+      } catch (e) {
+        console.warn("Failed to sync subscription to Firestore:", e);
+      }
     });
 
     return () => {
-      // listener might be a function (RN module) or object with remove()
-      if (typeof listener === "function") {
-        listener(); // call it to unsubscribe
-      } else if (listener?.remove) {
-        listener.remove();
-      }
+      if (typeof listener === "function") listener();
+      else if (listener?.remove) listener.remove();
     };
   }, []);
-
-  useEffect(() => {
-    // Check if "pro" entitlement is active
-    const isProActive = entitlements["pro"]?.isActive ?? false;
-    setProUnlocked(isProActive);
-  }, [entitlements]);
 
   const handlePurchase = async (pkg: Package) => {
     if (!isRevenueCatAvailable()) {
       alert(`Mock purchase: ${pkg.product.title}`);
-      setProUnlocked(true); // mock purchase sets pro
+      setProUnlocked(true);
       return;
     }
 
@@ -117,16 +187,53 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       setPurchasing(pkg.identifier);
 
       const { customerInfo } = await purchasePackage(pkg);
+      console.log("💡 Purchased package:", pkg.identifier);
+      console.log(
+        "📦 customerInfo after purchase:",
+        JSON.stringify(customerInfo, null, 2),
+      );
 
-      const isProActive = customerInfo?.entitlements.active["pro"]?.isActive ?? false;
-      setEntitlements(customerInfo.entitlements.active);
-      setProUnlocked(isProActive); // <-- update store
+      const active = customerInfo?.entitlements.active || {};
+      console.log("🔹 active entitlements:", active);
 
-      if (isProActive) {
-        alert("Subscription activated 🎉");
+      const isBallActive = active["pro"]?.isActive ?? false;
+      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+
+      console.log(
+        "🎯 isBallActive:",
+        isBallActive,
+        "isScorebookActive:",
+        isScorebookActive,
+      );
+
+      setProUnlocked(isBallActive);
+      setProUnlockedScorebook(isScorebookActive);
+      setEntitlements(active);
+
+      if (isBallActive || isScorebookActive) {
+        try {
+          await saveSubscription({
+            ballPro: isBallActive,
+            scorebookPro: isScorebookActive,
+          });
+          console.log("✅ Subscription state saved (purchase):", {
+            ballPro: isBallActive,
+            scorebookPro: isScorebookActive,
+          });
+        } catch (e) {
+          console.warn("Failed to save subscription to Firestore:", e);
+        }
+
+        if (isBallActive && !isScorebookActive)
+          alert("Ball Counter subscription activated 🎉");
+        else if (!isBallActive && isScorebookActive)
+          alert("Scorebook subscription activated 🎉");
+        else alert("All premium features unlocked 🎉");
+
         onClose();
       }
     } catch (err: any) {
+      console.error("❌ Purchase error:", err);
       if (!err.userCancelled) alert(err?.message || "Purchase failed");
     } finally {
       setPurchasing(null);
@@ -136,165 +243,199 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const { height } = Dimensions.get("window");
   const RECOMMENDED_ID = "pro_season_ball"; // 👈 change if your identifier differs
 
+  console.log("Subscription entitlements (render):", entitlements);
+
   return (
-
-  <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-  <Wrapper style={{ flex: 1 }}>
-    <View style={styles.overlay}>
-      <View style={[styles.modal, { maxHeight: height * 0.75 }]}>
-
-        {/* Header */}
-        <Text style={styles.title}>Upgrade Your Scoring</Text>
-        <Text style={styles.subtitle}>
-          Choose a plan that suits your season.
-        </Text>
-
-        {/* Value proposition */}
-        <View style={styles.promoBox}>
-          <Text style={styles.promoTitle}>What you unlock</Text>
-
-          <Text style={styles.promoText}>
-            • Live partnership runs and dots{"\n"}
-            • Average & highest partnerships{"\n"}
-            • Total innings dots{"\n"}
-            • Strike rotation %{"\n"}
-            • Ball reminder
-          </Text>
-
-          {/* Legal links */}
-          <View style={styles.promoLegalLinks}>
-            <Text style={styles.promoLegalInline}>
-              <Text
-                style={styles.promoLegalText}
-                onPress={() =>
-                  Linking.openURL(
-                    "https://www.4dot6digital.com/privacy-policy-cricket-ball-counter"
-                  )
-                }
-              >
-                Privacy Policy
-              </Text>
-
-              {Platform.OS === "ios" && (
-                <>
-                  <Text style={styles.promoLegalSeparator}> | </Text>
-                  <Text
-                    style={styles.promoLegalText}
-                    onPress={() =>
-                      Linking.openURL(
-                        "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-                      )
-                    }
-                  >
-                    Terms of Use
-                  </Text>
-                </>
-              )}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <Wrapper style={{ flex: 1 }}>
+        <View style={styles.overlay}>
+          <View style={[styles.modal, { maxHeight: height * 0.9 }]}>
+            {/* Header */}
+            <Text style={styles.title}>Upgrade Your Scoring</Text>
+            <Text style={styles.subtitle}>
+              Choose a plan that suits your season.
             </Text>
+
+            {/* Value proposition */}
+            <View style={styles.promoBox}>
+              <Text style={styles.promoTitle}>What you unlock</Text>
+
+              {selectedMode === "scorebook" && (
+                <Text style={styles.promoText}>
+                  • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
+                  from all previous fixtures{"\n"}• Cloud storage of your stats
+                  {"\n"}• Live partnership runs and dots{"\n"}• Average &
+                  highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
+                  rotation %{"\n"}• Ball reminder
+                </Text>
+              )}
+
+              {selectedMode !== "scorebook" && (
+                <View>
+                  <Text style={styles.promoSubHeading}>Pro Standard</Text>
+                  <Text style={styles.promoText}>
+                    • Live partnership runs and dots{"\n"}• Average & highest
+                    partnerships{"\n"}• Total innings dots{"\n"}• Strike
+                    rotation %{"\n"}• Ball reminder
+                  </Text>
+
+                  <Text style={[styles.promoSubHeading, { marginTop: 10 }]}>
+                    Pro Scorebook
+                  </Text>
+                  <Text style={styles.promoText}>
+                    • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}•
+                    All Team Stats{"\n"}• Scorecards from all previous fixtures
+                    {"\n"}• Cloud storage of your data
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Legal links */}
+            <View style={styles.promoLegalLinks}>
+              <Text style={styles.promoLegalInline}>
+                <Text
+                  style={styles.promoLegalText}
+                  onPress={() =>
+                    Linking.openURL(
+                      "https://www.4dot6digital.com/privacy-policy-cricket-ball-counter",
+                    )
+                  }
+                >
+                  Privacy Policy
+                </Text>
+                {Platform.OS === "ios" && (
+                  <>
+                    <Text style={styles.promoLegalSeparator}> | </Text>
+                    <Text
+                      style={styles.promoLegalText}
+                      onPress={() =>
+                        Linking.openURL(
+                          "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+                        )
+                      }
+                    >
+                      Terms of Use
+                    </Text>
+                  </>
+                )}
+              </Text>
+            </View>
+
+            <Text style={styles.legal}>
+              Subscriptions renew automatically and can be cancelled anytime via
+              your App Store account. Apple sends a reminder at least 24 hours
+              before renewal.
+            </Text>
+
+            {/* Show active entitlements */}
+            {Object.keys(entitlements).length > 0 && (
+              <View style={{ marginBottom: 10 }}>
+                {entitlements["pro"]?.isActive && (
+                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                    ✅ Ball Counter Pro active
+                  </Text>
+                )}
+                {entitlements["scorebook_pro"]?.isActive && (
+                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                    ✅ Scorebook Pro active
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {loading ? (
+              <View style={styles.loading}>
+                <ActivityIndicator size="large" />
+                <Text>Loading plans…</Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.scrollContent}>
+                {packages.length === 0 ? (
+                  <Text style={styles.empty}>
+                    No subscriptions available right now.
+                  </Text>
+                ) : (
+                  packages.map((pkg) => {
+                    const isRecommended = pkg.identifier === RECOMMENDED_ID;
+
+                    // 🔹 NEW: check subscription dynamically against entitlements
+                    const isSubscribed = Object.values(entitlements).some(
+                      (ent: any) => {
+                        if (!ent.isActive) return false;
+                        return ent.productIdentifier === pkg.identifier;
+                      },
+                    );
+
+                    return (
+                      <View
+                        key={pkg.identifier}
+                        style={[
+                          styles.package,
+                          isRecommended && styles.recommendedPackage,
+                        ]}
+                      >
+                        {isRecommended && (
+                          <View style={styles.recommendedBadge}>
+                            <Text style={styles.recommendedText}>
+                              RECOMMENDED
+                            </Text>
+                          </View>
+                        )}
+
+                        <Text style={styles.pkgTitle}>
+                          {pkg.product.title.replace(/\s*\(.*\)$/, "")}
+                        </Text>
+                        <Text style={styles.price}>
+                          {pkg.product.priceString}
+                        </Text>
+
+                        {pkg.product.description && (
+                          <Text style={styles.description}>
+                            {pkg.product.description}
+                          </Text>
+                        )}
+
+                        <Pressable
+                          style={[
+                            styles.subscribeButton,
+                            isRecommended && styles.recommendedButton,
+                          ]}
+                          onPress={() => handlePurchase(pkg)}
+                        >
+                          <Text style={styles.subscribeText}>
+                            {isSubscribed ? "Subscribed" : "Subscribe"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeText}>Not now</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.restoreButton}
+              onPress={async () => {
+                /* restore logic */
+              }}
+            >
+              <Text style={styles.restoreText}>Restore Purchases</Text>
+            </Pressable>
           </View>
         </View>
-        
-        {/* Legal */}
-        <Text style={styles.legal}>
-          Subscriptions renew automatically and can be cancelled anytime via your App Store account.
-          Apple sends a reminder at least 24 hours before renewal.
-        </Text>
-
-        {loading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" />
-            <Text>Loading plans…</Text>
-          </View>
-        ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {packages.length === 0 ? (
-              <Text style={styles.empty}>
-                No subscriptions available right now.
-              </Text>
-            ) : (
-              packages.map((pkg) => {
-                const isRecommended = pkg.identifier === RECOMMENDED_ID;
-                const isSubscribed = entitlements["pro"]?.isActive;
-
-                return (
-                  <View
-                    key={pkg.identifier}
-                    style={[
-                      styles.package,
-                      isRecommended && styles.recommendedPackage,
-                    ]}
-                  >
-                    {isRecommended && (
-                      <View style={styles.recommendedBadge}>
-                        <Text style={styles.recommendedText}>RECOMMENDED</Text>
-                      </View>
-                    )}
-
-                    <Text style={styles.pkgTitle}>{pkg.product.title.replace(/\s*\(.*\)$/, "")}</Text>
-                    <Text style={styles.price}>{pkg.product.priceString}</Text>
-
-                    {pkg.product.description && (
-                      <Text style={styles.description}>
-                        {pkg.product.description}
-                      </Text>
-                    )}
-
-                    <Pressable
-                      style={[
-                        styles.subscribeButton,
-                        isRecommended && styles.recommendedButton,
-                        (purchasing === pkg.identifier || isSubscribed) &&
-                          styles.disabledButton,
-                      ]}
-                      onPress={() => handlePurchase(pkg)}
-                      disabled={!!purchasing || isSubscribed}
-                    >
-                      <Text style={styles.subscribeText}>
-                        {isSubscribed
-                          ? "Subscribed"
-                          : purchasing === pkg.identifier
-                          ? "Purchasing…"
-                          : "Subscribe"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              })
-            )}
-          </ScrollView>
-        )}
-
-        <Pressable style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeText}>Not now</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.restoreButton}
-          onPress={async () => {
-            if (!isRevenueCatAvailable()) return alert("Restore unavailable");
-            try {
-              setLoading(true);
-              const restoredInfo = await restorePurchases();
-              const isProActive = restoredInfo.entitlements.active["pro"]?.isActive ?? false;
-              setEntitlements(restoredInfo.entitlements.active);
-              setProUnlocked(isProActive);
-              alert("Purchases restored successfully");
-            } catch {
-              alert("Restore failed");
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <Text style={styles.restoreText}>Restore Purchases</Text>
-        </Pressable>
-
-      </View>
-    </View>
-    </Wrapper>
-  </Modal>
-
-);
+      </Wrapper>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -453,7 +594,7 @@ const styles = StyleSheet.create({
   },
 
   restoreText: {
-    color: "#4f7cff",      // optional: make it blue
+    color: "#4f7cff", // optional: make it blue
     fontWeight: "600",
     fontSize: 15,
     textDecorationLine: "underline", // adds underline
@@ -476,6 +617,10 @@ const styles = StyleSheet.create({
   promoLegalSeparator: {
     color: "#666",
   },
-
-
+  promoSubHeading: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 4,
+    marginTop: 6,
+  },
 });

@@ -1,8 +1,18 @@
+import { router } from "expo-router";
 import React from "react";
-import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
-import { useMatchStore } from "../../state/matchStore";
-import WicketsNegativeInfo from "./WicketsNegativeInfo";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useGameStore } from "../../state/gameStore";
+import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
+import WicketsNegativeInfo from "./WicketsNegativeInfo";
 
 export default function MatchRulesModal({
   visible,
@@ -14,9 +24,38 @@ export default function MatchRulesModal({
   children: React.ReactNode;
 }) {
   // ✅ Hook is inside the component
-  const wicketsAsNegativeRuns = useMatchStore(
-    (s) => s.wicketsAsNegativeRuns
-  );
+  //const startFixture = useFixtureStore((s) => s.startFixture);
+  //const addInnings = useFixtureStore((s) => s.addInnings);
+  const wicketsAsNegativeRuns = useMatchStore((s) => s.wicketsAsNegativeRuns);
+
+  //const selectedMode = useStartModalStore((s) => s.selectedMode);
+  //const isScorebook = selectedMode === "scorebook";
+
+  const handleBack = () => {
+    // Remove any partial fixture
+    //useFixtureStore.setState({ currentFixture: undefined });
+
+    // Reset game state
+    //useMatchStore.getState().resetInnings();
+    useGameStore.getState().resetGame();
+
+    // Reset start modal state
+    const startModal = useStartModalStore.getState();
+    startModal.reset();
+
+    // Close setup modal
+    onClose();
+
+    // Navigate to root
+    router.replace("/");
+
+    // Open start modal after navigation
+    setTimeout(() => {
+      useStartModalStore.getState().open();
+      //startModal.reset();
+      startModal.open();
+    }, 120);
+  };
 
   return (
     <Modal
@@ -26,39 +65,37 @@ export default function MatchRulesModal({
       statusBarTranslucent
     >
       <SafeAreaView style={{ flex: 1 }}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Match Rules</Text>
-          <ScrollView
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            <Text style={styles.title}>Match Rules</Text>
+            <ScrollView
               style={styles.scrollContent}
               contentContainerStyle={{ paddingBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-            {/* ✅ Show info when setting is enabled */}
-            {wicketsAsNegativeRuns && (
-              <WicketsNegativeInfo />
-            )}
+              {/* ✅ Show info when setting is enabled */}
+              {wicketsAsNegativeRuns && <WicketsNegativeInfo />}
 
-            {/* 👇 CONTENT COMES FROM PARENT */}
-            <View style={styles.content}>
-              {children}
-            </View>
-          </ScrollView>
-          <Pressable
-            style={styles.button}
-            onPress={onClose}
-          >
-            <Text style={styles.buttonText}>
-              Save & Continue
-            </Text>
-          </Pressable>
+              {/* 👇 CONTENT COMES FROM PARENT */}
+              <View style={styles.content}>{children}</View>
+            </ScrollView>
+            <Pressable
+              style={styles.button}
+              onPress={() => {
+                onClose();
+              }}
+            >
+              <Text style={styles.buttonText}>Save & Continue</Text>
+            </Pressable>
+            <Pressable style={styles.backButton} onPress={handleBack}>
+              <Text style={styles.backButtonText}>Cancel</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
       </SafeAreaView>
     </Modal>
   );
 }
-
 
 const styles = StyleSheet.create({
   overlay: {
@@ -94,8 +131,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   scrollContent: {
-      maxHeight: "70%", // ensures scrolling before it grows too big
-      backgroundColor: '#ddd',
-      borderRadius: 10,
-    },
+    maxHeight: "70%", // ensures scrolling before it grows too big
+    backgroundColor: "#ddd",
+    borderRadius: 10,
+  },
+  backButton: {
+    //position: "absolute",
+    //top: 12,
+    //left: 12,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    zIndex: 20,
+  },
+
+  backButtonText: {
+    fontSize: 16,
+    color: "#666",
+  },
 });

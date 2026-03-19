@@ -2,20 +2,42 @@ import React, { useState } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
 import { useMatchStore } from "../state/matchStore";
+import { useGameStore } from "../state/gameStore";
+import { useStartModalStore } from "../state/startModalStore";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
-export default function MatchButtons() {
-  const { resetInnings } = useMatchStore();
+type ResetButtonProps = {
+  onReset?: () => void;
+};
+
+export default function ResetButton({ onReset }: ResetButtonProps) {
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  // Store actions
+  const resetInnings = useMatchStore((s) => s.resetInnings);
+  const resetGame = useGameStore((s) => s.resetGame);
+  const resetBatters = useGameStore((s) => s.resetBatters);
+
+  // clearer naming
+  const resetStartModal = useStartModalStore((s) => s.reset);
 
   const handleConfirmReset = () => {
     setConfirmVisible(false);
+
+    // ✅ Correct reset order
     resetInnings();
+    resetBatters();
+    resetGame();
+
+    // Optional parent cleanup
+    onReset?.();
+
+    // Show start modal again
+    resetStartModal();
   };
 
   return (
     <View>
-      {/* Reset button */}
       <Button
         mode="contained"
         onPress={() => setConfirmVisible(true)}
@@ -26,7 +48,6 @@ export default function MatchButtons() {
         Reset Ball Counter
       </Button>
 
-      {/* Confirmation modal */}
       <Portal>
         <Modal
           visible={confirmVisible}
@@ -40,13 +61,11 @@ export default function MatchButtons() {
           </Text>
 
           <View style={styles.modalActions}>
-            <Button onPress={() => setConfirmVisible(false)}>
-              Cancel
-            </Button>
+            <Button onPress={() => setConfirmVisible(false)}>Cancel</Button>
             <Button
               mode="contained"
-              onPress={handleConfirmReset}
               buttonColor="#c471ed"
+              onPress={handleConfirmReset}
             >
               Reset
             </Button>

@@ -14,16 +14,25 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.4dot6.cricketballandovercounter",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "5.1.5",
       "icon": "./assets/ios-icon.png",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["com.4dot6.cricketballandovercounter"]
+          }
+        ]
+      },
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#12c2e9",
-        "foregroundImage": "./assets/ios-icon.png",
+        "foregroundImage": "./assets/ios-icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

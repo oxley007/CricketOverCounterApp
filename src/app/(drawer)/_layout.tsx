@@ -1,14 +1,40 @@
 // app/(drawer)/_layout.tsx
-import { StyleSheet, View, Image, Platform, useColorScheme } from "react-native";
-import { Drawer } from "expo-router/drawer";
-import { DrawerToggleButton } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  DrawerContentScrollView,
+  DrawerItemList,
+  DrawerToggleButton,
+} from "@react-navigation/drawer";
+import { Drawer } from "expo-router/drawer";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect } from "react";
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { auth } from "../../services/firebaseConfig";
+import { useAuthStore } from "../../state/authStore";
 
 export default function DrawerLayout() {
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("✅ Firebase session restored:", user.uid);
+      } else {
+        console.log("👤 No logged in user");
+      }
+    });
+
+    return unsub;
+  }, []);
+
   return Platform.OS === "android" ? (
     <SafeAreaProvider>
-      <View style={{ flex: 1, padding: 0 }}>
+      <View style={{ flex: 1 }}>
         <DrawerContent />
       </View>
     </SafeAreaProvider>
@@ -22,25 +48,63 @@ export default function DrawerLayout() {
 function DrawerContent() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const isGuest = useAuthStore((s) => s.isGuest);
+
+  const hiddenRoutes = [
+    "index",
+    "ball-counter",
+    "fixtureList",
+    "stats",
+    "match-summary",
+    "fixture-scorecard",
+    "scorebook",
+    "scorebook/indexScorebook",
+    "scorebook/index",
+  ];
 
   return (
     <Drawer
+      drawerContent={(props) => {
+        const filteredRoutes = props.state.routes.filter(
+          (route) => !hiddenRoutes.includes(route.name),
+        );
+
+        const filteredRouteNames = filteredRoutes.map((r) => r.name);
+
+        const filteredIndex = Math.max(
+          0,
+          filteredRoutes.findIndex(
+            (r) => r.key === props.state.routes[props.state.index]?.key,
+          ),
+        );
+
+        const filteredState = {
+          ...props.state,
+          routes: filteredRoutes,
+          routeNames: filteredRouteNames,
+          index: filteredIndex === -1 ? 0 : filteredIndex,
+        };
+
+        return (
+          <DrawerContentScrollView {...props}>
+            <DrawerItemList {...props} state={filteredState} />
+          </DrawerContentScrollView>
+        );
+      }}
       screenOptions={{
         headerShown: true,
 
         headerTitle: () => (
           <View style={styles.logoContainer}>
             <Image
-              source={require("../../../assets/4dot6logo-transparent-old.png")}
+              source={require("../../../assets/4dot6logo-transparent.png")}
               style={styles.logo}
               resizeMode="contain"
             />
           </View>
         ),
 
-        headerLeft: () => (
-          <DrawerToggleButton tintColor="#000" />
-        ),
+        headerLeft: () => <DrawerToggleButton tintColor="#000" />,
 
         headerTitleAlign: "center",
 
@@ -62,21 +126,25 @@ function DrawerContent() {
       }}
     >
       <Drawer.Screen
-        name="index"
-        options={{
-          title: "Home",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Drawer.Screen
         name="upgrade"
         options={{
           title: "Upgrade to Pro",
           drawerIcon: ({ color, size }) => (
             <Ionicons name="card-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="account"
+        options={{
+          title: isGuest ? "Login / Signup" : "Account",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name={isGuest ? "log-in-outline" : "person-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -87,11 +155,11 @@ function DrawerContent() {
 const styles = StyleSheet.create({
   logoContainer: {
     flex: 1,
-    alignItems: "center", // centers the logo horizontally
+    alignItems: "center",
     justifyContent: "center",
   },
   logo: {
-    width: 120,  // adjust size as needed
+    width: 120,
     height: 40,
   },
 });
