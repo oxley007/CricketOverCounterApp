@@ -3,21 +3,21 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import {
-    createUserWithEmailAndPassword,
-    GoogleAuthProvider,
-    OAuthProvider,
-    onAuthStateChanged,
-    signInWithCredential,
-    signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  OAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithEmailAndPassword,
 } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
 import { auth } from "../services/firebaseConfig";
@@ -45,9 +45,7 @@ export default function AuthModal({ visible, onClose }: Props) {
     if (response?.type === "success") {
       const { id_token } = response.authentication!;
       const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential)
-        .then(() => onClose())
-        .catch((err) => Alert.alert("Google Login Error", err.message));
+      handleOAuthLogin(credential);
     }
   }, [response]);
 
@@ -66,15 +64,10 @@ export default function AuthModal({ visible, onClose }: Props) {
         idToken: appleCredential.identityToken!,
       });
 
-      await signInWithCredential(auth, credential);
-      onClose();
+      await handleOAuthLogin(credential);
     } catch (e: any) {
-      console.log("🍎 Apple Login Error Object:", e);
       if (e.code !== "ERR_REQUEST_CANCELED") {
-        Alert.alert(
-          "Apple Login Failed",
-          e.message || JSON.stringify(e, null, 2),
-        );
+        Alert.alert("Apple Login Failed", e.message || JSON.stringify(e));
       }
     }
   };
@@ -96,6 +89,27 @@ export default function AuthModal({ visible, onClose }: Props) {
         }
       } else {
         Alert.alert("Login Error", err.message);
+      }
+    }
+  };
+
+  const handleOAuthLogin = async (credential: any) => {
+    try {
+      await signInWithCredential(auth, credential);
+      onClose();
+    } catch (err: any) {
+      // Case: user exists with a different login method
+      if (err.code === "auth/account-exists-with-different-credential") {
+        const email = err.customData.email;
+        const methods = await auth.fetchSignInMethodsForEmail(email);
+        Alert.alert(
+          "Account Already Exists",
+          `An account already exists for ${email} using ${methods.join(
+            ", ",
+          )}. Please login with that method first.`,
+        );
+      } else {
+        Alert.alert("Login Failed", err.message);
       }
     }
   };

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useMatchStore } from "../../state/matchStore";
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
 
 export default function UpgradeProBox({ onUpgrade }: Props) {
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
-
+  console.log("UpgradeProBox mounted");
   // Don't show if already unlocked
   if (proUnlocked) return null;
 
@@ -17,7 +17,9 @@ export default function UpgradeProBox({ onUpgrade }: Props) {
       <View style={styles.info}>
         <Text style={styles.textHeader}>Upgrade to Pro</Text>
         <Text style={styles.textDesc}>
-          Unlock live partnership, average & highest partnership, dot-ball counter, and ball timer for this innings and all future innings. Free for the first 6 overs — upgrade to Pro to continue beyond that.
+          Unlock live partnership, average & highest partnership, dot-ball
+          counter, and ball timer for this innings and all future innings. Free
+          for the first 6 overs — upgrade to Pro to continue beyond that.
         </Text>
         <Pressable style={styles.button} onPress={onUpgrade}>
           <Text style={styles.buttonText}>Upgrade</Text>
@@ -42,27 +44,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textHeader: {
-    fontSize: 22,           // bigger header
+    fontSize: 22, // bigger header
     fontWeight: "bold",
     marginBottom: 8,
     color: "#4f7cff",
   },
   textDesc: {
-    fontSize: 16,           // bigger description text
+    fontSize: 16, // bigger description text
     color: "#333",
     marginBottom: 12,
     lineHeight: 22,
   },
   button: {
     backgroundColor: "#4f7cff",
-    paddingVertical: 14,     // bigger button
+    paddingVertical: 14, // bigger button
     borderRadius: 10,
     alignItems: "center",
-    width: "100%",           // full width
+    width: "100%", // full width
   },
   buttonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 16,            // bigger text
+    fontSize: 16, // bigger text
   },
 });

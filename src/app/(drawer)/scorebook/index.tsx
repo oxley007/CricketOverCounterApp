@@ -81,6 +81,7 @@ export default function ScorebookIndex() {
   console.log("render battingTeamId", battingTeamId);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  console.log("showSubscriptionModal", showSubscriptionModal);
   //const [battingTeamId, setBattingTeamId] = useState<string | null>(null);
   //const [bowlingTeamId, setBowlingTeamId] = useState<string | null>(null);
 
@@ -136,10 +137,12 @@ export default function ScorebookIndex() {
       store.setProUnlockedScorebook(isScorebookActive);
 
       // Optional: save to Firestore
+      /*
       await saveSubscription({
         ballPro: isBallActive,
         scorebookPro: isScorebookActive,
       });
+      */
 
       console.log(
         "Ball Pro:",
@@ -443,8 +446,6 @@ export default function ScorebookIndex() {
         <BallTimerDisplay />
         <EndInningsButton onComplete={handleReset} />
         <CurrentOverDisplay />
-
-        <View style={styles.divider} />
 
         <View style={styles.scoreRow}>
           <ScoreWickets />

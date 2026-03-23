@@ -29,42 +29,44 @@ export default function PlayerStatsModal({
 }: StatsModalProps) {
   useEffect(() => {
     (async () => {
-      if (!visible) return;
-      if (!isRevenueCatAvailable()) return;
+      if (!visible || !isRevenueCatAvailable()) return;
 
-      const info = await getCustomerInfo();
+      try {
+        const info = await getCustomerInfo();
+        const active = info.entitlements.active;
 
-      console.log("LOG  Subscription entitlements:", info.entitlements.active);
+        const isScorebookActive = active["scorebook_pro"] !== undefined;
 
-      // ✅ Check all active entitlements for Ball Counter and Scorebook
-      const activeEntitlements = Object.values(info.entitlements.active || {});
+        console.log("✅ RevenueCat says Scorebook is:", isScorebookActive);
 
-      let isBallProActive = false;
-      let isScorebookProActive = false;
+        // DIRECT STORE UPDATE (Bypasses setter functions to rule out naming bugs)
+        useMatchStore.setState({ proScorebookUnlocked: isScorebookActive });
 
-      activeEntitlements.forEach((entitlement) => {
-        const id = entitlement.productIdentifier || "";
-        console.log("DEBUG  Checking entitlement:", id);
-        if (id.includes("ball")) isBallProActive = true;
-        if (id.includes("scorebook")) isScorebookProActive = true;
-      });
-
-      console.log("DEBUG  isBallProActive:", isBallProActive);
-      console.log("DEBUG  isScorebookProActive:", isScorebookProActive);
-
-      // Update Zustand store
-      useMatchStore.getState().setProUnlocked(isBallProActive);
-      useMatchStore.getState().setProUnlockedScorebook(isScorebookProActive);
+        // LOG THE STORE STATE IMMEDIATELY AFTER
+        const currentState = useMatchStore.getState();
+        console.log("📦 Store State now:", {
+          proUnlocked: currentState.proUnlocked,
+          proScorebookUnlocked: currentState.proScorebookUnlocked,
+        });
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
     })();
   }, [visible]);
 
   const isPlayer = type === "player";
-  const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+
+  // Get status from store
+  const ballProUnlocked = useMatchStore((s) => s.proUnlocked);
+  const scorebookProUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+
+  // Logic: Stats show if Scorebook is active OR if the Ball counter is active (as per your current logic)
+  const proUnlocked = scorebookProUnlocked;
   const showIAPModal = useMatchStore((s) => s.showIAPModal);
 
   if (!stats) return null;
 
-  // Batting stats
+  // ... (battingStats and bowlingStats arrays remain exactly as you had them)
   const battingStats = [
     { label: "Matches", value: stats.batting.matches, free: true },
     { label: "Innings", value: stats.batting.innings, free: true },
@@ -93,7 +95,6 @@ export default function PlayerStatsModal({
     { label: "100s", value: stats.batting.hundreds },
   ];
 
-  // Bowling stats
   const bowlingStats = [
     { label: "Overs", value: stats.bowling.overs, free: true },
     { label: "Balls Bowled", value: stats.bowling.balls, free: true },

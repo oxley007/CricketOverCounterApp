@@ -24,7 +24,8 @@ export default function FixturesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
-  const proUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+  const proUnlocked = useMatchStore((s) => s.proUnlocked); // for ball counter
+  const proScorebookUnlocked = useMatchStore((s) => s.proUnlockedScorebook); // for scorebook
 
   const startModal = useStartModalStore();
 
@@ -129,7 +130,7 @@ export default function FixturesScreen() {
             onPress={() => {
               const isFreeFixture = index === 0;
 
-              if (!proUnlocked && !isFreeFixture) {
+              if (!proScorebookUnlocked && !isFreeFixture) {
                 setShowSubscriptionModal(true);
                 return;
               }

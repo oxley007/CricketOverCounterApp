@@ -28,6 +28,7 @@ import OversCounter from "../../components/OversCounter";
 import RotateStrike from "../../components/RotateStrike";
 import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../components/Score/ScoreWickets";
+import CurrentBattingDisplay from "../../components/Scorebook/CurrentBattingDisplay";
 import GameSetupModal from "../../components/Scorebook/GameSetupModal";
 import BaseRunsInput from "../../components/Settings/BaseRunsInput";
 import MatchRulesModal from "../../components/Settings/MatchRulesModal";
@@ -72,6 +73,11 @@ function HomeContent() {
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
 
+  const battingTeamId = useGameStore((s) => s.currentGame?.battingTeamId);
+  const allTeams = useTeamStore((s) => s.teams); // Ensure you're using the correct team list
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  const openStartModal = useStartModalStore((s) => s.open);
+
   // Keep screen awake
   useKeepAwake();
 
@@ -94,6 +100,16 @@ function HomeContent() {
       if (!hasSeen) openMatchRulesModal();
     })();
   }, [openMatchRulesModal]);
+
+  useEffect(() => {
+    // 🔑 If no mode is selected, force the selector open
+    if (selectedMode === null) {
+      openStartModal();
+
+      // Also ensure the setup modal doesn't try to "fight" for the screen
+      setIsSetupVisible(false);
+    }
+  }, [selectedMode, openStartModal]);
 
   // RevenueCat init
   useEffect(() => {
@@ -164,20 +180,20 @@ function HomeContent() {
   */
 
   useEffect(() => {
-    // If setup is complete, make sure the modal is hidden
+    if (selectedMode === null) return; // Wait until mode is chosen
+
     if (isSetupComplete) {
       setIsSetupVisible(false);
       return;
     }
 
-    // If setup is NOT complete, flash the modal to ensure it mounts
     setIsSetupVisible(false);
     const timer = setTimeout(() => {
       setIsSetupVisible(true);
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [isSetupComplete, setupTrigger]); // setupTrigger still here to catch button taps
+  }, [isSetupComplete, setupTrigger, selectedMode]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -262,6 +278,10 @@ function HomeContent() {
 
         <View style={styles.scoreRow}>
           <OversCounter />
+        </View>
+
+        <View style={styles.scoreRow}>
+          <CurrentBattingDisplay />
         </View>
 
         <View style={styles.divider} />

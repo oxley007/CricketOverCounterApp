@@ -73,16 +73,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           filteredPackages = allPackages.filter((pkg: any) =>
             pkg.product.identifier.includes("scorebook"),
           );
-        } else if (selectedMode === "ballCounter") {
-          filteredPackages = allPackages.filter((pkg: any) =>
-            pkg.product.identifier.includes("ball"),
-          );
         } else {
-          filteredPackages = allPackages.filter(
-            (pkg: any) =>
-              pkg.product.identifier.includes("scorebook") ||
-              pkg.product.identifier.includes("ball"),
-          );
+          filteredPackages = allPackages;
         }
 
         setPackages(filteredPackages);

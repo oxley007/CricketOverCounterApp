@@ -2,7 +2,10 @@
 "use client";
 
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useGameStore } from "../../state/gameStore";
+import { useStartModalStore } from "../../state/startModalStore";
 import type { Team } from "../../state/teamStore";
 
 interface BattingTeamSelectorProps {
@@ -22,7 +25,45 @@ export default function BattingTeamSelector({
   onSelectTeam,
   onReset,
 }: BattingTeamSelectorProps) {
-  // 👇 SHOW TEAM CHOICE
+  const router = useRouter();
+  const { selectedMode, close, selectBallCounter, selectScorebook } =
+    useStartModalStore();
+
+  if (!allTeams || allTeams.length === 0) {
+    const handleSetup = () => {
+      close();
+
+      const game = useGameStore.getState();
+      game.triggerSetup();
+
+      if (selectedMode === "ballCounter") {
+        selectBallCounter();
+
+        setTimeout(() => {
+          router.replace("/ball-counter");
+        }, 100);
+      } else if (selectedMode === "scorebook") {
+        selectScorebook();
+
+        setTimeout(() => {
+          router.replace("/scorebook");
+        }, 100);
+      }
+    };
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>No teams selected</Text>
+
+        <Pressable onPress={handleSetup} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>
+            Select teams for this game
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!selectedBattingTeamId) {
     return (
       <View style={styles.card}>

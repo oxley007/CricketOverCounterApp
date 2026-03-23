@@ -73,7 +73,7 @@ export default function EndInningsButton({
         setAuthVisible(true);
 
         const unsubscribe = useAuthStore.subscribe((state) => {
-          if (!state.isGuest && auth.currentUser) {
+          if (auth.currentUser || state.isGuest) {
             unsubscribe();
             resolve();
           }
