@@ -109,6 +109,11 @@ interface FixtureState {
   clearAllFixtures: () => void;
 }
 
+const initialState = {
+  fixtures: [],
+  currentFixture: undefined,
+};
+
 /* =========================================================
    Store
 ========================================================= */
@@ -370,8 +375,8 @@ export const useFixtureStore = create<FixtureState>()(
       },
 
       /* ========================
-   Clear ALL Fixtures (DEV)
-======================== */
+      Clear ALL Fixtures (DEV)
+      ======================== */
 
       clearAllFixtures: () => {
         set({
@@ -389,6 +394,8 @@ export const useFixtureStore = create<FixtureState>()(
         set((state) => ({
           fixtures: state.fixtures.filter((f) => f.id !== fixtureId),
         })),
+
+      reset: () => set(initialState),
     }),
     {
       name: "cricket-fixtures",

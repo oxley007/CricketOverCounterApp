@@ -177,4 +177,5 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       console.warn,
     );
   },
+  reset: () => set({ teams: [] }),
 }));

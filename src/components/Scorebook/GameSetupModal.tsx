@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { saveSeason } from "../../services/firestoreService";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
@@ -82,6 +83,9 @@ export default function GameSetupModal({ visible, onClose }: Props) {
     // 3 Save last season in store
     useGameStore.getState().setLastSeason(season);
 
+    // ✅ ALSO save to Firestore
+    saveSeason(season);
+
     console.log("Game store after start:", useGameStore.getState());
 
     // 4 Mark setup complete (this closes GameSetupModal)
@@ -89,28 +93,6 @@ export default function GameSetupModal({ visible, onClose }: Props) {
 
     // 5 Open settings modal (or whatever modal you want)
     useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
-  };
-
-  const handleBackOld = () => {
-    // Remove any partial fixture
-    //useFixtureStore.setState({ currentFixture: undefined });
-
-    // Reset stores
-    //useMatchStore.getState().resetInnings();
-    useGameStore.getState().resetGame();
-
-    // Close setup modal
-    onClose();
-
-    // Navigate home
-    router.replace("/");
-
-    // Open StartModeModal AFTER navigation
-    setTimeout(() => {
-      const startModal = useStartModalStore.getState();
-      startModal.reset();
-      startModal.open();
-    }, 120);
   };
 
   const handleBack = () => {

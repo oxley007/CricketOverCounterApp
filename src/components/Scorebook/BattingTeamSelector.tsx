@@ -4,9 +4,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
+import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import type { Team } from "../../state/teamStore";
+import { resetGuestIfNeeded } from "../../utils/authHelpers";
 
 interface BattingTeamSelectorProps {
   allTeams: Team[];
@@ -31,24 +34,28 @@ export default function BattingTeamSelector({
 
   if (!allTeams || allTeams.length === 0) {
     const handleSetup = () => {
-      close();
+      const startModalStore = useStartModalStore.getState();
+      const gameStore = useGameStore.getState();
 
-      const game = useGameStore.getState();
-      game.triggerSetup();
+      // 1️⃣ Cleanup (same as drawer)
+      resetGuestIfNeeded();
+      useFixtureStore.getState().saveCurrentInnings();
+      useFixtureStore.setState({ currentFixture: undefined });
+      useMatchStore.getState().resetInnings();
 
-      if (selectedMode === "ballCounter") {
-        selectBallCounter();
+      gameStore.resetGame();
+      gameStore.resetBatters();
+      gameStore.setSetupComplete(false);
+      gameStore.triggerSetup();
 
-        setTimeout(() => {
-          router.replace("/ball-counter");
-        }, 100);
-      } else if (selectedMode === "scorebook") {
-        selectScorebook();
+      // 2️⃣ Reset modal state properly
+      startModalStore.reset();
+      startModalStore.open();
 
-        setTimeout(() => {
-          router.replace("/scorebook");
-        }, 100);
-      }
+      // 3️⃣ Navigate (go to setup flow, not back into game)
+      setTimeout(() => {
+        router.replace("/");
+      }, 0);
     };
 
     return (
@@ -56,8 +63,8 @@ export default function BattingTeamSelector({
         <Text style={styles.title}>No teams selected</Text>
 
         <Pressable onPress={handleSetup} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>
-            Select teams for this game
+          <Text style={styles.primaryButtonTextTwo}>
+            Select Teams & Setup Game
           </Text>
         </Pressable>
       </View>
@@ -144,6 +151,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 16,
+  },
+  primaryButtonTextTwo: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+    padding: 10,
   },
 
   changeButton: {

@@ -244,197 +244,208 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       transparent
       onRequestClose={onClose}
     >
-      <Wrapper style={{ flex: 1 }}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+      >
+        {/* 1. Remove justify-end here to allow full-screen overlay */}
         <View style={styles.overlay}>
-          <View style={[styles.modal, { maxHeight: height * 0.9 }]}>
-            {/* Header */}
-            <Text style={styles.title}>Upgrade Your Scoring</Text>
-            <Text style={styles.subtitle}>
-              Choose a plan that suits your season.
-            </Text>
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* 2. ScrollView fills the screen, container content expands */}
 
-            {/* Value proposition */}
-            <View style={styles.promoBox}>
-              <Text style={styles.promoTitle}>What you unlock</Text>
+            <View style={styles.modal}>
+              {/* Header */}
+              <Text style={styles.title}>Upgrade Your Scoring</Text>
+              <Text style={styles.subtitle}>
+                Choose a plan that suits your season.
+              </Text>
 
-              {selectedMode === "scorebook" && (
-                <Text style={styles.promoText}>
-                  • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
-                  from all previous fixtures{"\n"}• Cloud storage of your stats
-                  {"\n"}• Live partnership runs and dots{"\n"}• Average &
-                  highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
-                  rotation %{"\n"}• Ball reminder
-                </Text>
-              )}
+              {/* Value proposition */}
+              <View style={styles.promoBox}>
+                <Text style={styles.promoTitle}>What you unlock</Text>
 
-              {selectedMode !== "scorebook" && (
-                <View>
-                  <Text style={styles.promoSubHeading}>Pro Standard</Text>
+                {selectedMode === "scorebook" && (
                   <Text style={styles.promoText}>
-                    • Live partnership runs and dots{"\n"}• Average & highest
-                    partnerships{"\n"}• Total innings dots{"\n"}• Strike
+                    • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
+                    from all previous fixtures{"\n"}• Cloud storage of your
+                    stats
+                    {"\n"}• Live partnership runs and dots{"\n"}• Average &
+                    highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
                     rotation %{"\n"}• Ball reminder
                   </Text>
+                )}
 
-                  <Text style={[styles.promoSubHeading, { marginTop: 10 }]}>
-                    Pro Scorebook
+                {selectedMode !== "scorebook" && (
+                  <View>
+                    <Text style={styles.promoSubHeading}>Pro Standard</Text>
+                    <Text style={styles.promoText}>
+                      • Live partnership runs and dots{"\n"}•Previous innings
+                      over compare{"\n"}• Average & highest partnerships{"\n"}•
+                      Total innings dots{"\n"}• Strike rotation %{"\n"}• Ball
+                      reminder
+                    </Text>
+
+                    <Text style={[styles.promoSubHeading, { marginTop: 10 }]}>
+                      Pro Scorebook
+                    </Text>
+                    <Text style={styles.promoText}>
+                      • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}
+                      • All Team Stats{"\n"}• Scorecards from all previous
+                      fixtures
+                      {"\n"}• Cloud storage of your data
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Legal links */}
+              <View style={styles.promoLegalLinks}>
+                <Text style={styles.promoLegalInline}>
+                  <Text
+                    style={styles.promoLegalText}
+                    onPress={() =>
+                      Linking.openURL(
+                        "https://www.4dot6digital.com/privacy-policy-cricket-ball-counter",
+                      )
+                    }
+                  >
+                    Privacy Policy
                   </Text>
-                  <Text style={styles.promoText}>
-                    • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}•
-                    All Team Stats{"\n"}• Scorecards from all previous fixtures
-                    {"\n"}• Cloud storage of your data
-                  </Text>
+                  {Platform.OS === "ios" && (
+                    <>
+                      <Text style={styles.promoLegalSeparator}> | </Text>
+                      <Text
+                        style={styles.promoLegalText}
+                        onPress={() =>
+                          Linking.openURL(
+                            "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+                          )
+                        }
+                      >
+                        Terms of Use
+                      </Text>
+                    </>
+                  )}
+                </Text>
+              </View>
+
+              <Text style={styles.legal}>
+                Subscriptions renew automatically and can be cancelled anytime
+                via your App Store account. Apple sends a reminder at least 24
+                hours before renewal.
+              </Text>
+
+              {/* Show active entitlements */}
+              {Object.keys(entitlements).length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  {entitlements["pro"]?.isActive && (
+                    <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                      ✅ Ball Counter Pro active
+                    </Text>
+                  )}
+                  {entitlements["scorebook_pro"]?.isActive && (
+                    <Text style={{ fontSize: 13, color: "#4f7cff" }}>
+                      ✅ Scorebook Pro active
+                    </Text>
+                  )}
                 </View>
               )}
-            </View>
 
-            {/* Legal links */}
-            <View style={styles.promoLegalLinks}>
-              <Text style={styles.promoLegalInline}>
-                <Text
-                  style={styles.promoLegalText}
-                  onPress={() =>
-                    Linking.openURL(
-                      "https://www.4dot6digital.com/privacy-policy-cricket-ball-counter",
-                    )
-                  }
-                >
-                  Privacy Policy
-                </Text>
-                {Platform.OS === "ios" && (
-                  <>
-                    <Text style={styles.promoLegalSeparator}> | </Text>
-                    <Text
-                      style={styles.promoLegalText}
-                      onPress={() =>
-                        Linking.openURL(
-                          "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
-                        )
-                      }
-                    >
-                      Terms of Use
+              {loading ? (
+                <View style={styles.loading}>
+                  <ActivityIndicator size="large" />
+                  <Text>Loading plans…</Text>
+                </View>
+              ) : (
+                <View>
+                  {packages.length === 0 ? (
+                    <Text style={styles.empty}>
+                      No subscriptions available right now.
                     </Text>
-                  </>
-                )}
-              </Text>
-            </View>
+                  ) : (
+                    packages.map((pkg) => {
+                      const isRecommended = pkg.identifier === RECOMMENDED_ID;
 
-            <Text style={styles.legal}>
-              Subscriptions renew automatically and can be cancelled anytime via
-              your App Store account. Apple sends a reminder at least 24 hours
-              before renewal.
-            </Text>
+                      // 🔹 NEW: check subscription dynamically against entitlements
+                      const isSubscribed = Object.values(entitlements).some(
+                        (ent: any) => {
+                          if (!ent.isActive) return false;
+                          return ent.productIdentifier === pkg.identifier;
+                        },
+                      );
 
-            {/* Show active entitlements */}
-            {Object.keys(entitlements).length > 0 && (
-              <View style={{ marginBottom: 10 }}>
-                {entitlements["pro"]?.isActive && (
-                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
-                    ✅ Ball Counter Pro active
-                  </Text>
-                )}
-                {entitlements["scorebook_pro"]?.isActive && (
-                  <Text style={{ fontSize: 13, color: "#4f7cff" }}>
-                    ✅ Scorebook Pro active
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {loading ? (
-              <View style={styles.loading}>
-                <ActivityIndicator size="large" />
-                <Text>Loading plans…</Text>
-              </View>
-            ) : (
-              <ScrollView contentContainerStyle={styles.scrollContent}>
-                {packages.length === 0 ? (
-                  <Text style={styles.empty}>
-                    No subscriptions available right now.
-                  </Text>
-                ) : (
-                  packages.map((pkg) => {
-                    const isRecommended = pkg.identifier === RECOMMENDED_ID;
-
-                    // 🔹 NEW: check subscription dynamically against entitlements
-                    const isSubscribed = Object.values(entitlements).some(
-                      (ent: any) => {
-                        if (!ent.isActive) return false;
-                        return ent.productIdentifier === pkg.identifier;
-                      },
-                    );
-
-                    return (
-                      <View
-                        key={pkg.identifier}
-                        style={[
-                          styles.package,
-                          isRecommended && styles.recommendedPackage,
-                        ]}
-                      >
-                        {isRecommended && (
-                          <View style={styles.recommendedBadge}>
-                            <Text style={styles.recommendedText}>
-                              RECOMMENDED
-                            </Text>
-                          </View>
-                        )}
-
-                        <Text style={styles.pkgTitle}>
-                          {pkg.product.title.replace(/\s*\(.*\)$/, "")}
-                        </Text>
-                        <Text style={styles.price}>
-                          {pkg.product.priceString}
-                        </Text>
-
-                        {pkg.product.description && (
-                          <Text style={styles.description}>
-                            {pkg.product.description}
-                          </Text>
-                        )}
-
-                        <Pressable
+                      return (
+                        <View
+                          key={pkg.identifier}
                           style={[
-                            styles.subscribeButton,
-                            isRecommended && styles.recommendedButton,
+                            styles.package,
+                            isRecommended && styles.recommendedPackage,
                           ]}
-                          onPress={() => handlePurchase(pkg)}
                         >
-                          <Text style={styles.subscribeText}>
-                            {isSubscribed ? "Subscribed" : "Subscribe"}
+                          {isRecommended && (
+                            <View style={styles.recommendedBadge}>
+                              <Text style={styles.recommendedText}>
+                                RECOMMENDED
+                              </Text>
+                            </View>
+                          )}
+
+                          <Text style={styles.pkgTitle}>
+                            {pkg.product.title.replace(/\s*\(.*\)$/, "")}
                           </Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })
-                )}
-              </ScrollView>
-            )}
+                          <Text style={styles.price}>
+                            {pkg.product.priceString}
+                          </Text>
 
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeText}>Not now</Text>
-            </Pressable>
+                          {pkg.product.description && (
+                            <Text style={styles.description}>
+                              {pkg.product.description}
+                            </Text>
+                          )}
 
-            <Pressable
-              style={styles.restoreButton}
-              onPress={async () => {
-                /* restore logic */
-              }}
-            >
-              <Text style={styles.restoreText}>Restore Purchases</Text>
-            </Pressable>
-          </View>
+                          <Pressable
+                            style={[
+                              styles.subscribeButton,
+                              isRecommended && styles.recommendedButton,
+                            ]}
+                            onPress={() => handlePurchase(pkg)}
+                          >
+                            <Text style={styles.subscribeText}>
+                              {isSubscribed ? "Subscribed" : "Subscribe"}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+
+              <Pressable style={styles.closeButton} onPress={onClose}>
+                <Text style={styles.closeText}>Not now</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.restoreButton}
+                onPress={async () => {
+                  /* restore logic */
+                }}
+              >
+                <Text style={styles.restoreText}>Restore Purchases</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
         </View>
-      </Wrapper>
+      </ScrollView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    flex: 1, // Full screen
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
   },
 
   modal: {
@@ -442,6 +453,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    // Removed height restrictions
   },
 
   title: {
@@ -490,7 +502,8 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 20,
+    flexGrow: 1, // Allows content to be smaller or larger than screen
+    justifyContent: "flex-end", // Pushes content to bottom, but allows scrolling up
   },
 
   empty: {

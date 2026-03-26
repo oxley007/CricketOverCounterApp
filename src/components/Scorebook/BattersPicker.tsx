@@ -308,7 +308,7 @@ export default function BattersPicker({
           <SelectPlayersModal
             visible={showModal}
             onClose={handleCloseModal}
-            title={`Select Opening Batters for ${battingTeam?.name ?? ""}`}
+            title={`Select Batters for ${battingTeam?.name ?? ""}`}
             players={battingTeamPlayers}
             selectedIds={selectedBatters}
             onSelectionChange={onSelectionChange}

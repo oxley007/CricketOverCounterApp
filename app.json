@@ -2,7 +2,7 @@
   "expo": {
     "name": "cricket-umpire-ball-counter",
     "slug": "cricket-umpire-ball-counter",
-    "version": "5.2.4",
+    "version": "5.2.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cricketumpireballcounter",
@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.4dot6.cricketballandovercounter",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "5.2.4",
+      "buildNumber": "5.2.8",
       "icon": "./assets/ios-icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -37,6 +37,16 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.cricketovercounterapp",
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "com.cricketovercounterapp"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "versionCode": 49
     },
     "web": {

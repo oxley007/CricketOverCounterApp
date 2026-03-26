@@ -31,6 +31,7 @@ import SubscriptionList from "../../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../../components/iap/UpgradeProBox";
 import OversCounter from "../../../components/OversCounter";
 import PlayerStatsModal from "../../../components/PlayerStatsModal";
+import PreviousInningsComparison from "../../../components/PreviousInningsComparison";
 import RotateStrike from "../../../components/RotateStrike";
 import MatchRulesSettings from "../../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../../components/Score/ScoreWickets";
@@ -521,6 +522,9 @@ export default function ScorebookIndex() {
 
         {showStats && (
           <>
+            <View style={styles.statsRow}>
+              <PreviousInningsComparison />
+            </View>
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <CurrentPartnership />

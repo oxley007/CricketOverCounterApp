@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { ActivityIndicator, Button, Modal, Portal } from "react-native-paper";
+import { Button, Modal, Portal } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { useRouter } from "expo-router";
@@ -434,18 +434,6 @@ export default function EndInningsButton({
 
   return (
     <View>
-      {/* Global saving overlay while we finish and navigate */}
-      <Portal>
-        <Modal
-          visible={saving}
-          dismissable={false}
-          contentContainerStyle={styles.loadingContainer}
-        >
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" />
-          </View>
-        </Modal>
-      </Portal>
       {/* END INNINGS BUTTON */}
       <Button
         mode="contained"
@@ -485,8 +473,11 @@ export default function EndInningsButton({
                     disabled={saving}
                     onPress={async () => {
                       setSaving(true);
-                      await requireAuth(handleEndGame);
-                      // keep spinner until navigation completes; handleEndGame clears on error
+                      try {
+                        await requireAuth(handleEndGame);
+                      } finally {
+                        setSaving(false);
+                      }
                     }}
                     style={styles.primaryAction}
                     labelStyle={{ color: "#fff" }} // make sure text renders
@@ -500,8 +491,11 @@ export default function EndInningsButton({
                     disabled={saving}
                     onPress={async () => {
                       setSaving(true);
-                      await requireAuth(handleAbandonMatch); // or handleAbandonMatch
-                      // keep spinner until navigation completes; handleAbandonMatch clears on error
+                      try {
+                        await requireAuth(handleAbandonMatch);
+                      } finally {
+                        setSaving(false);
+                      }
                     }}
                   >
                     Match Abandoned (save stats, no result)

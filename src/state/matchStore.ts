@@ -60,6 +60,24 @@ export type MatchEvent =
       wicketPenaltyWicketType?: string;
     };
 
+const initialState = {
+  events: [],
+  baseRuns: 0,
+  wideIsExtraBall: true,
+  wicketsAsNegativeRuns: false,
+  wicketPenaltyRuns: 5,
+  wicketPenaltyAffectsBatter: false,
+  wicketPenaltyAffectsBowler: false,
+  autoSwapStrikeAfterWicket: true,
+  wideExtraBallThreshold: 0,
+  ballReminderEnabled: true,
+  ballReminderThresholdPercent: 33,
+  showMatchRulesModal: false,
+  proUnlocked: false,
+  proUnlockedScorebook: false,
+  season: "",
+};
+
 export const matchStoreRef = create<MatchState>()(
   persist(
     (set, get) => ({
@@ -423,6 +441,10 @@ export const matchStoreRef = create<MatchState>()(
 
       setProUnlockedScorebook: (value: boolean) =>
         set((state) => ({ ...state, proUnlockedScorebook: value })),
+
+      reset: () => set(initialState),
+
+      setSeason: (season: string) => set({ season }),
     }),
     {
       name: "cricket-match-events",

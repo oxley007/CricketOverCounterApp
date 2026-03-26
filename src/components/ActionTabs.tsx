@@ -123,7 +123,7 @@ export default function ActionTabs() {
 
         // 🛑 Guard – must have bowler
         if (isScorebook && !currentBowlerId) {
-          Alert.alert("Please add a bowler to continue");
+          Alert.alert("Please select a bowler to continue");
           return;
         }
 

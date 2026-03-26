@@ -25,6 +25,7 @@ import CurrentPartnershipDots from "../../components/CurrentPartnershipDots";
 import EndInningsButton from "../../components/EndInningsButton";
 import HighestPartnership from "../../components/HighestPartnership";
 import OversCounter from "../../components/OversCounter";
+import PreviousInningsComparison from "../../components/PreviousInningsComparison";
 import RotateStrike from "../../components/RotateStrike";
 import MatchRulesSettings from "../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../components/Score/ScoreWickets";
@@ -240,7 +241,7 @@ function HomeContent() {
   return (
     <View style={styles.screen}>
       <StartModeModal />
-      {isSetupVisible && (
+      {isSetupVisible && selectedMode !== null && (
         <GameSetupModal
           visible={isSetupVisible}
           onClose={() => setIsSetupVisible(false)}
@@ -304,6 +305,10 @@ function HomeContent() {
 
         {showStats && (
           <>
+            <View style={styles.statsRow}>
+              <PreviousInningsComparison />
+            </View>
+
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <CurrentPartnership />

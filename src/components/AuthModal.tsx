@@ -2,6 +2,7 @@
 
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
+import { useRouter } from "expo-router";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -27,25 +28,53 @@ import { useAuthStore } from "../state/authStore";
 type Props = {
   visible: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 };
 
-export default function AuthModal({ visible, onClose }: Props) {
+export default function AuthModal({ visible, onClose, onSuccess }: Props) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const setGuest = useAuthStore((s) => s.setGuest);
 
   // ================= GOOGLE SETUP (ANDROID) =================
   const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: "YOUR_IOS_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-    androidClientId: "YOUR_ANDROID_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    iosClientId:
+      "491833064477-2jflr5mn6m4msjkqsabev3nvka5jr526.apps.googleusercontent.com",
+    androidClientId:
+      "491833064477-tg0evoem6vrkhiuv3isv378i0k1d6bo6.apps.googleusercontent.com",
+    webClientId:
+      "491833064477-5asu4eg1dj1mnshu7f6pfuisp6s5vh1n.apps.googleusercontent.com",
+    //redirectUri: AuthSession.makeRedirectUri({
+    // scheme: "cricketumpireballcounter",
+    //path: "oauthredirect",
+    //}),
+    //"491833064477-5asu4eg1dj1mnshu7f6pfuisp6s5vh1n.apps.googleusercontent.com",
     // expoClientId: optional if using Expo Go
+    /*redirectUri: makeRedirectUri({
+      scheme: "cricketumpireballcounter", // Matches your android.package
+      path: "oauth2redirect",
+    }),*/
   });
 
   useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.authentication!;
-      const credential = GoogleAuthProvider.credential(id_token);
-      handleOAuthLogin(credential);
+    console.log("Auth Response Type:", response?.type);
+
+    if (response?.type === "success" && response.authentication) {
+      // 1. Use idToken (camelCase)
+      const { idToken } = response.authentication;
+
+      if (idToken) {
+        const credential = GoogleAuthProvider.credential(idToken);
+
+        handleOAuthLogin(credential).then(() => {
+          if (router.canGoBack()) {
+            router.back();
+          }
+        });
+      } else {
+        console.error("❌ No idToken found in response.authentication");
+      }
     }
   }, [response]);
 
@@ -72,18 +101,28 @@ export default function AuthModal({ visible, onClose }: Props) {
     }
   };
 
+  // Create a helper to handle the "Success" flow
+  const handleFinalizeLogin = async () => {
+    setGuest(false);
+    await syncUserData();
+    onClose();
+    onSuccess?.();
+  };
+
   // ================= EMAIL LOGIN =================
   const handleEmailLogin = async () => {
     try {
-      // Try login
       await signInWithEmailAndPassword(auth, email, password);
-      onClose();
+      await handleFinalizeLogin();
     } catch (err: any) {
-      if (err.code === "auth/user-not-found") {
-        // Sign up if user doesn't exist
+      if (
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/invalid-credential"
+      ) {
+        // Note: Newer Firebase versions use 'invalid-credential' for both
         try {
           await createUserWithEmailAndPassword(auth, email, password);
-          onClose();
+          await handleFinalizeLogin();
         } catch (signupErr: any) {
           Alert.alert("Signup Error", signupErr.message);
         }
@@ -96,9 +135,8 @@ export default function AuthModal({ visible, onClose }: Props) {
   const handleOAuthLogin = async (credential: any) => {
     try {
       await signInWithCredential(auth, credential);
-      onClose();
+      await handleFinalizeLogin();
     } catch (err: any) {
-      // Case: user exists with a different login method
       if (err.code === "auth/account-exists-with-different-credential") {
         const email = err.customData.email;
         const methods = await auth.fetchSignInMethodsForEmail(email);
@@ -116,25 +154,19 @@ export default function AuthModal({ visible, onClose }: Props) {
 
   // ================= AUTO CLOSE WHEN ALREADY LOGGED IN =================
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // wrap the async call
-        (async () => {
-          try {
-            // After successful login
-            setGuest(false); // add this to handleEmailLogin, Google, Apple
-            await syncUserData();
-          } catch (err) {
-            console.error("❌ Failed to sync user data:", err);
-          }
-
-          onClose(); // your existing logic
-        })();
+        try {
+          setGuest(false);
+          await syncUserData();
+          onClose();
+        } catch (err) {
+          console.error("❌ Failed to sync user data:", err);
+        }
       }
     });
-
     return unsubscribe;
-  }, []);
+  }, [onClose, setGuest]);
 
   return (
     <Portal>
