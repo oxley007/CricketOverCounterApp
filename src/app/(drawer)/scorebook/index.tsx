@@ -62,7 +62,7 @@ export default function ScorebookIndex() {
     closeMatchRulesModal,
     proUnlocked,
     setProUnlocked,
-    proScorebookUnlocked,
+    proUnlockedScorebook,
     events,
   } = useMatchStore();
   const router = useRouter();
@@ -171,8 +171,8 @@ export default function ScorebookIndex() {
   //const ballReminderEnabled = overs <= 6 || proUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  const showStats = overs <= 6 || proScorebookUnlocked;
-  const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  const showStats = overs <= 6 || proUnlockedScorebook;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
   useBallReminder(ballReminderEnabled);
 
   const legalBallsBowled = useMemo(

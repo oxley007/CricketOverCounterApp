@@ -53,7 +53,7 @@ function HomeContent() {
   const events = useMatchStore((state) => state.events) as MatchEvent[];
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
-  const proScorebookUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+  const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
   const openMatchRulesModal = useMatchStore(
     (state) => state.openMatchRulesModal,
   );
@@ -87,9 +87,9 @@ function HomeContent() {
 
   //const showStats = overs <= 6 || proUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  const showStats = overs <= 6 || proUnlocked || proUnlockedScorebook;
   //const ballReminderEnabled = proUnlocked || overs <= 6;
-  const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
 
   // Vibration + flashing reminder
   useBallReminder(ballReminderEnabled);

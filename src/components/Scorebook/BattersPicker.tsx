@@ -299,7 +299,7 @@ export default function BattersPicker({
                   style={[styles.addBowlerButton, { marginTop: 12 }]}
                   onPress={() => setShowModal(true)}
                 >
-                  <Text style={styles.addBowlerButtonText}>Add Batters</Text>
+                  <Text style={styles.addBowlerButtonText}>Select Batters</Text>
                 </Pressable>
               </View>
             )}
