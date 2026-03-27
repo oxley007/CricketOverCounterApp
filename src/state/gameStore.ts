@@ -181,6 +181,18 @@ interface GameState {
   resetTeamsOnly: () => void;
 }
 
+const initialState = {
+  isSetupComplete: false,
+  seasons: [],
+  lastSeason: undefined,
+  gameConfig: undefined,
+  currentGame: undefined,
+  hasHydrated: false,
+  statsModalPlayerId: null,
+  statsModalVisible: false,
+  setupTrigger: 0,
+};
+
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
@@ -452,10 +464,10 @@ export const useGameStore = create<GameState>()(
           let ballCount = game.ballCount;
 
           /*
-          if (params.countsAsBall) {
-            ballsThisOver += 1; // current delivery
-            ballCount += 1; // total balls in game
-          }*/
+            if (params.countsAsBall) {
+              ballsThisOver += 1; // current delivery
+              ballCount += 1; // total balls in game
+            }*/
 
           // Check if over ends
           const endsOver = ballsThisOver >= LEGAL_BALLS;
@@ -736,6 +748,8 @@ export const useGameStore = create<GameState>()(
 
           // We leave isSetupComplete and setupTrigger alone!
         })),
+
+      reset: () => set(initialState),
     }),
     {
       name: "cricket-game-store",

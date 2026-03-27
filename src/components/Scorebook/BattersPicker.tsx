@@ -299,7 +299,7 @@ export default function BattersPicker({
                   style={[styles.addBowlerButton, { marginTop: 12 }]}
                   onPress={() => setShowModal(true)}
                 >
-                  <Text style={styles.addBowlerButtonText}>Add Batters</Text>
+                  <Text style={styles.addBowlerButtonText}>Select Batters</Text>
                 </Pressable>
               </View>
             )}
@@ -308,7 +308,7 @@ export default function BattersPicker({
           <SelectPlayersModal
             visible={showModal}
             onClose={handleCloseModal}
-            title={`Select Opening Batters for ${battingTeam?.name ?? ""}`}
+            title={`Select Batters for ${battingTeam?.name ?? ""}`}
             players={battingTeamPlayers}
             selectedIds={selectedBatters}
             onSelectionChange={onSelectionChange}

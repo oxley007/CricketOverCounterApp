@@ -11,11 +11,15 @@ type AuthState = {
   resetGuestMatches: () => void;
 };
 
+const initialState = {
+  isGuest: false,
+  guestMatchesPlayed: 0,
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      isGuest: false,
-      guestMatchesPlayed: 0,
+      ...initialState,
 
       setGuest: (value) => set({ isGuest: value }),
 
@@ -28,6 +32,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           guestMatchesPlayed: 0,
         }),
+
+      reset: () => set(initialState),
     }),
     {
       name: "auth-storage", // key in storage

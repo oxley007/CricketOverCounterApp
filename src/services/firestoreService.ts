@@ -239,4 +239,37 @@ export async function saveSubscription(subscription: SubscriptionStatus) {
   }
 }
 
+/** firestoreService.ts */
+
+/** Saves the last season to the user doc */
+export async function saveSeason(season: string): Promise<void> {
+  if (!auth.currentUser) return;
+
+  const userId = auth.currentUser.uid;
+
+  try {
+    await setDoc(
+      doc(db, "users", userId),
+      { lastSeason: season, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+
+    console.log("✅ Season saved:", season);
+  } catch (err) {
+    console.error("❌ Error saving season:", err);
+  }
+}
+
+/** Loads last season from Firestore */
+export async function loadSeason(): Promise<string | null> {
+  if (!auth.currentUser) return null;
+
+  const userId = auth.currentUser.uid;
+  const userSnap = await getDoc(doc(db, "users", userId));
+
+  if (!userSnap.exists()) return null;
+
+  return userSnap.data()?.lastSeason ?? null;
+}
+
 export { mergeById };

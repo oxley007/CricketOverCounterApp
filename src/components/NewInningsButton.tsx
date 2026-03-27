@@ -47,7 +47,7 @@ export default function NewInningsButton({ onComplete }: Props) {
         setAuthVisible(true);
 
         const unsubscribe = useAuthStore.subscribe((state) => {
-          if (!state.isGuest && auth.currentUser) {
+          if (auth.currentUser || state.isGuest) {
             unsubscribe();
             resolve();
           }
@@ -65,7 +65,7 @@ export default function NewInningsButton({ onComplete }: Props) {
         "You've reached the guest match limit. Create a free account to continue saving matches and stats.",
         [{ text: "Sign Up", onPress: () => setAuthVisible(true) }],
       );
-      return;
+      return Promise.resolve();
     }
 
     await action();
@@ -297,12 +297,17 @@ export default function NewInningsButton({ onComplete }: Props) {
         disabled={saving}
         onPress={async () => {
           setSaving(true);
-          if (!isScorebook) {
-            await handleTestSetup(); // run local logic only
-          } else {
-            await requireAuth(handleTestSetup); // only scorebook needs auth
+          try {
+            if (!isScorebook) {
+              await handleTestSetup();
+            } else {
+              await requireAuth(handleTestSetup);
+            }
+          } catch (err) {
+            console.error("❌ Add innings failed:", err);
+          } finally {
+            setSaving(false);
           }
-          setSaving(false);
         }}
         style={styles.addInningsButton}
         labelStyle={styles.addInningsLabel}

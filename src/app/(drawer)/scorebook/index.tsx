@@ -31,6 +31,7 @@ import SubscriptionList from "../../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../../components/iap/UpgradeProBox";
 import OversCounter from "../../../components/OversCounter";
 import PlayerStatsModal from "../../../components/PlayerStatsModal";
+import PreviousInningsComparison from "../../../components/PreviousInningsComparison";
 import RotateStrike from "../../../components/RotateStrike";
 import MatchRulesSettings from "../../../components/RunModal/MatchRulesSettings";
 import ScoreWickets from "../../../components/Score/ScoreWickets";
@@ -61,7 +62,7 @@ export default function ScorebookIndex() {
     closeMatchRulesModal,
     proUnlocked,
     setProUnlocked,
-    proScorebookUnlocked,
+    proUnlockedScorebook,
     events,
   } = useMatchStore();
   const router = useRouter();
@@ -81,6 +82,7 @@ export default function ScorebookIndex() {
   console.log("render battingTeamId", battingTeamId);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  console.log("showSubscriptionModal", showSubscriptionModal);
   //const [battingTeamId, setBattingTeamId] = useState<string | null>(null);
   //const [bowlingTeamId, setBowlingTeamId] = useState<string | null>(null);
 
@@ -136,10 +138,12 @@ export default function ScorebookIndex() {
       store.setProUnlockedScorebook(isScorebookActive);
 
       // Optional: save to Firestore
+      /*
       await saveSubscription({
         ballPro: isBallActive,
         scorebookPro: isScorebookActive,
       });
+      */
 
       console.log(
         "Ball Pro:",
@@ -167,8 +171,8 @@ export default function ScorebookIndex() {
   //const ballReminderEnabled = overs <= 6 || proUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  const showStats = overs <= 6 || proScorebookUnlocked;
-  const ballReminderEnabled = overs <= 6 || proUnlocked || proScorebookUnlocked;
+  const showStats = overs <= 6 || proUnlockedScorebook;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
   useBallReminder(ballReminderEnabled);
 
   const legalBallsBowled = useMemo(
@@ -444,8 +448,6 @@ export default function ScorebookIndex() {
         <EndInningsButton onComplete={handleReset} />
         <CurrentOverDisplay />
 
-        <View style={styles.divider} />
-
         <View style={styles.scoreRow}>
           <ScoreWickets />
         </View>
@@ -520,6 +522,9 @@ export default function ScorebookIndex() {
 
         {showStats && (
           <>
+            <View style={styles.statsRow}>
+              <PreviousInningsComparison />
+            </View>
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <CurrentPartnership />

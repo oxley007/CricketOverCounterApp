@@ -2,9 +2,7 @@ import { Redirect } from "expo-router";
 import { useStartModalStore } from "../../state/startModalStore";
 
 export default function Index() {
-  const { selectedMode, hasHydrated } = useStartModalStore();
-
-  if (!hasHydrated) return null;
+  const { selectedMode } = useStartModalStore();
 
   if (selectedMode === "scorebook") {
     return <Redirect href="/scorebook" />;
@@ -14,6 +12,6 @@ export default function Index() {
     return <Redirect href="/ball-counter" />;
   }
 
-  // first launch fallback
+  // fallback ALWAYS works
   return <Redirect href="/ball-counter" />;
 }

@@ -2,8 +2,14 @@
 "use client";
 
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFixtureStore } from "../../state/fixtureStore";
+import { useGameStore } from "../../state/gameStore";
+import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
 import type { Team } from "../../state/teamStore";
+import { resetGuestIfNeeded } from "../../utils/authHelpers";
 
 interface BattingTeamSelectorProps {
   allTeams: Team[];
@@ -22,7 +28,49 @@ export default function BattingTeamSelector({
   onSelectTeam,
   onReset,
 }: BattingTeamSelectorProps) {
-  // 👇 SHOW TEAM CHOICE
+  const router = useRouter();
+  const { selectedMode, close, selectBallCounter, selectScorebook } =
+    useStartModalStore();
+
+  if (!allTeams || allTeams.length === 0) {
+    const handleSetup = () => {
+      const startModalStore = useStartModalStore.getState();
+      const gameStore = useGameStore.getState();
+
+      // 1️⃣ Cleanup (same as drawer)
+      resetGuestIfNeeded();
+      useFixtureStore.getState().saveCurrentInnings();
+      useFixtureStore.setState({ currentFixture: undefined });
+      useMatchStore.getState().resetInnings();
+
+      gameStore.resetGame();
+      gameStore.resetBatters();
+      gameStore.setSetupComplete(false);
+      gameStore.triggerSetup();
+
+      // 2️⃣ Reset modal state properly
+      startModalStore.reset();
+      startModalStore.open();
+
+      // 3️⃣ Navigate (go to setup flow, not back into game)
+      setTimeout(() => {
+        router.replace("/");
+      }, 0);
+    };
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>No teams selected</Text>
+
+        <Pressable onPress={handleSetup} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonTextTwo}>
+            Select Teams & Setup Game
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!selectedBattingTeamId) {
     return (
       <View style={styles.card}>
@@ -103,6 +151,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 16,
+  },
+  primaryButtonTextTwo: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+    padding: 10,
   },
 
   changeButton: {

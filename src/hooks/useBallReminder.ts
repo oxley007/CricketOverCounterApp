@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Platform, Vibration } from "react-native";
 import { useMatchStore } from "../state/matchStore";
-import { Vibration, Platform } from "react-native";
-import * as Haptics from "expo-haptics";
 
 export function useBallReminder(enabled: boolean = true) {
   const events = useMatchStore((state) => state.events);
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
+  const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
   const thresholdPercent = useMatchStore(
-    (state) => state.ballReminderThresholdPercent
+    (state) => state.ballReminderThresholdPercent,
   );
 
   const [timeSinceLastBall, setTimeSinceLastBall] = useState(0);
@@ -20,25 +20,24 @@ export function useBallReminder(enabled: boolean = true) {
 
   const legalBallCount = useMemo(
     () => events.filter((e) => e.countsAsBall).length,
-    [events]
+    [events],
   );
 
-  const overs = useMemo(
-    () => legalBallCount / 6,
-    [legalBallCount]
-  );
+  const overs = useMemo(() => legalBallCount / 6, [legalBallCount]);
 
-  const isFreeTrialPeriod = useMemo(
-    () => overs <= 6,
-    [overs]
-  );
+  const isFreeTrialPeriod = useMemo(() => overs <= 6, [overs]);
 
   const isEndOfOver =
-    lastEvent?.countsAsBall === true && legalBallCount > 0 && legalBallCount % 6 === 0;
+    lastEvent?.countsAsBall === true &&
+    legalBallCount > 0 &&
+    legalBallCount % 6 === 0;
 
   const shouldPause = isWicket || isEndOfOver;
 
-  const lastDeliveryTimestamp = useMemo(() => lastEvent?.timestamp ?? null, [lastEvent]);
+  const lastDeliveryTimestamp = useMemo(
+    () => lastEvent?.timestamp ?? null,
+    [lastEvent],
+  );
 
   // -----------------------------
   // Timer effect (since last delivery)
@@ -60,7 +59,7 @@ export function useBallReminder(enabled: boolean = true) {
     intervalRef.current = setInterval(() => {
       const diffSeconds = Math.min(
         120,
-        Math.floor((Date.now() - lastDeliveryTimestamp) / 1000)
+        Math.floor((Date.now() - lastDeliveryTimestamp) / 1000),
       );
       setTimeSinceLastBall(diffSeconds);
     }, 1000);
@@ -77,7 +76,10 @@ export function useBallReminder(enabled: boolean = true) {
   useEffect(() => {
     if (!enabled) return; // <-- early exit
 
-    if (lastDeliveryTimestamp && lastDeliveryTimestamp !== prevDeliveryRef.current) {
+    if (
+      lastDeliveryTimestamp &&
+      lastDeliveryTimestamp !== prevDeliveryRef.current
+    ) {
       setTimeSinceLastBall(0);
     }
     prevDeliveryRef.current = lastDeliveryTimestamp;
@@ -113,7 +115,9 @@ export function useBallReminder(enabled: boolean = true) {
       ? deliveryIntervals.reduce((a, b) => a + b, 0) / deliveryIntervals.length
       : 30;
 
-  const thresholdSeconds = Math.round(averageBallTime * (thresholdPercent / 100));
+  const thresholdSeconds = Math.round(
+    averageBallTime * (thresholdPercent / 100),
+  );
   const avgBallPlusThreshold = Math.round(averageBallTime + thresholdSeconds);
 
   // -----------------------------
@@ -137,7 +141,7 @@ export function useBallReminder(enabled: boolean = true) {
 
         console.log("Vibration check:", { proUnlocked, isFreeTrialPeriod });
 
-        if (proUnlocked || isFreeTrialPeriod) {
+        if (proUnlocked || proUnlockedScorebook || isFreeTrialPeriod) {
           console.log("Vibrating now!");
 
           if (Platform.OS === "ios") {
@@ -167,7 +171,13 @@ export function useBallReminder(enabled: boolean = true) {
     return () => {
       if (flashInterval) clearInterval(flashInterval);
     };
-  }, [timeSinceLastBall, avgBallPlusThreshold, enabled, proUnlocked, isFreeTrialPeriod]);
+  }, [
+    timeSinceLastBall,
+    avgBallPlusThreshold,
+    enabled,
+    proUnlocked,
+    isFreeTrialPeriod,
+  ]);
 
   useEffect(() => {
     if (!enabled) {

@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Build artifacts
+*.apk
+*.ipa
+
+# Google Services
+google-services.json
+GoogleService-Info.plist

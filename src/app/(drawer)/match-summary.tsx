@@ -52,37 +52,43 @@ export default function MatchSummaryScreen() {
     );
   }
 
-  const innings = Array.isArray(fixture.innings) ? fixture.innings : [];
-
-  const inningsSummary = innings
-    .filter((inn) => inn.battingTeamId)
-    .map((inn) => {
-      const teamName =
-        inn.battingTeamId === fixture.yourTeam.id
-          ? fixture.yourTeam.name
-          : inn.battingTeamId === fixture.oppositionTeam.id
-            ? fixture.oppositionTeam.name
-            : "UNKNOWN";
-
-      return `${teamName} ${inn.totalRuns}/${inn.totalWickets}`;
-    });
-
-  const result = fixture.result;
-
+  // -----------------------------
+  // Only compute innings/result if fixture exists
+  // -----------------------------
+  let inningsSummary: string[] = [];
   let resultText = "No result";
 
-  if (result) {
-    if (result.type === "abandoned") {
-      resultText = "Match abandoned";
-    } else if (result.isDraw) {
-      resultText = result.margin ?? "Match drawn";
-    } else if (result.winnerTeamId) {
-      const winnerName =
-        result.winnerTeamId === fixture.yourTeam.id
-          ? fixture.yourTeam.name
-          : fixture.oppositionTeam.name;
+  if (!isResetView && fixture) {
+    const innings = Array.isArray(fixture.innings) ? fixture.innings : [];
 
-      resultText = `${winnerName} ${result.margin?.toLowerCase()}`;
+    inningsSummary = innings
+      .filter((inn) => inn.battingTeamId)
+      .map((inn) => {
+        const teamName =
+          inn.battingTeamId === fixture.yourTeam.id
+            ? fixture.yourTeam.name
+            : inn.battingTeamId === fixture.oppositionTeam.id
+              ? fixture.oppositionTeam.name
+              : "UNKNOWN";
+
+        return `${teamName} ${inn.totalRuns}/${inn.totalWickets}`;
+      });
+
+    const result = fixture.result;
+
+    if (result) {
+      if (result.type === "abandoned") {
+        resultText = "Match abandoned";
+      } else if (result.isDraw) {
+        resultText = result.margin ?? "Match drawn";
+      } else if (result.winnerTeamId) {
+        const winnerName =
+          result.winnerTeamId === fixture.yourTeam.id
+            ? fixture.yourTeam.name
+            : fixture.oppositionTeam.name;
+
+        resultText = `${winnerName} ${result.margin?.toLowerCase()}`;
+      }
     }
   }
 
@@ -123,7 +129,7 @@ export default function MatchSummaryScreen() {
 
               {/* Tabs */}
               <View style={styles.card}>
-                <InningsTabs fixture={fixture} />
+                <InningsTabs fixture={fixture!} />
               </View>
             </>
           )}

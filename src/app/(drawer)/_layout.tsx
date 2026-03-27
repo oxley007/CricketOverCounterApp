@@ -2,9 +2,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
   DrawerContentScrollView,
+  DrawerItem,
   DrawerItemList,
   DrawerToggleButton,
 } from "@react-navigation/drawer";
+import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect } from "react";
@@ -18,6 +20,11 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth } from "../../services/firebaseConfig";
 import { useAuthStore } from "../../state/authStore";
+import { useFixtureStore } from "../../state/fixtureStore";
+import { useGameStore } from "../../state/gameStore";
+import { useMatchStore } from "../../state/matchStore";
+import { useStartModalStore } from "../../state/startModalStore";
+import { resetGuestIfNeeded } from "../../utils/authHelpers";
 
 export default function DrawerLayout() {
   useEffect(() => {
@@ -46,12 +53,44 @@ export default function DrawerLayout() {
 }
 
 function DrawerContent() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isGuest = useAuthStore((s) => s.isGuest);
 
+  // Pull the mode to determine the label/icon
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+
+  const handleExitNoSave = () => {
+    // 1. Get store instances
+    const startModalStore = useStartModalStore.getState();
+    const gameStore = useGameStore.getState();
+
+    // 2. Perform all standard cleanup first
+    resetGuestIfNeeded();
+    useFixtureStore.getState().saveCurrentInnings();
+    useFixtureStore.setState({ currentFixture: undefined });
+    useMatchStore.getState().resetInnings();
+
+    gameStore.resetGame();
+    gameStore.resetBatters();
+    gameStore.setSetupComplete(false);
+    gameStore.triggerSetup();
+
+    // 3. 🔑 THE FIX: Sequence the state before navigating
+    // First: Clear the selected mode so Index doesn't auto-redirect
+    startModalStore.reset();
+
+    // Second: Force the modal to an open state
+    startModalStore.open();
+
+    // Third: Delay navigation slightly to ensure Zustand/Storage has committed
+    setTimeout(() => {
+      router.replace("/");
+    }, 0);
+  };
+
   const hiddenRoutes = [
-    "index",
     "ball-counter",
     "fixtureList",
     "stats",
@@ -88,6 +127,14 @@ function DrawerContent() {
         return (
           <DrawerContentScrollView {...props}>
             <DrawerItemList {...props} state={filteredState} />
+            <DrawerItem
+              label="Exit Game (no save)"
+              labelStyle={{ color: "#ff4444" }} // Red to indicate a destructive action
+              icon={({ size }) => (
+                <Ionicons name="exit-outline" size={size} color="#ff4444" />
+              )}
+              onPress={handleExitNoSave}
+            />
           </DrawerContentScrollView>
         );
       }}
@@ -126,11 +173,19 @@ function DrawerContent() {
       }}
     >
       <Drawer.Screen
-        name="upgrade"
+        name="index"
         options={{
-          title: "Upgrade to Pro",
+          title: selectedMode === "scorebook" ? "Scorebook" : "Ball Counter",
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="card-outline" size={size} color={color} />
+            <Ionicons
+              name={
+                selectedMode === "scorebook"
+                  ? "book-outline"
+                  : "calculator-outline"
+              }
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -145,6 +200,15 @@ function DrawerContent() {
               size={size}
               color={color}
             />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="upgrade"
+        options={{
+          title: "Upgrade to Pro",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="card-outline" size={size} color={color} />
           ),
         }}
       />

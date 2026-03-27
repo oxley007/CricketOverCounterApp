@@ -216,18 +216,20 @@ export default function OversCounter() {
         {"  "}
         <Text style={styles.subText}>RR: {runRate}</Text>
       </Text>
-      <Text style={styles.text}>
-        {target && (
-          <Text style={styles.subText}>
-            {"  "}Target: {target}
-          </Text>
-        )}
-        {rrr && (
-          <Text style={styles.subText}>
-            {"  "}RRR: {rrr}
-          </Text>
-        )}
-      </Text>
+      {target && (
+        <Text style={styles.text}>
+          {target && (
+            <Text style={styles.subText}>
+              {"  "}Target: {target}
+            </Text>
+          )}
+          {rrr && (
+            <Text style={styles.subText}>
+              {"  "}RRR: {rrr}
+            </Text>
+          )}
+        </Text>
+      )}
     </View>
   );
 }

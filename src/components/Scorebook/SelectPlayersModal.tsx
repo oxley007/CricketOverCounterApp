@@ -531,7 +531,7 @@ export default function SelectPlayersModal({
               }}
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={styles.closeButtonText}>Continue</Text>
             </Pressable>
           </View>
         </SafeAreaView>
