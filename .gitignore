@@ -45,3 +45,7 @@ app-example
 # Build artifacts
 *.apk
 *.ipa
+
+# Google Services
+google-services.json
+GoogleService-Info.plist
