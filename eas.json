@@ -4,6 +4,40 @@
     "appVersionSource": "local"
   },
   "build": {
+    /* --- Umpire App Profiles --- */
+    "umpire-dev": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": { "APP_VARIANT": "umpire" }
+    },
+    "umpire-prod": {
+      "extends": "production",
+      "env": { "APP_VARIANT": "umpire" }
+    },
+
+    /* --- LittleWicket App Profiles --- */
+    "littlewicket-dev": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": { "APP_VARIANT": "littlewicket" }
+    },
+
+    "littlewicket-prod": {
+      "extends": "production",
+      "env": { "APP_VARIANT": "littlewicket" }
+    },
+
+    /* --- Base Profiles (Your originals) --- */
     "development": {
       "developmentClient": true,
       "distribution": "internal"

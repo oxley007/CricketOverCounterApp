@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -23,6 +24,20 @@ export default function StartModeModal() {
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
   const fixtures = useFixtureStore((s) => s.fixtures);
+
+  const variant = Constants.expoConfig?.extra?.variant;
+  const isLittleWicket = variant === "littlewicket";
+
+  // Map your images
+  const images = {
+    headerLogo: isLittleWicket
+      ? require("../../../assets/LittleWicket-logo-small.png")
+      : require("../../../assets/4dot6logo-transparent.png"),
+
+    ballCounterCard: isLittleWicket
+      ? require("../../../assets/LittleWicket-logo-small.png")
+      : require("../../../assets/4dot6logo-transparent.png"),
+  };
 
   // Force re-render whenever store updates (helps with hydration & reset)
   const [, setTick] = useState(0);
@@ -70,7 +85,7 @@ export default function StartModeModal() {
               {/* Header */}
               <View style={styles.header}>
                 <Image
-                  source={require("../../../assets/4dot6logo-transparent.png")}
+                  source={images.headerLogo} // <--- Dynamic source
                   style={styles.headerLogo}
                   resizeMode="contain"
                 />
