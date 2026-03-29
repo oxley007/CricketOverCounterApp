@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>491833064477-48bjuv72jom8ur6nrkjrka43qm5cqumi.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.491833064477-48bjuv72jom8ur6nrkjrka43qm5cqumi</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>491833064477-81o1p8rcim88ptm2hebmeab9sfj5lpc7.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDE2G5Skr2kc84fCdSbcVI8pbdrW4Frz4A</string>
+	<key>GCM_SENDER_ID</key>
+	<string>491833064477</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.fourdootsix.cricketscorebookbyc</string>
+	<key>PROJECT_ID</key>
+	<string>cricket-scorebok-byc</string>
+	<key>STORAGE_BUCKET</key>
+	<string>cricket-scorebok-byc.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:491833064477:ios:e5af2d6ba2bf9e6178daf4</string>
+</dict>
+</plist>
