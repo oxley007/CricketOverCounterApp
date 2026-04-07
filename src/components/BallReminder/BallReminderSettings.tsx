@@ -57,6 +57,11 @@ export default function BallReminderSettings(props: Props = {}) {
             />
             <Text style={styles.suffix}>%</Text>
           </View>
+          <Text style={styles.help}>
+            Threshold: Avg. time per ball + buffer. (e.g., if avg. is 30s and
+            threshold is 33%, you’ll get a vibrate alert at 40s if no ball has
+            been scored).
+          </Text>
         </>
       )}
     </ScrollView>

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "491833064477-3mvcdj4n02u4itmlphh6o8tl92sn3ji0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cricketovercounterapp",
+            "certificate_hash": "6dac4a242cc0453c61fb39516e75367769f65fb8"
+          }
+        },
+        {
           "client_id": "491833064477-tg0evoem6vrkhiuv3isv378i0k1d6bo6.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -59,6 +67,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "491833064477-6cii78lvang7asqq1olvs3s87ha2m0pu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cricketscorebookbyc",
+            "certificate_hash": "52ba08998ed64063928be1d52a69f1ac9c3058dc"
+          }
+        },
+        {
           "client_id": "491833064477-81o1p8rcim88ptm2hebmeab9sfj5lpc7.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -71,7 +87,7 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.cricketscorebookbyc",
-            "certificate_hash": "52ba08998ed64063928be1d52a69f1ac9c3058dc"
+            "certificate_hash": "6dac4a242cc0453c61fb39516e75367769f65fb8"
           }
         },
         {

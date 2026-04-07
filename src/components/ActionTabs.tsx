@@ -1,4 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   Alert,
@@ -24,6 +26,16 @@ export default function ActionTabs() {
   const selectedMode = useStartModalStore((state) => state.selectedMode);
   const isScorebook = selectedMode === "scorebook";
 
+  // 1. Identify your brand (do this at the top of your component)
+  const variant = Constants.expoConfig?.extra?.variant;
+  const isLittleWicket = variant === "littlewicket";
+
+  // 2. Define the dynamic color
+  const undoColor = isLittleWicket ? "#e2339c" : "#c471ed";
+  const dotColor = isLittleWicket ? "#e9df36" : "#FFF8F0";
+  const dotColorIcon = isLittleWicket ? "#666" : "#12c2e9";
+  const plusColor = isLittleWicket ? "#77dd77" : "#77dd77";
+
   /*
   const handleUndo = () => {
     const events = useMatchStore.getState().events;
@@ -40,7 +52,13 @@ export default function ActionTabs() {
   };
   */
 
+  const triggerTapFeedback = () => {
+    Haptics.selectionAsync(); // very subtle
+  };
+
   const handleUndo = () => {
+    triggerTapFeedback();
+
     const events = useMatchStore.getState().events;
     if (!events.length) return;
 
@@ -67,17 +85,18 @@ export default function ActionTabs() {
   const tabs = [
     {
       key: "undo",
-      color: "#c471ed",
+      color: undoColor,
       icon: <MaterialIcons name="undo" size={36} color="white" />,
       label: "Undo",
       onPress: handleUndo,
     },
     {
       key: "dot",
-      color: "#FFF8F0",
-      icon: <MaterialIcons name="lens" size={30} color="#12c2e9" />,
+      color: dotColor,
+      icon: <MaterialIcons name="lens" size={30} color={dotColorIcon} />,
       label: "Dot Ball",
       onPress: () => {
+        triggerTapFeedback();
         const {
           currentGame,
           updateBatterStats,
@@ -202,7 +221,7 @@ export default function ActionTabs() {
     },
     {
       key: "plus",
-      color: "#77dd77",
+      color: plusColor,
       icon: <MaterialIcons name="add" size={36} color="white" />,
       label: "Scoring",
       onPress: () => {
@@ -309,7 +328,9 @@ export default function ActionTabs() {
             <Text
               style={[
                 styles.label,
-                tab.key === "dot" ? { color: "#12c2e9" } : { color: "#fff" },
+                tab.key === "dot"
+                  ? { color: isLittleWicket ? "#666" : "#12c2e9" } // Dot color
+                  : { color: isLittleWicket ? "#fff" : "#fff" }, // Default color
               ]}
             >
               {tab.label}

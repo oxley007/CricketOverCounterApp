@@ -46,6 +46,9 @@ app-example
 *.apk
 *.ipa
 
-# Google Services
+# Ignore Google Services in the root, but allow them in our config folders
 google-services.json
 GoogleService-Info.plist
+!config/**/google-services.json
+!config/**/GoogleService-Info.plist
+

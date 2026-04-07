@@ -76,6 +76,13 @@ export default function ScorebookIndex() {
   const setupTrigger = useGameStore((s) => s.setupTrigger);
   //const [isSetupVisible, setIsSetupVisible] = useState(false);
 
+  console.log("=== SCOREBOOK RENDER ===");
+  console.log({
+    isSetupComplete,
+    setupTrigger,
+    hasHydrated,
+  });
+
   const battingTeamId = currentGame?.battingTeamId ?? null;
   const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
 
@@ -88,7 +95,7 @@ export default function ScorebookIndex() {
 
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
-  const [isSetupVisible, setIsSetupVisible] = useState(!isSetupComplete);
+  const [isSetupVisible, setIsSetupVisible] = useState(false);
   const { statsModalVisible, statsModalPlayerId, closeStatsModal } =
     useGameStore();
   const fixtures = useFixtureStore((s) => s.fixtures);
@@ -158,7 +165,17 @@ export default function ScorebookIndex() {
   useEffect(() => {
     (async () => {
       const hasSeen = await SecureStore.getItemAsync("hasSeenMatchRules");
-      if (!hasSeen && isSetupComplete) openMatchRulesModal();
+
+      console.log("MATCH RULES CHECK", {
+        hasSeen,
+        isSetupComplete,
+        isSetupVisible,
+      });
+
+      if (!hasSeen && isSetupComplete && !isSetupVisible) {
+        console.log("OPENING MATCH RULES MODAL");
+        openMatchRulesModal();
+      }
     })();
   }, [isSetupComplete]);
 
@@ -224,15 +241,23 @@ export default function ScorebookIndex() {
   */
 
   useEffect(() => {
+    console.log("SETUP EFFECT FIRED", {
+      isSetupComplete,
+      setupTrigger,
+    });
     // If setup is complete, make sure the modal is hidden
     if (isSetupComplete) {
+      console.log("HIDE SETUP MODAL");
       setIsSetupVisible(false);
       return;
     }
 
+    console.log("SHOW SETUP MODAL (with delay)");
+
     // If setup is NOT complete, flash the modal to ensure it mounts
     setIsSetupVisible(false);
     const timer = setTimeout(() => {
+      console.log("SETUP MODAL VISIBLE = TRUE");
       setIsSetupVisible(true);
     }, 50);
 
@@ -427,7 +452,7 @@ export default function ScorebookIndex() {
       )}
 
       <MatchRulesModal
-        visible={showMatchRulesModal}
+        visible={showMatchRulesModal && !isSetupVisible}
         onClose={async () => {
           await SecureStore.setItemAsync("hasSeenMatchRules", "true");
           closeMatchRulesModal();

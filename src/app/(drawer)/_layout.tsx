@@ -6,6 +6,7 @@ import {
   DrawerItemList,
   DrawerToggleButton,
 } from "@react-navigation/drawer";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { onAuthStateChanged } from "firebase/auth";
@@ -60,6 +61,13 @@ function DrawerContent() {
 
   // Pull the mode to determine the label/icon
   const selectedMode = useStartModalStore((s) => s.selectedMode);
+
+  const variant = Constants.expoConfig?.extra?.variant;
+  const isLittleWicket = variant === "littlewicket";
+
+  const logoSource = isLittleWicket
+    ? require("../../../assets/LittleWicket-logo-small-white-bg.png")
+    : require("../../../assets/4dot6logo-transparent.png");
 
   const handleExitNoSave = () => {
     // 1. Get store instances
@@ -142,10 +150,28 @@ function DrawerContent() {
         headerShown: true,
 
         headerTitle: () => (
-          <View style={styles.logoContainer}>
+          <View
+            style={[
+              styles.logoContainer,
+              {
+                backgroundColor: isLittleWicket ? "#fff" : "transparent",
+                borderRadius: isLittleWicket ? 50 : 0,
+                paddingRight: isLittleWicket ? 10 : 0,
+                paddingLeft: isLittleWicket ? 10 : 0,
+                paddingTop: isLittleWicket ? 5 : 0,
+                paddingBottom: isLittleWicket ? 5 : 0,
+              },
+            ]}
+          >
             <Image
-              source={require("../../../assets/4dot6logo-transparent.png")}
-              style={styles.logo}
+              source={logoSource}
+              style={[
+                styles.logo,
+                {
+                  width: isLittleWicket ? 200 : 120,
+                  borderRadius: isLittleWicket ? 200 : 0,
+                },
+              ]}
               resizeMode="contain"
             />
           </View>

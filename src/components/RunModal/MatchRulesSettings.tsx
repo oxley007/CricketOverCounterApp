@@ -31,10 +31,15 @@ export default function MatchRulesSettings() {
         <Switch value={wideIsExtraBall} onValueChange={setWideIsExtraBall} />
       </View>
 
+      {!wideIsExtraBall && (
+        <Text style={styles.helperText}>
+          Set as: Wides count as runs without an extra ball (Junior rules)
+        </Text>
+      )}
+
       <Text style={styles.helper}>
         If off, wides count as runs but do not count as extra deliveries (junior
-        cricket). If on, you can optionally limit the number of wides per over
-        that count as extra balls.
+        cricket). If on, normal cricekt rules apply.
       </Text>
 
       {wideIsExtraBall && (
@@ -68,6 +73,13 @@ export default function MatchRulesSettings() {
           onValueChange={setWicketsAsNegativeRuns}
         />
       </View>
+
+      {wicketsAsNegativeRuns && (
+        <Text style={styles.helperText}>
+          Set as: Wickets deduct runs from the score instead of dismissal
+          (Junior rules)
+        </Text>
+      )}
 
       <Text style={styles.helper}>
         If on, wickets count as neagtive runs to total score instead dismissing
@@ -158,6 +170,12 @@ const styles = StyleSheet.create({
   helper: {
     fontSize: 12,
     color: "#333",
+    marginBottom: 10,
+  },
+  helperText: {
+    color: "#FFA500", // Orange
+    fontSize: 12,
+    marginTop: 4,
     marginBottom: 10,
   },
 });

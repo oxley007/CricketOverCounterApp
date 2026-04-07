@@ -21,26 +21,46 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
   const liveEvents = useMatchStore((s) => s.events);
   const [activeTab, setActiveTab] = useState(0);
 
+  console.log("---- DEBUG INNINGS ----");
+  console.log("fixture.innings:", JSON.stringify(fixture?.innings, null, 2));
+  console.log("fixture.innings.length:", fixture?.innings?.length);
+  console.log("liveEvents.length:", liveEvents?.length);
+
   // Build innings list: from fixture when present, else single tab with live events
-  const innings: (InningsSnapshot & { matchEvents?: MatchEvent[] })[] = fixture
-    ?.innings?.length
-    ? [...fixture.innings].sort((a, b) => a.inningsNumber - b.inningsNumber)
-    : [
-        { inningsNumber: 1, matchEvents: liveEvents } as InningsSnapshot & {
-          matchEvents: MatchEvent[];
-        },
-      ];
+  const inningsArray: InningsSnapshot[] = fixture?.innings
+    ? Array.isArray(fixture.innings)
+      ? fixture.innings
+      : Object.values(fixture.innings)
+    : [];
+
+  const innings: (InningsSnapshot & { matchEvents?: MatchEvent[] })[] =
+    inningsArray.length
+      ? inningsArray.sort((a, b) => a.inningsNumber - b.inningsNumber)
+      : [
+          {
+            inningsNumber: 1,
+            matchEvents: liveEvents,
+          } as any,
+        ];
+
+  console.log("final innings array:", JSON.stringify(innings, null, 2));
+  console.log("innings.length:", innings.length);
 
   // Which innings index is "current" (empty matchEvents → use live from matchStore)
-  const currentInningsIndex = innings.findIndex(
-    (inn) => !inn.matchEvents || inn.matchEvents.length === 0,
-  );
+  const currentInningsIndex = innings.findIndex((inn) => inn.isPlaceholder);
+
+  console.log("currentInningsIndex:", currentInningsIndex);
 
   const getEventsForInnings = (index: number): MatchEvent[] => {
     const inn = innings[index];
     if (!inn) return [];
-    if (inn.matchEvents && inn.matchEvents.length > 0) return inn.matchEvents;
-    if (index === currentInningsIndex) return liveEvents;
+
+    // ✅ Current innings → always use live events
+    if (inn.isPlaceholder) return liveEvents;
+
+    // ✅ Completed innings → use snapshot
+    if (inn.matchEvents?.length) return inn.matchEvents;
+
     return [];
   };
 

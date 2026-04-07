@@ -11,12 +11,12 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useTeamStore } from "../../state/teamStore";
@@ -503,6 +503,16 @@ export default function SelectPlayersModal({
               }}
               ListFooterComponent={() => (
                 <>
+                  {pickerType === "batter" && (
+                    <Text>
+                      Choose players from the list above to select as batting.
+                    </Text>
+                  )}
+                  {pickerType === "bowler" && (
+                    <Text>
+                      Choose players from the list above to select as bowling.
+                    </Text>
+                  )}
                   <Pressable
                     style={{ marginVertical: 12, alignSelf: "center" }}
                     onPress={() => setShowArchived((prev) => !prev)}

@@ -19,6 +19,7 @@ export default function AccountScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [authVisible, setAuthVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
+  const [isReauthForDeletion, setIsReauthForDeletion] = useState(false);
 
   const setGuest = useAuthStore((s) => s.setGuest);
   const navigation = useNavigation();
@@ -92,7 +93,10 @@ export default function AccountScreen() {
             { text: "Cancel", style: "cancel" },
             {
               text: "Log In",
-              onPress: () => setAuthVisible(true), // Triggers the modal
+              onPress: () => {
+                setIsReauthForDeletion(true);
+                setAuthVisible(true);
+              }, // Triggers the modal
             },
           ],
         );
@@ -150,7 +154,7 @@ export default function AccountScreen() {
 
       <View style={styles.separator} />
 
-      <View style={{ marginTop: "auto", marginBottom: 30 }}>
+      <View style={{ marginTop: "auto", marginBottom: 40 }}>
         {currentUser ? (
           <>
             <Pressable style={styles.modalButton} onPress={handleLogout}>
@@ -182,11 +186,14 @@ export default function AccountScreen() {
       {/* ✅ Pass onSuccess to complete the deletion flow */}
       <AuthModal
         visible={authVisible}
-        onClose={() => setAuthVisible(false)}
+        onClose={() => {
+          setAuthVisible(false);
+          setIsReauthForDeletion(false);
+        }}
         onSuccess={() => {
-          // If there is a logged in user now, try deleting again
-          if (auth.currentUser) {
+          if (isReauthForDeletion && auth.currentUser) {
             executeDeletion(auth.currentUser);
+            setIsReauthForDeletion(false);
           }
         }}
       />

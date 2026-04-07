@@ -105,8 +105,13 @@ export default function OversCounter() {
      Run rate
   ========================= */
   const oversBowled = totalLegalBalls / 6;
+  const netScored = totalRuns - baseRuns;
   const runRate =
-    oversBowled > 0 ? (totalRuns / oversBowled).toFixed(2) : "0.00";
+    oversBowled > 0
+      ? (Math.max(0, netScored) / oversBowled).toFixed(2)
+      : "0.00";
+  /*const runRate =
+    oversBowled > 0 ? (totalRuns / oversBowled).toFixed(2) : "0.00";*/
 
   /* =========================
    Determine if chasing

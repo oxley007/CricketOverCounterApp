@@ -2,6 +2,7 @@
 
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import {
   createUserWithEmailAndPassword,
@@ -35,14 +36,19 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const setGuest = useAuthStore((s) => s.setGuest);
+
+  const variant = Constants.expoConfig?.extra?.variant;
+  const isLittleWicket = variant === "littlewicket";
 
   // ================= GOOGLE SETUP (ANDROID) =================
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId:
       "491833064477-2jflr5mn6m4msjkqsabev3nvka5jr526.apps.googleusercontent.com",
-    androidClientId:
-      "491833064477-tg0evoem6vrkhiuv3isv378i0k1d6bo6.apps.googleusercontent.com",
+    androidClientId: isLittleWicket
+      ? "491833064477-cjbgf1cng2mo227lh3cfopfgqgov1d57.apps.googleusercontent.com"
+      : "491833064477-tg0evoem6vrkhiuv3isv378i0k1d6bo6.apps.googleusercontent.com",
     webClientId:
       "491833064477-5asu4eg1dj1mnshu7f6pfuisp6s5vh1n.apps.googleusercontent.com",
     //redirectUri: AuthSession.makeRedirectUri({
@@ -80,6 +86,9 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
 
   // ================= APPLE LOGIN (IOS) =================
   const handleAppleLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
     try {
       const appleCredential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -98,6 +107,7 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
       if (e.code !== "ERR_REQUEST_CANCELED") {
         Alert.alert("Apple Login Failed", e.message || JSON.stringify(e));
       }
+      setLoading(false); // 👈 important (only reset on error/cancel)
     }
   };
 
@@ -111,6 +121,9 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
 
   // ================= EMAIL LOGIN =================
   const handleEmailLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       await handleFinalizeLogin();
@@ -119,20 +132,24 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
         err.code === "auth/user-not-found" ||
         err.code === "auth/invalid-credential"
       ) {
-        // Note: Newer Firebase versions use 'invalid-credential' for both
         try {
           await createUserWithEmailAndPassword(auth, email, password);
           await handleFinalizeLogin();
         } catch (signupErr: any) {
           Alert.alert("Signup Error", signupErr.message);
+          setLoading(false); // ✅ only reset on error
         }
       } else {
         Alert.alert("Login Error", err.message);
+        setLoading(false); // ✅ only reset on error
       }
     }
   };
 
   const handleOAuthLogin = async (credential: any) => {
+    if (loading) return;
+
+    setLoading(true);
     try {
       await signInWithCredential(auth, credential);
       await handleFinalizeLogin();
@@ -142,13 +159,13 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
         const methods = await auth.fetchSignInMethodsForEmail(email);
         Alert.alert(
           "Account Already Exists",
-          `An account already exists for ${email} using ${methods.join(
-            ", ",
-          )}. Please login with that method first.`,
+          `An account already exists for ${email} using ${methods.join(", ")}. Please login with that method first.`,
         );
       } else {
         Alert.alert("Login Failed", err.message);
       }
+
+      setLoading(false); // ✅ only here
     }
   };
 
@@ -191,8 +208,13 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
               AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
             }
             cornerRadius={8}
-            style={{ width: "100%", height: 44, marginBottom: 12 }}
-            onPress={handleAppleLogin}
+            style={{
+              width: "100%",
+              height: 44,
+              marginBottom: 12,
+              opacity: loading ? 0.5 : 1, // 👈 visual feedback
+            }}
+            onPress={loading ? undefined : handleAppleLogin} // 👈 prevents taps
           />
         )}
 
@@ -203,6 +225,8 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
             buttonColor="#4285F4"
             onPress={() => promptAsync()}
             style={{ marginBottom: 12 }}
+            loading={loading}
+            disabled={loading}
           >
             Continue with Google
           </Button>
@@ -217,6 +241,7 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
 
         {/* EMAIL - All platforms */}
         <TextInput
+          editable={!loading}
           placeholder="Email"
           style={styles.input}
           value={email}
@@ -224,6 +249,7 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
           autoCapitalize="none"
         />
         <TextInput
+          editable={!loading}
           placeholder="Password"
           style={styles.input}
           value={password}
@@ -231,7 +257,12 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
           onChangeText={setPassword}
         />
 
-        <Button mode="contained" onPress={handleEmailLogin}>
+        <Button
+          mode="contained"
+          onPress={handleEmailLogin}
+          loading={loading}
+          disabled={loading}
+        >
           Continue with Email
         </Button>
 

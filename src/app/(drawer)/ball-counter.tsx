@@ -95,12 +95,14 @@ function HomeContent() {
   useBallReminder(ballReminderEnabled);
 
   // Show match rules on first launch
+  /*
   useEffect(() => {
     (async () => {
       const hasSeen = await SecureStore.getItemAsync("hasSeenMatchRules");
       if (!hasSeen) openMatchRulesModal();
     })();
   }, [openMatchRulesModal]);
+  */
 
   useEffect(() => {
     // 🔑 If no mode is selected, force the selector open

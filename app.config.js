@@ -8,7 +8,7 @@ export default ({ config }) => {
     // --- Dynamic Identity ---
     name: isUmpire
       ? "4dot6 Umpire Ball Counter"
-      : "LittleWicket Cricket Scoring",
+      : "LittleWicket Cricket Scorebook",
     slug: "cricket-umpire-ball-counter",
     version: "5.3.0",
 
@@ -90,10 +90,10 @@ export default ({ config }) => {
           image: isUmpire
             ? "./assets/images/splash-icon-4dot6.png"
             : "./assets/images/splash-littlewicket.png",
-          resizeMode: "contain",
-          backgroundColor: isUmpire ? "#12c2e9" : "#2E7D32",
+          resizeMode: "cover",
+          backgroundColor: isUmpire ? "#12c2e9" : "#ffffff",
           dark: {
-            backgroundColor: isUmpire ? "#12c2e9" : "#1b1b1b",
+            backgroundColor: isUmpire ? "#12c2e9" : "#ffffff",
           },
         },
       ],

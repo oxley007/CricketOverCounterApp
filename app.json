@@ -21,12 +21,16 @@
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["com.4dot6.cricketballandovercounter"]
+            "CFBundleURLSchemes": [
+              "com.4dot6.cricketballandovercounter"
+            ]
           }
         ]
       },
       "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       }
     },
     "android": {
@@ -44,7 +48,10 @@
           "data": {
             "scheme": "com.cricketovercounterapp"
           },
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "versionCode": 52
@@ -75,8 +82,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "01f25192-0a2a-4868-a640-b12a9dd6b98d"
-      }
+        "projectId": "55989eef-1489-486e-8990-376fc18214d1"
+      },
+      "variant": "littlewicket"
     }
   }
 }

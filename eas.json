@@ -20,7 +20,7 @@
       "env": { "APP_VARIANT": "umpire" }
     },
 
-    /* --- LittleWicket App Profiles --- */
+    /* --- LittleWicket App Profiles for simulaotr --- */
     "littlewicket-dev": {
       "extends": "development",
       "ios": {
@@ -30,6 +30,29 @@
         "buildType": "apk"
       },
       "env": { "APP_VARIANT": "littlewicket" }
+    },
+
+    /* --- LittleWicket App Profiles for real device --- */
+    "littlewicket-dev-device": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": { "APP_VARIANT": "littlewicket" }
+    },
+
+    "littlewicket-prod-preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "littlewicket"
+      }
     },
 
     "littlewicket-prod": {

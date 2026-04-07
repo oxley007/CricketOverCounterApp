@@ -70,8 +70,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         let filteredPackages = allPackages;
 
         if (selectedMode === "scorebook") {
-          filteredPackages = allPackages.filter((pkg: any) =>
-            pkg.product.identifier.includes("scorebook"),
+          filteredPackages = allPackages.filter(
+            (pkg: any) =>
+              pkg.product.identifier.includes("scorebook") ||
+              pkg.product.identifier === "4DOT6BYCPRO" ||
+              pkg.product.identifier === "4dot6bycplayerstats_android", // ✅ Explicitly allow this ID
           );
         } else {
           filteredPackages = allPackages;
