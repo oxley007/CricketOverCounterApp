@@ -21,10 +21,10 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
   const liveEvents = useMatchStore((s) => s.events);
   const [activeTab, setActiveTab] = useState(0);
 
-  console.log("---- DEBUG INNINGS ----");
-  console.log("fixture.innings:", JSON.stringify(fixture?.innings, null, 2));
-  console.log("fixture.innings.length:", fixture?.innings?.length);
-  console.log("liveEvents.length:", liveEvents?.length);
+  //console.log("---- DEBUG INNINGS ----");
+  //console.log("fixture.innings:", JSON.stringify(fixture?.innings, null, 2));
+  //console.log("fixture.innings.length:", fixture?.innings?.length);
+  //console.log("liveEvents.length:", liveEvents?.length);
 
   // Build innings list: from fixture when present, else single tab with live events
   const inningsArray: InningsSnapshot[] = fixture?.innings
@@ -43,8 +43,8 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
           } as any,
         ];
 
-  console.log("final innings array:", JSON.stringify(innings, null, 2));
-  console.log("innings.length:", innings.length);
+  //console.log("final innings array:", JSON.stringify(innings, null, 2));
+  //console.log("innings.length:", innings.length);
 
   // Which innings index is "current" (empty matchEvents → use live from matchStore)
   const currentInningsIndex = innings.findIndex((inn) => inn.isPlaceholder);

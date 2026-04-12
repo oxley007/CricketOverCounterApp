@@ -70,15 +70,15 @@ export default function SelectPlayersModal({
   const teamStore = useTeamStore();
   const myTeamId = currentFixture?.yourTeam.id;
 
-  console.log(
+  /*console.log(
     "Current Game Active Batters from store:",
     useGameStore.getState().currentGame?.activeBatters,
   );
   console.log(
     "Current Game Batting Entries:",
     useGameStore.getState().currentGame?.battingEntries,
-  );
-  console.log("Team Players:", players);
+  );*/
+  //console.log("Team Players:", players);
   const effectiveMax = selectionMode === "single" ? 1 : maxSelection;
 
   const [selectedIds, setSelectedIds] = useState<string[]>(
@@ -89,39 +89,39 @@ export default function SelectPlayersModal({
     if (visible) {
       setSelectedIds(parentSelectedIds ?? []);
     }
-  }, [visible, parentSelectedIds, players]);
+  }, [visible, parentSelectedIds]);
 
   const togglePlayer = (playerId: string) => {
-    console.log("=== togglePlayer START ===");
-    console.log("Clicked playerId:", playerId);
-    console.log("Picker type:", pickerType);
-    console.log("Current selectedIds:", selectedIds);
-    console.log("CurrentGame activeBatters:", currentGame?.activeBatters);
-    console.log("CurrentGame battingEntries:", currentGame?.battingEntries);
-    console.log(
+    //console.log("=== togglePlayer START ===");
+    //console.log("Clicked playerId:", playerId);
+    //console.log("Picker type:", pickerType);
+    //console.log("Current selectedIds:", selectedIds);
+    //console.log("CurrentGame activeBatters:", currentGame?.activeBatters);
+    //console.log("CurrentGame battingEntries:", currentGame?.battingEntries);
+    /*console.log( 
       "activeBatters full detail:",
       JSON.stringify(currentGame?.activeBatters, null, 2),
-    );
+    );*/
 
     setSelectedIds((prev) => {
-      console.log("Previous selectedIds inside setter:", prev);
-      console.log(
+      //console.log("Previous selectedIds inside setter:", prev);
+      /*console.log(
         "activeBatters BEFORE toggle:",
         JSON.stringify(currentGame?.activeBatters, null, 2),
-      );
+      );*/
 
       if (pickerType === "bowler") {
-        console.log("Single-selection mode: bowler");
+        //console.log("Single-selection mode: bowler");
         const next = [playerId];
         onSelectionChange(next);
 
         const { updateLastBowlerId } = useGameStore.getState();
         updateLastBowlerId(null);
 
-        console.log(
+        /*console.log(
           "🎯 Bowler selected → lastBowlerId cleared",
           currentGame?.lastBowlerId,
-        );
+        );*/
 
         return;
       }
@@ -129,10 +129,10 @@ export default function SelectPlayersModal({
       const gameStore = useGameStore.getState();
       const game = gameStore.currentGame;
       if (!game || pickerType !== "batter") {
-        console.log("Exiting togglePlayer early:", {
+        /*console.log("Exiting togglePlayer early:", {
           gameExists: !!game,
           pickerType,
-        });
+        });*/
         return prev;
       }
 
@@ -146,10 +146,10 @@ export default function SelectPlayersModal({
 
       const batterInningId = playerEntry?.entryId;
 
-      console.log("activeBatter:", activeBatter);
-      console.log("playerEntry:", playerEntry);
-      console.log("batterInningId:", batterInningId);
-      console.log("Previous selectedIds:", prev);
+      //console.log("activeBatter:", activeBatter);
+      //console.log("playerEntry:", playerEntry);
+      //console.log("batterInningId:", batterInningId);
+      //console.log("Previous selectedIds:", prev);
 
       const matchStore =
         require("../../state/matchStore").useMatchStore.getState();
@@ -162,17 +162,17 @@ export default function SelectPlayersModal({
         : 0;
       const runs = playerEntry?.runs ?? 0;
 
-      console.log("ballsFaced:", ballsFaced, "runs:", runs);
-      console.log(
+      //console.log("ballsFaced:", ballsFaced, "runs:", runs);
+      /*console.log(
         "Current game activeBatters before toggle:",
         game.activeBatters,
-      );
+      );*/
 
       // ✅ check against activeBatters, not selectedIds
       const isSelected = game.activeBatters.some(
         (b) => b.playerId === playerId,
       );
-      console.log("isSelected?", isSelected);
+      //console.log("isSelected?", isSelected);
 
       let nextSelected = [...prev]; // will be synced at the end
       let newActiveBatters = [...game.activeBatters];
@@ -181,7 +181,7 @@ export default function SelectPlayersModal({
 
       // ---- REMOVE player if empty ----
       if (isSelected && ballsFaced === 0 && entryId) {
-        console.log("Removing player from selectedIds and activeBatters");
+        //console.log("Removing player from selectedIds and activeBatters");
 
         nextSelected = nextSelected.filter((id) => id !== playerId);
         newActiveBatters = newActiveBatters.filter(
@@ -192,11 +192,11 @@ export default function SelectPlayersModal({
           (e) => !(e.playerId === playerId && e.entryId === entryId),
         );
 
-        console.log("Updating gameStore after removal:", {
+        /*console.log("Updating gameStore after removal:", {
           nextSelected,
           newActiveBatters,
           newBattingEntries,
-        });
+        });*/
 
         gameStore.updateCurrentGame({
           ...game,
@@ -204,24 +204,24 @@ export default function SelectPlayersModal({
           battingEntries: newBattingEntries,
         });
 
-        console.log(
+        /*console.log(
           "activeBatters AFTER removal:",
           JSON.stringify(newActiveBatters, null, 2),
-        );
+        );*/
       }
       // ---- SINGLE select mode ----
       else if (
         selectionMode === "single" &&
         game.activeBatters.length >= effectiveMax
       ) {
-        console.log("Single-select mode: replacing existing batter");
+        //console.log("Single-select mode: replacing existing batter");
 
         const existing = game.activeBatters[0];
         const updatedBatters = game.activeBatters.filter(
           (b) => b.playerId !== existing.playerId,
         );
 
-        console.log("Existing batter removed:", existing.playerId);
+        //console.log("Existing batter removed:", existing.playerId);
 
         gameStore.updateCurrentGame({
           ...game,
@@ -229,24 +229,24 @@ export default function SelectPlayersModal({
         });
 
         nextSelected = [playerId];
-        console.log("Next selectedIds for single-select:", nextSelected);
+        //console.log("Next selectedIds for single-select:", nextSelected);
       }
       // ---- MULTI-select: add new batter ----
       else {
-        console.log("Multi-select mode: adding new batter if not selected");
+        //console.log("Multi-select mode: adding new batter if not selected");
 
         if (!isSelected) {
           nextSelected = [...prev, playerId];
-          console.log("Next selectedIds after adding:", nextSelected);
+          //console.log("Next selectedIds after adding:", nextSelected);
 
           const retiredBatter = game.activeRetired?.find(
             (b) => b.playerId === playerId,
           );
 
           if (retiredBatter) {
-            console.log(
+            /*console.log(
               "Player is retired, removing retired event and re-adding to activeBatters",
-            );
+            );*/
 
             matchStore.removeEventByPredicate?.((event: any) => {
               return (
@@ -266,7 +266,7 @@ export default function SelectPlayersModal({
             });
           } // Inside the togglePlayer function, in the !activeBatter block:
           else if (!activeBatter) {
-            console.log("Normal new batter flow: adding to activeBatters");
+            //console.log("Normal new batter flow: adding to activeBatters");
 
             const newEntryId = `${playerId}-${Date.now()}`;
             const newEntry = {
@@ -286,34 +286,41 @@ export default function SelectPlayersModal({
               { playerId, batterInningId: newEntryId },
             ];
 
-            // 2. Update the store
+            const isFirstBatter = game.activeBatters.length === 0;
+
             gameStore.updateCurrentGame({
               ...game,
-              activeBatters: newActiveBatters, // Use the updated variable here too
+              activeBatters: newActiveBatters,
               battingEntries: [...game.battingEntries, newEntry],
               currentEntryId: newEntryId,
-              currentStrikeId: playerId,
+              currentStrikeId: isFirstBatter
+                ? playerId
+                : (game.currentStrikeId ?? newActiveBatters[0]?.playerId),
             });
 
-            console.log("New batter added and strike set to:", playerId);
+            //console.log("New batter added and strike set to:", playerId);
           }
         } else {
           console.log("Player already selected, no action taken");
         }
       }
 
-      console.log("Setting selectedIds and notifying parent");
+      //console.log("Setting selectedIds and notifying parent");
       nextSelected = newActiveBatters.map((b) => b.playerId); // sync selectedIds with activeBatters
-      console.log("Next selectedIds before setSelectedIds:", nextSelected);
-      console.log(
+      //console.log("Next selectedIds before setSelectedIds:", nextSelected);
+      /*console.log(
         "activeBatters before final update:",
         JSON.stringify(gameStore.currentGame?.activeBatters, null, 2),
-      );
+      );*/
 
+      /*
       setSelectedIds(nextSelected);
       onSelectionChange(nextSelected);
+      return nextSelected;
+      */
 
-      console.log("=== togglePlayer END ===");
+      setSelectedIds((prev) => nextSelected);
+      onSelectionChange(nextSelected);
       return nextSelected;
     });
   };
@@ -325,18 +332,32 @@ export default function SelectPlayersModal({
     console.log("onSelectionChange called with:", selectedIds);
   }, [selectedIds]);
   */
-  const filteredPlayers = players.filter((p) => showArchived || !p.archived);
+  //const filteredPlayers = players.filter((p) => showArchived || !p.archived);
+  const filteredPlayers = players.map((p) => ({
+    ...p,
+    hidden: !showArchived && p.archived,
+  }));
 
   const startEditing = (player: PlayerOption) => {
     setEditingPlayerId(player.id);
     setEditedName(player.name);
   };
 
+  /*
   const saveEdit = (playerId: string) => {
     if (!editedName.trim()) return;
 
     // ⚠️ You need teamId — pass it in as prop if not available here
     const teamId = currentGame?.battingTeamId || currentGame?.bowlingTeamId;
+    if (!teamId) return;
+
+    updatePlayerName(teamId, playerId, editedName.trim());
+    setEditingPlayerId(null);
+  };
+  */
+
+  const saveEdit = (playerId: string, teamId: string) => {
+    if (!editedName.trim()) return;
     if (!teamId) return;
 
     updatePlayerName(teamId, playerId, editedName.trim());
@@ -361,6 +382,7 @@ export default function SelectPlayersModal({
           <View style={styles.container}>
             <FlatList
               style={styles.scroll}
+              keyboardShouldPersistTaps="handled"
               data={enrichedPlayers}
               keyExtractor={(player) => player.id}
               ListHeaderComponent={() => (
@@ -372,12 +394,12 @@ export default function SelectPlayersModal({
                 </>
               )}
               renderItem={({ item: player }) => {
-                console.log({
+                /*console.log({
                   player: player.name,
                   playerTeamId: player.teamId,
                   myTeamId,
                   myTeam: player.myTeam,
-                });
+                });*/
                 const matchStore =
                   require("../../state/matchStore").useMatchStore.getState();
                 const currentEvents = matchStore.events ?? [];
@@ -414,7 +436,9 @@ export default function SelectPlayersModal({
                             style={styles.input}
                             autoFocus
                           />
-                          <Pressable onPress={() => saveEdit(player.id)}>
+                          <Pressable
+                            onPress={() => saveEdit(player.id, player.teamId)}
+                          >
                             <MaterialIcons
                               name="check"
                               size={22}
@@ -523,14 +547,15 @@ export default function SelectPlayersModal({
                         : "Show Archived Players"}
                     </Text>
                   </Pressable>
-                  {/* ✅ MOVE FOOTER HERE */}
-                  {renderFooter?.()}
 
                   {/* Add padding so keyboard doesn't squash it */}
                   <View style={{ height: 40 }} />
                 </>
               )}
             />
+
+            {/* ✅ MOVE FOOTER HERE */}
+            {renderFooter?.()}
 
             <Pressable
               onPress={() => {

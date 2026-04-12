@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "dev:little": "APP_VARIANT=littlewicket npx expo start",
-    "dev:umpire": "APP_VARIANT=umpire npx expo start",
+    "dev:little": "APP_VARIANT=littlewicket npx expo start --scheme com.fourdootsix.cricketscorebookbyc",
+    "dev:umpire": "APP_VARIANT=umpire npx expo start --scheme com.4dot6.cricketballandovercounter",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

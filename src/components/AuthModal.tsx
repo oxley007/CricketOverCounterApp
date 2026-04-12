@@ -23,7 +23,6 @@ import {
 } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
 import { auth } from "../services/firebaseConfig";
-import { syncUserData } from "../services/syncUserData";
 import { useAuthStore } from "../state/authStore";
 
 type Props = {
@@ -114,7 +113,7 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
   // Create a helper to handle the "Success" flow
   const handleFinalizeLogin = async () => {
     setGuest(false);
-    await syncUserData();
+    //await syncUserData();
     onClose();
     onSuccess?.();
   };
@@ -171,17 +170,13 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
 
   // ================= AUTO CLOSE WHEN ALREADY LOGGED IN =================
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        try {
-          setGuest(false);
-          await syncUserData();
-          onClose();
-        } catch (err) {
-          console.error("❌ Failed to sync user data:", err);
-        }
+        setGuest(false);
+        onClose(); // ✅ still auto closes modal
       }
     });
+
     return unsubscribe;
   }, [onClose, setGuest]);
 

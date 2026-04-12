@@ -3,9 +3,9 @@
 "use client";
 
 import { useMemo } from "react";
-import SelectPlayersModal from "./SelectPlayersModal";
-import AddPlayerFooter from "./AddPlayerFooter";
 import { useTeamStore } from "../../state/teamStore";
+import AddPlayerFooter from "./AddPlayerFooter";
+import SelectPlayersModal from "./SelectPlayersModal";
 
 type SelectBattersModalProps = {
   visible: boolean;
@@ -23,7 +23,10 @@ export default function SelectBattersModal({
   onSelectionChange,
 }: SelectBattersModalProps) {
   const teams = useTeamStore((s) => s.teams);
-  const team = useMemo(() => teams.find((t) => t.id === teamId) ?? null, [teams, teamId]);
+  const team = useMemo(
+    () => teams.find((t) => t.id === teamId) ?? null,
+    [teams, teamId],
+  );
   const players = team?.players ?? [];
 
   return (
@@ -36,7 +39,9 @@ export default function SelectBattersModal({
       onSelectionChange={onSelectionChange}
       selectionMode="multiple"
       maxSelection={2}
-      renderFooter={team ? () => <AddPlayerFooter teamId={team.id} /> : undefined}
+      renderFooter={
+        team ? () => <AddPlayerFooter teamId={team.id} /> : undefined
+      }
     />
   );
 }

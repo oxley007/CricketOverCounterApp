@@ -203,11 +203,18 @@ export const useGameStore = create<GameState>()(
       currentGame: undefined,
 
       updateCurrentGame: (patch: Partial<CurrentGame>) =>
-        set((state) => ({
-          currentGame: state.currentGame
-            ? { ...state.currentGame, ...patch }
-            : state.currentGame,
-        })),
+        set((state) => {
+          if (!state.currentGame) return state;
+
+          const nextGame = { ...state.currentGame, ...patch };
+
+          // shallow compare key fields (cheap loop protection)
+          if (JSON.stringify(state.currentGame) === JSON.stringify(nextGame)) {
+            return state;
+          }
+
+          return { currentGame: nextGame };
+        }),
 
       setSetupComplete: (value) => set({ isSetupComplete: value }),
       addSeason: (name) =>
@@ -336,16 +343,20 @@ export const useGameStore = create<GameState>()(
         }),
 
       setCurrentBowler: (playerId) =>
-        set((state) =>
-          state.currentGame
-            ? {
-                currentGame: {
-                  ...state.currentGame,
-                  currentBowlerId: playerId,
-                },
-              }
-            : state,
-        ),
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          // 🚨 KEY: prevent unnecessary updates
+          if (game.currentBowlerId === playerId) return state;
+
+          return {
+            currentGame: {
+              ...game,
+              currentBowlerId: playerId,
+            },
+          };
+        }),
 
       resetBatters: () =>
         set((state) =>
@@ -436,16 +447,20 @@ export const useGameStore = create<GameState>()(
         }),
 
       setStrike: (playerId) =>
-        set((state) =>
-          state.currentGame
-            ? {
-                currentGame: {
-                  ...state.currentGame,
-                  currentStrikeId: playerId,
-                },
-              }
-            : state,
-        ),
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          // 🚨 KEY: prevent unnecessary updates
+          if (game.currentStrikeId === playerId) return state;
+
+          return {
+            currentGame: {
+              ...game,
+              currentStrikeId: playerId,
+            },
+          };
+        }),
 
       applyStrikeChange: (params) =>
         set((state) => {
@@ -799,6 +814,9 @@ export const useGameStore = create<GameState>()(
         };
       },
       version: 2,
+      onRehydrateStorage: () => () => {
+        useGameStore.getState().setHasHydrated(true);
+      },
     },
   ),
 );

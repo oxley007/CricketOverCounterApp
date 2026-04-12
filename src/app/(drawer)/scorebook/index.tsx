@@ -5,6 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useShallow } from "zustand/shallow";
 
 import {
   configureRevenueCat,
@@ -44,29 +45,26 @@ import MatchRulesModal from "../../../components/Settings/MatchRulesModal";
 import TotalDots from "../../../components/TotalDots";
 import { getSeasonPlayerStats } from "../../../state/seasonStatsHelpers";
 
-import { useBallReminder } from "../../../hooks/useBallReminder";
-
 export default function ScorebookIndex() {
-  const {
-    isSetupComplete,
-    startGame,
-    addBatter,
-    addBowler,
-    setStrike,
-    setCurrentBowler,
-    setBowlingTeam,
-  } = useGameStore();
-  const {
-    showMatchRulesModal,
-    openMatchRulesModal,
-    closeMatchRulesModal,
-    proUnlocked,
-    setProUnlocked,
-    proUnlockedScorebook,
-    events,
-  } = useMatchStore();
+  const isSetupComplete = useGameStore((s) => s.isSetupComplete);
+  const startGame = useGameStore((s) => s.startGame);
+  const setStrike = useGameStore((s) => s.setStrike);
+  const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
+  // State Selectors (Primitives)
+  const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
+  const proUnlocked = useMatchStore((s) => s.proUnlocked);
+  const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
+
+  // Array Selector (Use useShallow for arrays to avoid re-renders on every ball bowled)
+  const events = useMatchStore(useShallow((s) => s.events));
+
+  // Action Selectors (Functions)
+  const openMatchRulesModal = useMatchStore((s) => s.openMatchRulesModal);
+  const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
+
   const router = useRouter();
-  const { teams, loadTeams } = useTeamStore();
+  const teams = useTeamStore((s) => s.teams);
+  const loadTeams = useTeamStore((s) => s.loadTeams);
   const gameConfig = useGameStore((s) => s.gameConfig);
 
   const hasHydrated = useGameStore((s) => s.hasHydrated);
@@ -83,8 +81,12 @@ export default function ScorebookIndex() {
     hasHydrated,
   });
 
-  const battingTeamId = currentGame?.battingTeamId ?? null;
-  const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
+  //const battingTeamId = currentGame?.battingTeamId ?? null;
+  //const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
+
+  const battingTeamId = useGameStore((s) => s.currentGame?.battingTeamId);
+  const bowlingTeamId = useGameStore((s) => s.currentGame?.bowlingTeamId);
+  //const currentBowlerId = useGameStore((s) => s.currentGame?.currentBowlerId);
 
   console.log("render battingTeamId", battingTeamId);
 
@@ -96,9 +98,11 @@ export default function ScorebookIndex() {
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
   const [isSetupVisible, setIsSetupVisible] = useState(false);
-  const { statsModalVisible, statsModalPlayerId, closeStatsModal } =
-    useGameStore();
-  const fixtures = useFixtureStore((s) => s.fixtures);
+  const statsModalVisible = useGameStore((s) => s.statsModalVisible);
+  const statsModalPlayerId = useGameStore((s) => s.statsModalPlayerId);
+  const closeStatsModal = useGameStore((s) => s.closeStatsModal);
+  //const fixtures = useFixtureStore((s) => s.fixtures);
+  const fixtures = useFixtureStore(useShallow((s) => s.fixtures));
 
   useKeepAwake();
 
@@ -163,41 +167,54 @@ export default function ScorebookIndex() {
 
   // Open MatchRules on first setup
   useEffect(() => {
+    let isMounted = true;
+
     (async () => {
       const hasSeen = await SecureStore.getItemAsync("hasSeenMatchRules");
 
-      console.log("MATCH RULES CHECK", {
-        hasSeen,
-        isSetupComplete,
-        isSetupVisible,
-      });
+      if (!isMounted) return;
 
       if (!hasSeen && isSetupComplete && !isSetupVisible) {
-        console.log("OPENING MATCH RULES MODAL");
         openMatchRulesModal();
       }
     })();
-  }, [isSetupComplete]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isSetupComplete, isSetupVisible, openMatchRulesModal]);
 
   // Ball reminder & stats visibility
-  const overs = useMemo(
-    () => events.filter((e) => e.countsAsBall).length / 6,
-    [events],
-  );
-  //const showStats = overs <= 6 || proUnlocked;
-  //const ballReminderEnabled = overs <= 6 || proUnlocked;
-  //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  const showStats = overs <= 6 || proUnlockedScorebook;
-  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
-  useBallReminder(ballReminderEnabled);
-
+  // This selector calculates the value before it even hits your component
   const legalBallsBowled = useMemo(
     () => events.filter((e) => e.countsAsBall).length,
     [events],
   );
 
-  // Sync selected batters / bowler with current game
+  const overs = useMemo(() => legalBallsBowled / 6, [legalBallsBowled]);
+
+  const showStats = overs <= 6 || proUnlockedScorebook;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  //useBallReminder(ballReminderEnabled);
+
+  /*
+  const legalBallsBowled = useMemo(
+    () => events.filter((e) => e.countsAsBall).length,
+    [events],
+  );
+  */
+
+  // Sync selected batters / bowler with current game (avoid depending on whole
+  // currentGame — new object reference every store update causes effect churn).
+  const activeBatterIdsKey = useMemo(
+    () =>
+      (currentGame?.activeBatters ?? [])
+        .map((b) => b.playerId)
+        .sort()
+        .join(","),
+    [currentGame?.activeBatters],
+  );
+
   useEffect(() => {
     if (!currentGame) {
       setSelectedBatters([]);
@@ -205,27 +222,66 @@ export default function ScorebookIndex() {
       return;
     }
 
-    setSelectedBatters((prev) =>
-      prev.length > 0 ? prev : (currentGame.activeBatters ?? []),
+    const idsFromStore = (currentGame.activeBatters ?? []).map(
+      (b) => b.playerId,
     );
 
-    if (!selectedBowlerId && currentGame.currentBowlerId)
-      setSelectedBowlerId(currentGame.currentBowlerId);
-  }, [currentGame]);
+    setSelectedBatters((prev) => {
+      if (idsFromStore.length === 0) {
+        return prev.length === 0 ? prev : [];
+      }
+      if (prev.length === 0) return idsFromStore;
+      return prev;
+    });
+
+    setSelectedBowlerId((bowler) => {
+      const storeBowler = currentGame.currentBowlerId;
+      if (storeBowler != null && storeBowler !== "") {
+        return storeBowler === bowler ? bowler : storeBowler;
+      }
+      return bowler;
+    });
+  }, [
+    currentGame?.battingTeamId,
+    currentGame?.bowlingTeamId,
+    activeBatterIdsKey,
+    currentGame?.currentBowlerId,
+  ]);
 
   // Sync selected bowler to game store
   useEffect(() => {
-    if (selectedBowlerId) {
-      setCurrentBowler(selectedBowlerId);
-    }
-  }, [selectedBowlerId]);
+    if (!selectedBowlerId) return;
+    if (!currentGame?.battingTeamId) return;
 
-  // Sync selected strike (first batter) to game store
+    if (currentGame.currentBowlerId === selectedBowlerId) return;
+
+    setCurrentBowler(selectedBowlerId);
+  }, [
+    selectedBowlerId,
+    currentGame?.battingTeamId,
+    currentGame?.currentBowlerId, // ✅ add this
+    setCurrentBowler,
+  ]);
+
   useEffect(() => {
-    if (selectedBatters.length > 0) {
-      setStrike(selectedBatters[0]);
+    if (!currentGame) return;
+
+    const activeIds = (currentGame.activeBatters ?? []).map((b) => b.playerId);
+
+    if (activeIds.length === 0) return;
+
+    const currentStrike = currentGame.currentStrikeId;
+
+    const isValid =
+      currentStrike != null &&
+      currentStrike !== "" &&
+      activeIds.includes(currentStrike);
+
+    if (!isValid) {
+      const first = activeIds[0];
+      if (first) setStrike(first);
     }
-  }, [selectedBatters]);
+  }, [currentGame?.activeBatters, currentGame?.currentStrikeId]);
 
   /*
   useEffect(() => {
@@ -263,14 +319,6 @@ export default function ScorebookIndex() {
 
     return () => clearTimeout(timer);
   }, [isSetupComplete, setupTrigger]); // setupTrigger still here to catch button taps
-
-  // Handle reset
-  const handleReset = useCallback(() => {
-    useMatchStore.getState().resetInnings();
-    useGameStore.getState().resetGame();
-    setSelectedBatters([]);
-    setSelectedBowlerId(null);
-  }, []);
 
   const handleResetTeams = useCallback(() => {
     // 1. Clear the nested game data (this makes BattingTeamSelector show the list)
@@ -470,7 +518,12 @@ export default function ScorebookIndex() {
 
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
-        <EndInningsButton onComplete={handleReset} />
+        <EndInningsButton
+          onComplete={() => {
+            setSelectedBatters([]);
+            setSelectedBowlerId(null);
+          }}
+        />
         <CurrentOverDisplay />
 
         <View style={styles.scoreRow}>
@@ -494,7 +547,7 @@ export default function ScorebookIndex() {
               startGame(teamId, otherTeam.id, []);
             }
           }}
-          onReset={handleReset}
+          onReset={handleResetTeams}
         />
         */}
 
@@ -505,6 +558,8 @@ export default function ScorebookIndex() {
           legalBallsBowled={legalBallsBowled}
           onSelectTeam={(battingId, bowlingId) => {
             console.log("START GAME", battingId, bowlingId);
+            setSelectedBatters([]);
+            setSelectedBowlerId(null);
             startGame(battingId, bowlingId, []);
           }}
           onReset={handleResetTeams}

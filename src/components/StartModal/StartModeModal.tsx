@@ -1,7 +1,8 @@
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   Image,
   ImageBackground,
   Linking,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { shallow } from "zustand/shallow";
 import AuthModal from "../../components/AuthModal";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
@@ -29,11 +31,10 @@ export default function StartModeModal() {
   const hasSeenPrompt = useJuniorPromptStore((s) => s.hasSeenPrompt);
   const setHasSeenPrompt = useJuniorPromptStore((s) => s.setHasSeenPrompt);
 
-  const [showJuniorPrompt, setShowJuniorPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
-  const fixtures = useFixtureStore((s) => s.fixtures);
+  const fixtures = useFixtureStore((s) => s.fixtures, shallow);
 
   const variant = Constants.expoConfig?.extra?.variant;
   console.log("DEBUG - App Variant:", variant);
@@ -48,9 +49,14 @@ export default function StartModeModal() {
     ballCounterCard: isLittleWicket
       ? require("../../../assets/LittleWicket-logo-small.png")
       : require("../../../assets/4dot6logo-transparent.png"),
+
+    ballCounterCardBall: isLittleWicket
+      ? require("../../../assets/LittleWicket-logo-small.png")
+      : require("../../../assets/4dot6logo-transparent-old_inverse.png"),
   };
 
   // Force re-render whenever store updates (helps with hydration & reset)
+  /*
   const [, setTick] = useState(0);
   useEffect(() => {
     // Subscribe to store changes
@@ -59,11 +65,31 @@ export default function StartModeModal() {
     });
     return unsub;
   }, []);
+  */
 
   const handleStart = (type) => {
     if (!hasSeenPrompt && !isLittleWicket) {
       setPendingAction(type);
-      setShowJuniorPrompt(true);
+
+      Alert.alert(
+        "Are you using this for junior cricket?",
+        "If so, we recommend downloading LittleWicket, designed specifically for modified junior and youth cricket rules.",
+        [
+          {
+            text: "Download LittleWicket",
+            onPress: () => handleJuniorChoice("download"),
+          },
+          {
+            text: "Continue with 4dot6",
+            onPress: () => handleJuniorChoice("continue"),
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ],
+      );
+
       return;
     }
 
@@ -78,7 +104,6 @@ export default function StartModeModal() {
 
   const handleJuniorChoice = async (choice) => {
     setHasSeenPrompt(true);
-    setShowJuniorPrompt(false);
 
     if (choice === "download") {
       const url = Platform.OS === "ios" ? IOS_URL : ANDROID_URL;
@@ -254,7 +279,7 @@ export default function StartModeModal() {
                       onPress={() => handleStart("score")}
                     >
                       <Image
-                        source={images.ballCounterCard}
+                        source={images.ballCounterCardBall}
                         style={styles.cardLogo}
                         resizeMode="contain"
                       />
@@ -309,34 +334,6 @@ export default function StartModeModal() {
           setAuthVisible(false);
         }}
       />
-      <Modal visible={showJuniorPrompt} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.promptBox}>
-            <Text style={styles.promptTitle}>
-              Are you using this app for junior cricket?
-            </Text>
-
-            <Text style={styles.promptText}>
-              If so, download our LittleWicket app built specifically for junior
-              and youth cricket.
-            </Text>
-
-            <Pressable
-              style={styles.downloadButton}
-              onPress={() => handleJuniorChoice("download")}
-            >
-              <Text style={styles.downloadText}>Download LittleWicket</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.continueButton}
-              onPress={() => handleJuniorChoice("continue")}
-            >
-              <Text style={styles.continueText}>Continue with 4dot6</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,7 +11,7 @@ import {
   isRevenueCatAvailable,
 } from "../../services/revenuecat";
 import { useGameStore } from "../../state/gameStore";
-import { type MatchEvent, useMatchStore } from "../../state/matchStore";
+import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 
@@ -39,8 +39,6 @@ import SubscriptionList from "../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../components/iap/UpgradeProBox";
 import { saveSubscription } from "../../services/firestoreService";
 
-import { useBallReminder } from "../../hooks/useBallReminder";
-
 export default function Home() {
   return (
     <View style={{ flex: 1, backgroundColor: "#12c2e9" }}>
@@ -50,10 +48,8 @@ export default function Home() {
 }
 
 function HomeContent() {
-  const events = useMatchStore((state) => state.events) as MatchEvent[];
-  const proUnlocked = useMatchStore((state) => state.proUnlocked);
-  const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
-  const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
+  //const events = useMatchStore((state) => state.events) as MatchEvent[];
+
   const openMatchRulesModal = useMatchStore(
     (state) => state.openMatchRulesModal,
   );
@@ -66,11 +62,15 @@ function HomeContent() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isSetupVisible, setIsSetupVisible] = useState(!isSetupComplete);
   const setupTrigger = useGameStore((s) => s.setupTrigger);
+  const events = useMatchStore((s) => s.events);
+  const proUnlocked = useMatchStore((state) => state.proUnlocked);
+  const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
+  const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
 
   const gameConfig = useGameStore((s) => s.gameConfig);
-  const { teams } = useTeamStore();
+  const teams = useTeamStore((s) => s.teams);
   const currentGame = useGameStore((s) => s.currentGame);
-  const { startGame } = useGameStore();
+  const startGame = useGameStore((s) => s.startGame);
   const [selectedBatters, setSelectedBatters] = useState<string[]>([]);
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null);
 
@@ -83,16 +83,13 @@ function HomeContent() {
   useKeepAwake();
 
   // Compute completed overs (legal balls only)
-  const overs = events.filter((e: MatchEvent) => e.countsAsBall).length / 6;
+  //const overs = events.filter((e: MatchEvent) => e.countsAsBall).length / 6;
 
   //const showStats = overs <= 6 || proUnlocked;
   //const showStats = overs <= 6 || proUnlocked || proScorebookUnlocked;
-  const showStats = overs <= 6 || proUnlocked || proUnlockedScorebook;
-  //const ballReminderEnabled = proUnlocked || overs <= 6;
-  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
 
   // Vibration + flashing reminder
-  useBallReminder(ballReminderEnabled);
+  //useBallReminder(ballReminderEnabled);
 
   // Show match rules on first launch
   /*
@@ -115,40 +112,48 @@ function HomeContent() {
   }, [selectedMode, openStartModal]);
 
   // RevenueCat init
+  const hasSavedSubRef = useRef(false);
+
   useEffect(() => {
+    const getCustomerInfoWithRetry = async (retries = 3) => {
+      try {
+        return await getCustomerInfo();
+      } catch (e: any) {
+        if (retries > 0 && e?.message?.includes("ingested")) {
+          await new Promise((r) => setTimeout(r, 1500));
+          return getCustomerInfoWithRetry(retries - 1);
+        }
+        throw e;
+      }
+    };
+
     const init = async () => {
       if (!isRevenueCatAvailable()) return;
 
-      configureRevenueCat();
-      const customerInfo = await getCustomerInfo();
+      try {
+        configureRevenueCat();
 
-      const activeEntitlements = customerInfo.entitlements.active || {};
+        const customerInfo = await getCustomerInfoWithRetry();
+        const active = customerInfo.entitlements.active || {};
 
-      const isBallActive = activeEntitlements["pro"]?.isActive ?? false; // matches your entitlement
-      const isScorebookActive =
-        activeEntitlements["scorebook_pro"]?.isActive ?? false; // might be undefined
+        const isBallActive = active["pro"]?.isActive ?? false;
+        const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
 
-      setProUnlocked(isBallActive);
-      useMatchStore.getState().setProUnlockedScorebook(isScorebookActive); // <- make sure you call the correct setter
+        setProUnlocked(isBallActive);
+        useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
 
-      //console.log("ENTITLEMENTS:", customerInfo.entitlements.active);
-      //console.log("proUnlocked:", proUnlocked);
-      //console.log("proScorebookUnlocked:", proScorebookUnlocked);
-      //console.log("showStats:", showStats);
+        // 🔥 prevent loop
+        if (!hasSavedSubRef.current) {
+          hasSavedSubRef.current = true;
 
-      /*
-      const active = customerInfo.entitlements.active || {};
-
-      const isBallActive = active["ball_pro"]?.isActive ?? false;
-      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
-
-      setProUnlocked(isBallActive);
-      useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
-      */
-      await saveSubscription({
-        ballPro: isBallActive,
-        scorebookPro: isScorebookActive,
-      });
+          await saveSubscription({
+            ballPro: isBallActive,
+            scorebookPro: isScorebookActive,
+          });
+        }
+      } catch (e) {
+        console.log("RevenueCat init failed:", e);
+      }
     };
 
     init();
@@ -206,10 +211,22 @@ function HomeContent() {
     //setSelectedBowlerId(null);
   }, []);
 
+  /*
   const legalBallsBowled = useMemo(
     () => events.filter((e) => e.countsAsBall).length,
     [events],
+  );*/
+
+  const legalBallsBowled = useMemo(
+    () => events.reduce((count, e) => count + (e.countsAsBall ? 1 : 0), 0),
+    [events],
   );
+
+  const overs = useMemo(() => legalBallsBowled / 6, [legalBallsBowled]);
+
+  const showStats = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  //const ballReminderEnabled = proUnlocked || overs <= 6;
+  const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
 
   const playingTeams = useMemo(() => {
     if (!gameConfig) return [];
@@ -236,8 +253,8 @@ function HomeContent() {
   }, []);
 
   if (__DEV__) {
-    console.log("MATCH EVENTS:", events);
-    console.log("Overs:", overs, "Pro unlocked:", proUnlocked);
+    //console.log("MATCH EVENTS:", events);
+    //console.log("Overs:", overs, "Pro unlocked:", proUnlocked);
   }
 
   return (
@@ -295,7 +312,7 @@ function HomeContent() {
           bowlingTeamId={currentGame?.bowlingTeamId ?? null}
           legalBallsBowled={legalBallsBowled}
           onSelectTeam={(battingId, bowlingId) => {
-            console.log("START GAME", battingId, bowlingId);
+            //console.log("START GAME", battingId, bowlingId);
             startGame(battingId, bowlingId, []);
           }}
           onReset={handleResetTeams}

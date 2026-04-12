@@ -192,6 +192,8 @@ export const matchStoreRef = create<MatchState>()(
         const totalRuns = batRuns + extraRuns;
         const generateId = () => Math.random().toString(36).substring(2, 12);
 
+        const gameSnapshot = useGameStore.getState().currentGame;
+
         const newEvent: MatchEvent = {
           ...event,
           id: generateId(),
@@ -201,7 +203,8 @@ export const matchStoreRef = create<MatchState>()(
           runBreakdown: { bat: batRuns, extras: extraRuns },
           prevBatterId:
             event.prevBatterId ??
-            currentGame?.activeBatters.find((b) => b.isFacing)?.playerId,
+            gameSnapshot?.currentStrikeId ??
+            gameSnapshot?.activeBatters[0]?.playerId,
           ...(event.type === "wicket" && { kind: (event as WicketEvent).kind }),
         } as MatchEvent;
 

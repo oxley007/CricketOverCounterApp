@@ -2,7 +2,7 @@
   "expo": {
     "name": "cricket-umpire-ball-counter",
     "slug": "cricket-umpire-ball-counter",
-    "version": "5.3.0",
+    "version": "5.3.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cricketumpireballcounter",
@@ -15,22 +15,18 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.4dot6.cricketballandovercounter",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "5.3.0",
+      "buildNumber": "5.3.2",
       "icon": "./assets/ios-icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": [
-              "com.4dot6.cricketballandovercounter"
-            ]
+            "CFBundleURLSchemes": ["com.4dot6.cricketballandovercounter"]
           }
         ]
       },
       "entitlements": {
-        "com.apple.developer.applesignin": [
-          "Default"
-        ]
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "android": {
@@ -48,13 +44,10 @@
           "data": {
             "scheme": "com.cricketovercounterapp"
           },
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
-      "versionCode": 52
+      "versionCode": 53
     },
     "web": {
       "output": "static",

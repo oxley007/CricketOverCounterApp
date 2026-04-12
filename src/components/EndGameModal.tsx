@@ -3,9 +3,9 @@ import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
 
-import InningsTabs from "./InningsTabs";
 import { Fixture } from "../state/fixtureStore";
 import { useStartModalStore } from "../state/startModalStore";
+import InningsTabs from "./InningsTabs";
 
 type Props = {
   visible: boolean;

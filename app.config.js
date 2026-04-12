@@ -10,7 +10,7 @@ export default ({ config }) => {
       ? "4dot6 Umpire Ball Counter"
       : "LittleWicket Cricket Scorebook",
     slug: "cricket-umpire-ball-counter",
-    version: "5.3.0",
+    version: "5.3.2",
 
     // --- Shared Logic ---
     orientation: "portrait",
@@ -32,7 +32,7 @@ export default ({ config }) => {
       googleServicesFile: isUmpire
         ? "./config/umpire/GoogleService-Info.plist"
         : "./config/littlewicket/GoogleService-Info.plist",
-      buildNumber: "5.3.0",
+      buildNumber: "5.3.2",
       icon: isUmpire
         ? "./assets/ios-icon.png"
         : "./assets/ios-icon-littlewicket.png",
@@ -60,7 +60,7 @@ export default ({ config }) => {
       googleServicesFile: isUmpire
         ? "./config/umpire/google-services.json"
         : "./config/littlewicket/google-services.json",
-      versionCode: 52,
+      versionCode: 54,
       adaptiveIcon: {
         backgroundColor: isUmpire ? "#12c2e9" : "#2E7D32", // Unique colors per app
         foregroundImage: isUmpire

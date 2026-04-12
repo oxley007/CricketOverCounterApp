@@ -3,8 +3,9 @@
 // Uses teamStore; only use when the list comes from a team roster.
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,10 +28,19 @@ export default function AddPlayerFooter({
   const [name, setName] = useState("");
   const addPlayer = useTeamStore((s) => s.addPlayer);
 
+  const inputRef = useRef<TextInput>(null); // 2. Create the ref
+
   const handleAdd = () => {
     if (!name.trim()) return;
-    onAdded?.(name.trim()); // call parent callback instead of team store
+
+    onAdded?.(name.trim());
+
+    // 3. Directly tell the native component to clear
+    inputRef.current?.clear();
+
+    // 4. Update the state just to be sure
     setName("");
+    Keyboard.dismiss();
   };
 
   return (
@@ -40,10 +50,13 @@ export default function AddPlayerFooter({
       <Text style={styles.title}>Add Players</Text>
       <View style={styles.row}>
         <TextInput
+          ref={inputRef}
           value={name}
           onChangeText={setName}
           placeholder="New player name"
           style={styles.input}
+          onSubmitEditing={handleAdd}
+          returnKeyType="done"
         />
         <Pressable onPress={handleAdd} style={styles.button}>
           <Text style={styles.buttonText}>+ Add</Text>

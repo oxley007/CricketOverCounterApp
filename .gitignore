@@ -45,6 +45,8 @@ app-example
 # Build artifacts
 *.apk
 *.ipa
+*.tar.gz
+*.aab
 
 # Ignore Google Services in the root, but allow them in our config folders
 google-services.json
@@ -52,3 +54,40 @@ GoogleService-Info.plist
 !config/**/google-services.json
 !config/**/GoogleService-Info.plist
 
+# Expo & Metro
+.expo-shared/
+.expo/
+*.jks
+
+# Xcode specific
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/Podfile.lock
+ios/*.xcworkspace/
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+
+# Android specific
+android/build/
+android/.gradle/
+android/app/build/
+local.properties
+
+# Missing Build Formats
+*.app/
+*.app.dSYM.zip
+*.dylib
+*.framework/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

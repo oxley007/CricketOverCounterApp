@@ -53,18 +53,26 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     (state) => state.setProUnlockedScorebook,
   );
 
+  const getCustomerInfoWithRetry = async (retries = 3) => {
+    try {
+      return await getCustomerInfo();
+    } catch (e: any) {
+      if (retries > 0 && e?.message?.includes("ingested")) {
+        await new Promise((r) => setTimeout(r, 1500));
+        return getCustomerInfoWithRetry(retries - 1);
+      }
+      throw e;
+    }
+  };
+
   const fetchOfferings = async () => {
     setLoading(true);
 
     if (isRevenueCatAvailable()) {
       try {
         const offerings: any = await getOfferings();
-        console.log("Full offerings:", offerings);
 
         const currentOffering = offerings?.current;
-        console.log("Current offering:", currentOffering);
-        console.log("Available packages:", currentOffering?.availablePackages);
-
         const allPackages = currentOffering?.availablePackages || [];
 
         let filteredPackages = allPackages;
@@ -74,31 +82,30 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             (pkg: any) =>
               pkg.product.identifier.includes("scorebook") ||
               pkg.product.identifier === "4DOT6BYCPRO" ||
-              pkg.product.identifier === "4dot6bycplayerstats_android", // ✅ Explicitly allow this ID
+              pkg.product.identifier === "4dot6bycplayerstats_android",
           );
-        } else {
-          filteredPackages = allPackages;
         }
 
         setPackages(filteredPackages);
+      } catch (err) {
+        console.error("Failed to fetch offerings:", err);
+        setPackages([]);
+      }
 
-        const customerInfo = await getCustomerInfo();
+      // 👇 separate block
+      try {
+        const customerInfo = await getCustomerInfoWithRetry();
+
         const activeEntitlements = customerInfo?.entitlements.active || {};
-        console.log("💡 Active entitlements on fetch:", activeEntitlements);
 
         setEntitlements(activeEntitlements);
-
-        // update stores
         setProUnlocked(activeEntitlements["pro"]?.isActive ?? false);
         setProUnlockedScorebook(
           activeEntitlements["scorebook_pro"]?.isActive ?? false,
         );
       } catch (err) {
-        console.error(err);
-        setPackages([]);
-        setEntitlements({});
-        setProUnlocked(false);
-        setProUnlockedScorebook(false);
+        console.warn("Failed to fetch customer info:", err);
+        // ✅ do nothing — keep existing state
       }
     } else {
       setPackages([
@@ -137,7 +144,10 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     fetchOfferings();
   }, [visible]);
 
+  // Only listen while the modal is open — otherwise every RC callback updates
+  // matchStore and re-renders any screen using broad useMatchStore() subscriptions.
   useEffect(() => {
+    if (!visible) return;
     if (!isRevenueCatAvailable()) return;
 
     const listener = addCustomerInfoUpdateListener(async (customerInfo) => {
@@ -169,7 +179,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       if (typeof listener === "function") listener();
       else if (listener?.remove) listener.remove();
     };
-  }, []);
+  }, [visible, setProUnlocked, setProUnlockedScorebook]);
 
   const handlePurchase = async (pkg: Package) => {
     if (!isRevenueCatAvailable()) {
@@ -181,7 +191,10 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     try {
       setPurchasing(pkg.identifier);
 
-      const { customerInfo } = await purchasePackage(pkg);
+      await purchasePackage(pkg);
+
+      // let listener handle truth OR fetch fresh:
+      const customerInfo = await getCustomerInfoWithRetry();
       console.log("💡 Purchased package:", pkg.identifier);
       console.log(
         "📦 customerInfo after purchase:",
@@ -237,8 +250,6 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
   const { height } = Dimensions.get("window");
   const RECOMMENDED_ID = "pro_season_ball"; // 👈 change if your identifier differs
-
-  console.log("Subscription entitlements (render):", entitlements);
 
   return (
     <Modal

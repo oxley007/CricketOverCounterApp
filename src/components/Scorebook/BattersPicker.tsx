@@ -176,7 +176,14 @@ export default function BattersPicker({
     // Start the game if it doesn't exist yet
     if (!gameState.currentGame) {
       if (selectedBatters.length > 0) {
-        startGame(battingTeam.id, selectedBatters);
+        const cfg = gameState.gameConfig;
+        const bowlingTeamId =
+          cfg && battingTeam.id === cfg.yourTeam.id
+            ? cfg.oppositionTeam.id
+            : cfg?.yourTeam.id;
+        if (bowlingTeamId) {
+          startGame(battingTeam.id, bowlingTeamId, selectedBatters);
+        }
       }
       return;
     }
@@ -217,6 +224,7 @@ export default function BattersPicker({
     ];
 
     // 2️⃣ Update store only if changed
+    /*
     if (
       mergedBatters.length !== currentBatters.length ||
       mergedBatters.some((b, i) => b.playerId !== currentBatters[i]?.playerId)
@@ -226,16 +234,21 @@ export default function BattersPicker({
         batters: mergedBatters,
       });
     }
+    */
 
     // 3️⃣ Ensure a valid strike
+    const strike = gameState.currentGame.currentStrikeId;
     const currentBattersIds = currentBatters.map((b) => b.playerId);
-    const newStrikeId = currentBattersIds.includes(
-      gameState.currentGame.currentStrikeId,
-    )
-      ? gameState.currentGame.currentStrikeId
-      : mergedBatters[0]?.playerId;
+    const newStrikeId =
+      strike != null && strike !== "" && currentBattersIds.includes(strike)
+        ? strike
+        : mergedBatters[0]?.playerId;
 
-    if (newStrikeId && gameState.currentGame.currentStrikeId !== newStrikeId) {
+    if (
+      newStrikeId &&
+      newStrikeId !== "" &&
+      gameState.currentGame.currentStrikeId !== newStrikeId
+    ) {
       setStrike(newStrikeId);
     }
   }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]); // ✅ include hasHydrated
@@ -279,7 +292,15 @@ export default function BattersPicker({
                         styles.selectedBatterItem,
                         onStrike && styles.onStrikeBatter,
                       ]}
-                      onPress={() => setStrike(p.id)}
+                      onPress={() => {
+                        if (
+                          currentGame?.activeBatters?.some(
+                            (b) => b.playerId === p.id,
+                          )
+                        ) {
+                          setStrike(p.id);
+                        }
+                      }}
                     >
                       <View style={styles.batterRow}>
                         <Text style={styles.selectedBatterText}>

@@ -4,7 +4,6 @@
     "appVersionSource": "local"
   },
   "build": {
-    /* --- Umpire App Profiles --- */
     "umpire-dev": {
       "extends": "development",
       "ios": {
@@ -15,12 +14,34 @@
       },
       "env": { "APP_VARIANT": "umpire" }
     },
+
+    "umpire-dev-device": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": { "APP_VARIANT": "umpire" }
+    },
+
+    "umpire-prod-preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "umpire"
+      }
+    },
+
     "umpire-prod": {
       "extends": "production",
       "env": { "APP_VARIANT": "umpire" }
     },
 
-    /* --- LittleWicket App Profiles for simulaotr --- */
     "littlewicket-dev": {
       "extends": "development",
       "ios": {
@@ -32,7 +53,6 @@
       "env": { "APP_VARIANT": "littlewicket" }
     },
 
-    /* --- LittleWicket App Profiles for real device --- */
     "littlewicket-dev-device": {
       "developmentClient": true,
       "distribution": "internal",
@@ -60,7 +80,6 @@
       "env": { "APP_VARIANT": "littlewicket" }
     },
 
-    /* --- Base Profiles (Your originals) --- */
     "development": {
       "developmentClient": true,
       "distribution": "internal"

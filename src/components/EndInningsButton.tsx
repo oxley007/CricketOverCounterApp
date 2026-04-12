@@ -238,6 +238,8 @@ export default function EndInningsButton({
         JSON.stringify(completedFixture.innings, null, 2),
       );
 
+      onComplete?.();
+
       router.replace({
         pathname: "/match-summary",
         params: { fixtureId: completedFixture.id },
@@ -354,6 +356,8 @@ export default function EndInningsButton({
       // 🔑 reset game setup modal state
       useGameStore.getState().setSetupComplete(true);
 
+      onComplete?.();
+
       router.replace({
         pathname: "/match-summary",
         params: { fixtureId: abandonedFixture.id },
@@ -390,6 +394,7 @@ export default function EndInningsButton({
       resetStartModal();
       useGameStore.getState().setSetupComplete(false);
       useGameStore.getState().triggerSetup();
+      onComplete?.();
       router.replace("/");
       return;
     }
@@ -422,6 +427,8 @@ export default function EndInningsButton({
     useGameStore.getState().triggerSetup();
 
     //router.replace("/");
+
+    onComplete?.();
 
     router.replace({
       pathname: "/match-summary",

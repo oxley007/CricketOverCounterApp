@@ -1,5 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware"; // Add createJSONStorage
 
 type JuniorPromptState = {
   hasSeenPrompt: boolean;
@@ -13,7 +14,8 @@ export const useJuniorPromptStore = create<JuniorPromptState>()(
       setHasSeenPrompt: (value) => set({ hasSeenPrompt: value }),
     }),
     {
-      name: "junior-prompt-storage", // key in storage
+      name: "junior-prompt-storage",
+      storage: createJSONStorage(() => AsyncStorage), // 👈 This is the missing bridge
     },
   ),
 );

@@ -1,4 +1,5 @@
 // syncUserData.ts
+import isEqual from "fast-deep-equal";
 import { Fixture, useFixtureStore } from "../state/fixtureStore";
 import { useMatchStore } from "../state/matchStore";
 import { Team, useTeamStore } from "../state/teamStore";
@@ -14,6 +15,7 @@ export async function syncUserData() {
   try {
     const fixtureStore = useFixtureStore.getState();
     const teamStore = useTeamStore.getState();
+    const matchStore = useMatchStore.getState();
 
     // 1️⃣ Load remote data
     const remoteFixtures: Fixture[] = await loadFixtures();
@@ -21,21 +23,29 @@ export async function syncUserData() {
     const proUnlocked = await loadUserSubscription();
     const currentSeason = await loadSeason();
 
-    // 2️⃣ Merge remote into local — local wins on conflicts
-    // NEW: local wins on conflicts (local = existing local, remote = cloud)
+    // 2️⃣ Merge
     const mergedFixtures: Fixture[] = deepMergeById(
       fixtureStore.fixtures,
       remoteFixtures,
     );
+
     const mergedTeams: Team[] = deepMergeById(teamStore.teams, remoteTeams);
 
-    // 3️⃣ Update local stores
-    useFixtureStore.setState({ fixtures: mergedFixtures });
-    useTeamStore.setState({ teams: mergedTeams });
-    useMatchStore.getState().setProUnlocked(proUnlocked);
+    // 3️⃣ ONLY update if changed ✅
+    if (!isEqual(fixtureStore.fixtures, mergedFixtures)) {
+      useFixtureStore.setState({ fixtures: mergedFixtures });
+    }
 
-    if (currentSeason) {
-      useMatchStore.getState().setSeason(currentSeason); // optional if matchStore tracks it
+    if (!isEqual(teamStore.teams, mergedTeams)) {
+      useTeamStore.setState({ teams: mergedTeams });
+    }
+
+    if (matchStore.proUnlocked !== proUnlocked) {
+      matchStore.setProUnlocked(proUnlocked);
+    }
+
+    if (currentSeason && matchStore.season !== currentSeason) {
+      matchStore.setSeason(currentSeason);
     }
 
     console.log(

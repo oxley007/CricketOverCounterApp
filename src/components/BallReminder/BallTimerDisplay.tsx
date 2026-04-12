@@ -10,24 +10,22 @@ export default function BallTimerDisplay() {
     (state) => state.proUnlockedScorebook,
   );
 
-  // Compute completed overs (only legal balls)
-  const overs = events.filter((e) => e.countsAsBall).length / 6;
+  const legalBalls = events.filter((e) => e.countsAsBall).length;
+  const overs = legalBalls / 6;
 
-  // Show timer if <= 6 overs or Pro unlocked
-  //const showTimer = overs <= 6 || proUnlocked;
+  // This is your "enabled" logic
   const showTimer = overs <= 6 || proUnlocked || proUnlockedScorebook;
 
+  // Pass 'showTimer' to the hook so the internal setInterval only runs when needed
   const {
     formattedTime,
-    thresholdSeconds,
-    averageBallTime,
     flashOn,
     timeSinceLastBall,
     paused,
     pauseReason,
-    deliveryIntervals,
+    averageBallTime,
     avgBallPlusThreshold,
-  } = useBallReminder();
+  } = useBallReminder(showTimer);
 
   if (!showTimer) {
     return (
