@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 import { useMatchStore } from "./matchStore";
+import { useFixtureStore } from "./fixtureStore";
+import { syncLiveGame } from "../services/firestoreService";
 
 export const LEGAL_BALLS = 6;
 
@@ -179,6 +181,9 @@ interface GameState {
   setupTrigger: number;
   triggerSetup: () => void;
   resetTeamsOnly: () => void;
+  resetCurrentBowlerAfterUndo: () => void;
+  // /state/gameStore
+  setCurrentGame: (game: CurrentGame) => void;
 }
 
 const initialState = {
@@ -211,6 +216,13 @@ export const useGameStore = create<GameState>()(
           // shallow compare key fields (cheap loop protection)
           if (JSON.stringify(state.currentGame) === JSON.stringify(nextGame)) {
             return state;
+          }
+
+          const game = state.currentGame;
+          const fixture = useFixtureStore.getState().currentFixture;
+
+          if (game && fixture?.yourTeam?.id) {
+            syncLiveGame(fixture.yourTeam.id, game);
           }
 
           return { currentGame: nextGame };
@@ -261,7 +273,7 @@ export const useGameStore = create<GameState>()(
             currentGame: {
               battingTeamId,
               bowlingTeamId,
-              activeBatters: activeBatters,
+              activeBatters,
               activeRetired: [],
               battingEntries,
               currentEntryId: battingEntries[0]?.entryId,
@@ -271,6 +283,8 @@ export const useGameStore = create<GameState>()(
               ballsThisOver: 0,
               bowlers: [],
               currentBowlerId: undefined,
+              lastBowlerPerOver: {}, // ✅ FIX
+              lastBowlerId: undefined, // optional but clean
               wickets: [],
               ballCount: 0,
             },
@@ -454,6 +468,12 @@ export const useGameStore = create<GameState>()(
           // 🚨 KEY: prevent unnecessary updates
           if (game.currentStrikeId === playerId) return state;
 
+          const fixture = useFixtureStore.getState().currentFixture;
+
+          if (game && fixture?.yourTeam?.id) {
+            syncLiveGame(fixture.yourTeam.id, game);
+          }
+
           return {
             currentGame: {
               ...game,
@@ -574,6 +594,14 @@ export const useGameStore = create<GameState>()(
           console.log("shouldSwap:", shouldSwap);
           console.log("currentStrikeId after change:", currentStrikeId);
           console.log("==========================");
+
+          // after all updates (local + live sync + stats)
+          //const game = useGameStore.getState().currentGame;
+          const fixture = useFixtureStore.getState().currentFixture;
+
+          if (game && fixture?.yourTeam?.id) {
+            syncLiveGame(fixture.yourTeam.id, game);
+          }
 
           return {
             currentGame: {
@@ -733,12 +761,17 @@ export const useGameStore = create<GameState>()(
       },
 
       updateLastBowlerId: (bowlerId: string | null) =>
-        set((state) => ({
-          currentGame: {
-            ...state.currentGame!,
-            lastBowlerId: bowlerId,
-          },
-        })),
+        set((state) => {
+          const game = state.currentGame;
+          if (!game) return state;
+
+          return {
+            currentGame: {
+              ...game,
+              lastBowlerId: bowlerId,
+            },
+          };
+        }),
 
       statsModalPlayerId: null,
       statsModalVisible: false,
@@ -765,6 +798,10 @@ export const useGameStore = create<GameState>()(
         })),
 
       reset: () => set(initialState),
+
+      setCurrentGame: (game: CurrentGame) => {
+        set({ currentGame: game });
+      },
     }),
     {
       name: "cricket-game-store",

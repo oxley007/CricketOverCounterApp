@@ -1,28 +1,48 @@
 // src/components/Scorebook/CurrentBattingDisplay.tsx
 "use client";
-
+import { useMemo } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import { useFixtureStore } from "../../state/fixtureStore";
+import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
 
 export default function CurrentBattingDisplay() {
+  const isLiveViewer = useIsLiveViewer();
   const battingTeamId = useGameStore((s) => s.currentGame?.battingTeamId);
   const allTeams = useTeamStore((s) => s.teams);
+  const currentFixture = useFixtureStore((s) => s.currentFixture);
 
   // Get ball count to determine if we should show yet
   const legalBallsBowled = useMatchStore(
     (s) => s.events.filter((e) => e.countsAsBall).length,
   );
 
-  // ONLY show if a team is selected AND at least one ball has been bowled
-  // This prevents it from appearing while the Selector is still visible
-  if (!battingTeamId || !allTeams.length || legalBallsBowled === 0) {
+  // Determine the display name
+  const teamName = useMemo(() => {
+    if (!battingTeamId) return "Unknown Team";
+
+    // 1. If viewing live, check the currentFixture object
+    if (isLiveViewer && currentFixture) {
+      if (currentFixture.yourTeam?.id === battingTeamId) {
+        return currentFixture.yourTeam.name;
+      }
+      if (currentFixture.oppositionTeam?.id === battingTeamId) {
+        return currentFixture.oppositionTeam.name;
+      }
+    }
+
+    // 2. Fallback to local team store (for Scorers)
+    const team = allTeams.find((t) => t.id === battingTeamId);
+    return team?.name || "Unknown Team";
+  }, [isLiveViewer, battingTeamId, currentFixture, allTeams]);
+
+  // Hide if no team is active or no play has started
+  if (!battingTeamId || legalBallsBowled === 0) {
     return null;
   }
-
-  const team = allTeams.find((t) => t.id === battingTeamId);
 
   return (
     <View style={styles.card}>
@@ -32,7 +52,7 @@ export default function CurrentBattingDisplay() {
         </View>
         <Text style={styles.selectedText}>
           <Text style={styles.label}>Batting: </Text>
-          {team?.name || "Unknown Team"}
+          {teamName || "Unknown Team"}
         </Text>
       </View>
     </View>

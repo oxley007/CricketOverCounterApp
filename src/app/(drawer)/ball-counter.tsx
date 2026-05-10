@@ -1,8 +1,17 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  Pressable,
+  Text,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
 
 import BattingTeamSelector from "../../components/Scorebook/BattingTeamSelector";
 import {
@@ -14,6 +23,7 @@ import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
+import { useRouter } from "expo-router";
 
 import ActionTabs from "../../components/ActionTabs";
 import AveragePartnership from "../../components/AveragePartnership";
@@ -37,7 +47,13 @@ import StartModeModal from "../../components/StartModal/StartModeModal";
 import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../components/iap/UpgradeProBox";
+import LiveScoresCard from "../../components/Live/LiveScoresInfoCard";
 import { saveSubscription } from "../../services/firestoreService";
+import {
+  startLiveGameEventListener,
+  stopLiveGameEventListener,
+} from "../../services/liveGameEventListener";
+import { useFixtureStore } from "../../state/fixtureStore";
 
 export default function Home() {
   return (
@@ -49,6 +65,7 @@ export default function Home() {
 
 function HomeContent() {
   //const events = useMatchStore((state) => state.events) as MatchEvent[];
+  const router = useRouter();
 
   const openMatchRulesModal = useMatchStore(
     (state) => state.openMatchRulesModal,
@@ -78,6 +95,15 @@ function HomeContent() {
   const allTeams = useTeamStore((s) => s.teams); // Ensure you're using the correct team list
   const selectedMode = useStartModalStore((s) => s.selectedMode);
   const openStartModal = useStartModalStore((s) => s.open);
+  const currentFixtureTeamId = useFixtureStore(
+    (s) => s.currentFixture?.yourTeam?.id,
+  );
+
+  const currentFixture = useFixtureStore((s) => s.currentFixture);
+  console.log(
+    JSON.stringify(currentFixture),
+    "need to ceh current fixture here.",
+  );
 
   // Keep screen awake
   useKeepAwake();
@@ -100,6 +126,12 @@ function HomeContent() {
     })();
   }, [openMatchRulesModal]);
   */
+
+  useEffect(() => {
+    if (events.length > 0) {
+      console.log("MATCH_EVENTS_JSON:", JSON.stringify(events, null, 2));
+    }
+  }, [events]);
 
   useEffect(() => {
     // 🔑 If no mode is selected, force the selector open
@@ -211,6 +243,25 @@ function HomeContent() {
     //setSelectedBowlerId(null);
   }, []);
 
+  useEffect(() => {
+    // Only start listening if we have a fixture and a team ID
+    if (currentFixtureTeamId) {
+      console.log(
+        "🔗 Connecting real-time listener for Team:",
+        currentFixtureTeamId,
+      );
+      startLiveGameEventListener(currentFixtureTeamId);
+    }
+
+    return () => {
+      // 🛑 Critical: Stop listening when the user leaves this screen
+      if (currentFixtureTeamId) {
+        console.log("🔌 Disconnecting real-time listener");
+        stopLiveGameEventListener(currentFixtureTeamId);
+      }
+    };
+  }, [currentFixtureTeamId]);
+
   /*
   const legalBallsBowled = useMemo(
     () => events.filter((e) => e.countsAsBall).length,
@@ -252,6 +303,8 @@ function HomeContent() {
     // Note: Because we didn't call resetGame(), isSetupComplete stays TRUE.
   }, []);
 
+  const isLiveViewer = useIsLiveViewer();
+
   if (__DEV__) {
     //console.log("MATCH EVENTS:", events);
     //console.log("Overs:", overs, "Pro unlocked:", proUnlocked);
@@ -287,7 +340,13 @@ function HomeContent() {
 
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
-        <EndInningsButton onComplete={handleReset} />
+        {!isLiveViewer && (
+          <>
+            <EndInningsButton onComplete={handleReset} />
+
+            <LiveScoresCard onPress={() => router.push("/live-scoring-info")} />
+          </>
+        )}
 
         <CurrentOverDisplay />
         <View style={styles.divider} />
@@ -305,18 +364,19 @@ function HomeContent() {
         </View>
 
         <View style={styles.divider} />
-
-        <BattingTeamSelector
-          allTeams={playingTeams}
-          selectedBattingTeamId={currentGame?.battingTeamId ?? null}
-          bowlingTeamId={currentGame?.bowlingTeamId ?? null}
-          legalBallsBowled={legalBallsBowled}
-          onSelectTeam={(battingId, bowlingId) => {
-            //console.log("START GAME", battingId, bowlingId);
-            startGame(battingId, bowlingId, []);
-          }}
-          onReset={handleResetTeams}
-        />
+        {!isLiveViewer && (
+          <BattingTeamSelector
+            allTeams={playingTeams}
+            selectedBattingTeamId={currentGame?.battingTeamId ?? null}
+            bowlingTeamId={currentGame?.bowlingTeamId ?? null}
+            legalBallsBowled={legalBallsBowled}
+            onSelectTeam={(battingId, bowlingId) => {
+              //console.log("START GAME", battingId, bowlingId);
+              startGame(battingId, bowlingId, []);
+            }}
+            onReset={handleResetTeams}
+          />
+        )}
 
         {!showStats && (
           <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />
@@ -399,5 +459,50 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#f5f5f5",
     marginVertical: 10,
+  },
+  liveCard: {
+    backgroundColor: "#FFE082", // softer, nicer than harsh yellow
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+
+    // shadow (makes it feel tappable)
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
+  liveCardPressed: {
+    opacity: 0.85,
+  },
+
+  liveCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  liveIcon: {
+    fontSize: 22,
+    marginRight: 12,
+  },
+
+  liveTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#333",
+  },
+
+  liveSubtitle: {
+    fontSize: 13,
+    color: "#555",
+    marginTop: 2,
+  },
+
+  chevron: {
+    fontSize: 22,
+    color: "#333",
+    marginLeft: 10,
   },
 });

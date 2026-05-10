@@ -46,6 +46,18 @@ import TotalDots from "../../../components/TotalDots";
 import { getSeasonPlayerStats } from "../../../state/seasonStatsHelpers";
 
 export default function ScorebookIndex() {
+  console.log(
+    "🎯 Current Fixture:",
+    JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
+  );
+  console.log(
+    "🏏 Active Batters:",
+    JSON.stringify(useGameStore.getState().currentGame?.activeBatters, null, 2),
+  );
+  console.log(
+    "🏏 Current Game check:",
+    JSON.stringify(useGameStore.getState().currentGame, null, 2),
+  );
   const isSetupComplete = useGameStore((s) => s.isSetupComplete);
   const startGame = useGameStore((s) => s.startGame);
   const setStrike = useGameStore((s) => s.setStrike);
@@ -514,6 +526,7 @@ export default function ScorebookIndex() {
       <SubscriptionList
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
+        tier="coach"
       />
 
       <ScrollView contentContainerStyle={styles.container}>

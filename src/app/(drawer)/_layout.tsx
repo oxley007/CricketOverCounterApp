@@ -26,6 +26,8 @@ import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
+import { useTenantConfig } from "../../hooks/useTenantConfig";
+import { APP_LOGOS } from "../../constants/Assets";
 
 export default function DrawerLayout() {
   useEffect(() => {
@@ -62,12 +64,23 @@ function DrawerContent() {
   // Pull the mode to determine the label/icon
   const selectedMode = useStartModalStore((s) => s.selectedMode);
 
+  // Get config from your hook
+  const { theme } = useTenantConfig();
+
+  // Use the same lookup logic from your Modal
+  const logoSource = APP_LOGOS[theme.headerLogo];
+
+  // To keep your specific styling logic for LittleWicket:
+  const isLittleWicket = theme.headerLogo === "logo_littlewicket";
+
+  /*
   const variant = Constants.expoConfig?.extra?.variant;
   const isLittleWicket = variant === "littlewicket";
 
   const logoSource = isLittleWicket
     ? require("../../../assets/LittleWicket-logo-small-white-bg.png")
     : require("../../../assets/4dot6logo-transparent.png");
+    */
 
   const handleExitNoSave = () => {
     // 1. Get store instances
@@ -148,7 +161,6 @@ function DrawerContent() {
       }}
       screenOptions={{
         headerShown: true,
-
         headerTitle: () => (
           <View
             style={[
@@ -156,10 +168,8 @@ function DrawerContent() {
               {
                 backgroundColor: isLittleWicket ? "#fff" : "transparent",
                 borderRadius: isLittleWicket ? 50 : 0,
-                paddingRight: isLittleWicket ? 10 : 0,
-                paddingLeft: isLittleWicket ? 10 : 0,
-                paddingTop: isLittleWicket ? 5 : 0,
-                paddingBottom: isLittleWicket ? 5 : 0,
+                paddingHorizontal: isLittleWicket ? 10 : 0,
+                paddingVertical: isLittleWicket ? 5 : 0,
               },
             ]}
           >
@@ -169,7 +179,7 @@ function DrawerContent() {
                 styles.logo,
                 {
                   width: isLittleWicket ? 200 : 120,
-                  borderRadius: isLittleWicket ? 200 : 0,
+                  aspectRatio: theme.logoAspectRatio, // Use the ratio from config!
                 },
               ]}
               resizeMode="contain"

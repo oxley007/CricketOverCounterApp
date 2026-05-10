@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useBallReminder } from "../../hooks/useBallReminder";
 import { useMatchStore } from "../../state/matchStore";
+import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
 
 export default function BallTimerDisplay() {
   const events = useMatchStore((state) => state.events);
@@ -10,11 +11,16 @@ export default function BallTimerDisplay() {
     (state) => state.proUnlockedScorebook,
   );
 
+  const isLiveViewer = useIsLiveViewer();
+
   const legalBalls = events.filter((e) => e.countsAsBall).length;
   const overs = legalBalls / 6;
 
   // This is your "enabled" logic
-  const showTimer = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  //const showTimer = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  // Show the timer if it's pro/early overs OR if they are just a live viewer
+  const showTimer =
+    overs <= 6 || proUnlocked || proUnlockedScorebook || isLiveViewer;
 
   // Pass 'showTimer' to the hook so the internal setInterval only runs when needed
   const {
@@ -27,6 +33,8 @@ export default function BallTimerDisplay() {
     avgBallPlusThreshold,
   } = useBallReminder(showTimer);
 
+  const hasExceeded = timeSinceLastBall > avgBallPlusThreshold;
+
   if (!showTimer) {
     return (
       <View style={styles.upgradeContainer}>
@@ -38,34 +46,56 @@ export default function BallTimerDisplay() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.leftText}>
-        Time Since Last Ball:{" "}
-        <Text
+    <View>
+      <View style={styles.container}>
+        <Text style={styles.leftText}>
+          Time Since Last Ball:{" "}
+          <Text
+            style={[
+              styles.timerText,
+              // Add !isLiveViewer here to ensure flashing ONLY happens for scorers
+              !isLiveViewer &&
+                hasExceeded && {
+                  color: flashOn ? "red" : "#555",
+                },
+            ]}
+          >
+            {formattedTime}
+          </Text>
+          {paused && (
+            <Text style={styles.pausedText}>
+              {" "}
+              (
+              {pauseReason === "wicket"
+                ? "PAUSED: Wicket"
+                : "PAUSED: End of Over"}
+              )
+            </Text>
+          )}
+        </Text>
+
+        <Text style={styles.thresholdText}>
+          Avg: {Math.round(averageBallTime)} sec
+        </Text>
+      </View>
+      {/* New Flashing Alert Text */}
+      {!isLiveViewer && hasExceeded && (
+        <View
           style={[
-            styles.timerText,
-            timeSinceLastBall > avgBallPlusThreshold && {
-              color: flashOn ? "red" : "#555",
-            },
+            styles.alertContainer,
+            { backgroundColor: flashOn ? "#FFEBEB" : "transparent" },
           ]}
         >
-          {formattedTime}
-        </Text>
-        {paused && (
-          <Text style={styles.pausedText}>
-            {" "}
-            (
-            {pauseReason === "wicket"
-              ? "PAUSED: Wicket"
-              : "PAUSED: End of Over"}
-            )
+          <Text
+            style={[
+              styles.alertText,
+              { color: flashOn ? "red" : "transparent" },
+            ]}
+          >
+            FORGOTTEN TO SCORE A BALL?
           </Text>
-        )}
-      </Text>
-
-      <Text style={styles.thresholdText}>
-        Avg: {Math.round(averageBallTime)} sec
-      </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -107,6 +137,22 @@ const styles = StyleSheet.create({
   upgradeText: {
     color: "#856404",
     fontSize: 12,
+    textAlign: "center",
+  },
+  alertContainer: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "red", // Keeps a subtle "warning" outline even when text blinks off
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertText: {
+    fontSize: 16, // 20 is quite large, 16 is punchy but fits most screens
+    fontWeight: "900",
+    letterSpacing: 0.5,
     textAlign: "center",
   },
 });

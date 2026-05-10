@@ -11,14 +11,20 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { saveSeason } from "../../services/firestoreService";
+import {
+  saveSeason,
+  ensurePublicTeamExists,
+} from "../../services/firestoreService";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
-import { Team } from "../../state/teamStore";
+//import { Team } from "../../state/teamStore";
+import { useTeamStore } from "../../state/teamStore";
+import type { Team } from "../../state/teamStore";
 import SeasonPickerModal from "../Seasons/SeasonPickerModal"; // ✅ correct import
 import TeamPickerModal from "../Teams/TeamPickerModal";
+import { useLiveStore } from "../../state/liveStore";
 
 interface Props {
   visible: boolean;
@@ -58,7 +64,7 @@ export default function GameSetupModal({ visible, onClose }: Props) {
     };
   }, [visible]);
 
-  const startGame = () => {
+  const startGame = async () => {
     if (!yourTeam || !oppositionTeam) return;
 
     const finalOvers = isUnlimited ? 0 : parseInt(overs, 10) || 0;
@@ -76,6 +82,36 @@ export default function GameSetupModal({ visible, onClose }: Props) {
       overs: finalOvers,
       season,
     });
+
+    // ✅ 🔥 THIS IS THE KEY PART
+    const liveStore = useLiveStore.getState();
+    const liveConfigured = liveStore.liveConfigured;
+
+    console.log(liveConfigured, "liveConfigured is?");
+    console.log(JSON.stringify(liveStore), "liveStore is?");
+    console.log(yourTeam.id, "yourTeam.id is?");
+
+    //if (liveConfigured) {
+    const teamStore = useTeamStore.getState();
+    const team = teamStore.teams.find((t) => t.id === yourTeam.id);
+
+    if (!team) return;
+
+    //const teamCode = await ensurePublicTeamExists(team);
+
+    liveStore.configureLive({
+      teamId: team.id,
+      teamCode: team.id, // ✅ keep RAW in store
+      playerIds: liveStore.playerIds ?? [],
+    });
+
+    //console.log("🔴 Live configured for game:", teamCode);
+    /*} else {
+      console.log("⚪ Live not enabled");
+    }*/
+
+    // Add liveTeamID so it can be used as a reference to what team this game nbelongs to
+    useMatchStore.getState().setLiveTeamId(yourTeam.id);
 
     // 2️⃣ Start fixture AFTER config exists
     useFixtureStore.getState().startFixture();

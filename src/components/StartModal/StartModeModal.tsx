@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { router } from "expo-router";
+import { router, Href } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -21,6 +21,11 @@ import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useJuniorPromptStore } from "../../state/juniorPromptStore";
 import { useStartModalStore } from "../../state/startModalStore";
+import { useTenantConfig } from "../../hooks/useTenantConfig";
+import { APP_LOGOS } from "../../constants/Assets";
+import { useLiveStore } from "@/src/state/liveStore";
+
+type AppLogoKey = keyof typeof APP_LOGOS;
 
 export default function StartModeModal() {
   const isOpen = useStartModalStore((s) => s.isOpen);
@@ -30,30 +35,29 @@ export default function StartModeModal() {
   const [authVisible, setAuthVisible] = useState(false);
   const hasSeenPrompt = useJuniorPromptStore((s) => s.hasSeenPrompt);
   const setHasSeenPrompt = useJuniorPromptStore((s) => s.setHasSeenPrompt);
+  const { teamCodesSupporter } = useLiveStore.getState();
+  const setReadOnly = useLiveStore.getState().setReadOnly;
 
   const [pendingAction, setPendingAction] = useState(null);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
   const fixtures = useFixtureStore((s) => s.fixtures, shallow);
 
-  const variant = Constants.expoConfig?.extra?.variant;
-  console.log("DEBUG - App Variant:", variant);
-  const isLittleWicket = variant === "littlewicket";
+  //const variant = Constants.expoConfig?.extra?.variant;
+  const { theme, features, modes } = useTenantConfig();
+  // Sort modes: Put the 'primary' mode first based on the config data
+  const sortedModes = [...modes].sort((a, b) => {
+    return Number(b.primary) - Number(a.primary);
+  });
+  console.log("DEBUG - sortedModes:", sortedModes);
 
-  // Map your images
-  const images = {
-    headerLogo: isLittleWicket
-      ? require("../../../assets/LittleWicket-logo-small.png")
-      : require("../../../assets/4dot6logo-transparent.png"),
+  const logoSource = APP_LOGOS[theme.headerLogo as keyof typeof APP_LOGOS];
+  const bgKey = theme.backgroundImage as keyof typeof APP_LOGOS | null;
 
-    ballCounterCard: isLittleWicket
-      ? require("../../../assets/LittleWicket-logo-small.png")
-      : require("../../../assets/4dot6logo-transparent.png"),
+  //const cardLogo = APP_LOGOS[mode.logo as keyof typeof APP_LOGOS];
 
-    ballCounterCardBall: isLittleWicket
-      ? require("../../../assets/LittleWicket-logo-small.png")
-      : require("../../../assets/4dot6logo-transparent-old_inverse.png"),
-  };
+  const bgSource = bgKey ? APP_LOGOS[bgKey] : null;
+  //const isLittleWicket = variant === "littlewicket";
 
   // Force re-render whenever store updates (helps with hydration & reset)
   /*
@@ -68,7 +72,7 @@ export default function StartModeModal() {
   */
 
   const handleStart = (type) => {
-    if (!hasSeenPrompt && !isLittleWicket) {
+    if (!hasSeenPrompt && features.showJuniorPrompt) {
       setPendingAction(type);
 
       Alert.alert(
@@ -95,6 +99,7 @@ export default function StartModeModal() {
 
     if (type === "ball") onBallCounter();
     if (type === "score") onScorebook();
+    if (type === "liveScores") onLiveScore();
   };
 
   const IOS_URL =
@@ -125,215 +130,183 @@ export default function StartModeModal() {
     if (choice === "continue") {
       if (pendingAction === "ball") onBallCounter();
       if (pendingAction === "score") onScorebook();
+      if (pendingAction === "liveScores") onLiveScore();
     }
   };
 
-  const onBallCounter = () => {
+  const navigateToGameMode = (
+    selectModeFn: (() => void) | null, // A function with no args/return, or null
+    route: Href, // The path string
+    shouldTriggerSetup: boolean = true, // Optional boolean with default
+  ) => {
     closeStartModal();
-    selectBallCounter();
 
-    const game = useGameStore.getState();
-    game.triggerSetup();
+    if (selectModeFn) selectModeFn();
+
+    if (shouldTriggerSetup) {
+      const game = useGameStore.getState();
+      game.triggerSetup();
+    }
 
     setTimeout(() => {
-      router.replace("/ball-counter");
+      router.replace(route);
     }, 100);
   };
 
+  const destination =
+    teamCodesSupporter.length > 0
+      ? "/live-scoring-fixtures"
+      : "/live-scoring-home";
+
+  // Usage:
+  /*
+  const onBallCounter = () =>
+    navigateToGameMode(selectBallCounter, "/ball-counter");
+  const onScorebook = () => navigateToGameMode(selectScorebook, "/scorebook");
+  const onLiveScore = () => navigateToGameMode(null, destination, false);
+  */
+
+  const onBallCounter = () => {
+    setReadOnly(false); // Enable features
+    navigateToGameMode(selectBallCounter, "/ball-counter");
+  };
+
   const onScorebook = () => {
-    closeStartModal();
-    selectScorebook();
+    setReadOnly(false); // Enable features
+    navigateToGameMode(selectScorebook, "/scorebook");
+  };
 
-    const game = useGameStore.getState();
-    game.triggerSetup();
-
-    setTimeout(() => {
-      router.replace("/scorebook");
-    }, 100);
+  const onLiveScore = () => {
+    setReadOnly(true); // Disable features / Read-only mode
+    navigateToGameMode(null, destination, false);
   };
 
   return (
     <>
       <Modal visible={isOpen && !authVisible} animationType="fade" transparent>
         <View
-          style={[
-            styles.overlay,
-            { backgroundColor: isLittleWicket ? "#fff" : "rgba(0,0,0,1)" },
-          ]}
+          style={[styles.overlay, { backgroundColor: theme.modeSelectionBg }]}
         >
-          <SafeAreaView style={styles.safe}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContainer}
-              showsVerticalScrollIndicator={false}
+          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+            {/* FULL SCREEN BACKGROUND WRAPPER */}
+            <ImageBackground
+              source={bgSource}
+              style={styles.bg}
+              imageStyle={styles.backgroundImage}
             >
-              <ImageBackground
-                source={
-                  isLittleWicket
-                    ? require("../../../assets/ios-icon-littlewicket.png")
-                    : null
-                }
-                style={styles.container}
-                // This styles the actual image inside the container
-                imageStyle={isLittleWicket ? styles.backgroundImage : {}}
+              {/* CONTENT OVERLAY */}
+              <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
               >
                 {/* Header */}
                 <View
                   style={[
                     styles.header,
-                    {
-                      backgroundColor: isLittleWicket
-                        ? "transparent"
-                        : "rgba(0,0,0,1)",
-                    },
+                    { backgroundColor: theme.modeHeaderBg },
                   ]}
                 >
                   <Image
-                    source={images.headerLogo} // <--- Dynamic source
+                    source={logoSource}
                     style={[
                       styles.headerLogo,
-                      { aspectRatio: isLittleWicket ? 4.1 : 1.8 },
+                      { aspectRatio: theme.logoAspectRatio },
                     ]}
                     resizeMode="contain"
                   />
                   <Text
                     style={[
                       styles.headerText,
-                      {
-                        color: isLittleWicket ? "#000" : "rgba(255,255,255,1)",
-                      },
+                      { color: theme.headerTextColor },
                     ]}
                   >
                     Select your mode
                   </Text>
                 </View>
 
-                {/* DYNAMIC ORDERING STARTS HERE */}
-                {isLittleWicket ? (
-                  <>
-                    {/* 1st: Scorebook */}
-                    <Pressable
-                      style={[styles.card, styles.scorebook]}
-                      onPress={() => handleStart("score")}
-                    >
-                      <Image
-                        source={images.ballCounterCard}
-                        style={styles.cardLogo}
-                        resizeMode="contain"
-                      />
-                      <Text style={[styles.cardText, styles.scorebookText]}>
-                        Scorebook
-                      </Text>
-                    </Pressable>
+                {/* Modes */}
+                {sortedModes.map((mode) => {
+                  const cardLogo =
+                    APP_LOGOS[mode.logo as keyof typeof APP_LOGOS];
 
-                    {/* 2nd: Ball Counter */}
+                  const bg = theme[`${mode.id}Bg`] ?? theme.cardBg;
+
+                  const border =
+                    theme[`${mode.id}BorderColor`] ?? theme.cardBorderColor;
+
+                  const text =
+                    theme[`${mode.id}Text`] ??
+                    theme[`${mode.id}TextColor`] ??
+                    theme.cardTextColor;
+
+                  return (
                     <Pressable
+                      key={mode.id}
                       style={[
                         styles.card,
-                        styles.ballCounter,
                         {
-                          backgroundColor: isLittleWicket ? "#fff" : "#12c2e9",
-                          borderColor: isLittleWicket
-                            ? "#e9df36"
-                            : "transparent",
-                          borderWidth: isLittleWicket ? 2 : 0,
+                          backgroundColor: bg,
+                          borderColor: border,
+                          borderWidth: theme.cardBorderWidth ?? 2,
                         },
                       ]}
-                      onPress={() => handleStart("ball")}
+                      onPress={() => handleStart(mode.id)}
                     >
                       <Image
-                        source={images.ballCounterCard}
+                        source={cardLogo}
                         style={styles.cardLogo}
                         resizeMode="contain"
                       />
-                      <Text
-                        style={[
-                          styles.cardText,
-                          styles.ballCounterText,
-                          { color: isLittleWicket ? "#e9df36" : "#fff" },
-                        ]}
-                      >
-                        Ball Counter
+                      <Text style={[styles.cardText, { color: text }]}>
+                        {mode.label}
                       </Text>
                     </Pressable>
-                  </>
-                ) : (
-                  <>
-                    {/* 1st: Ball Counter */}
-                    <Pressable
-                      style={[styles.card, styles.ballCounter]}
-                      onPress={() => handleStart("ball")}
-                    >
-                      <Image
-                        source={images.ballCounterCard}
-                        style={styles.cardLogo}
-                        resizeMode="contain"
-                      />
-                      <Text style={[styles.cardText, styles.ballCounterText]}>
-                        Ball Counter
-                      </Text>
-                    </Pressable>
+                  );
+                })}
 
-                    {/* 2nd: Scorebook */}
-                    <Pressable
-                      style={[styles.card, styles.scorebook]}
-                      onPress={() => handleStart("score")}
-                    >
-                      <Image
-                        source={images.ballCounterCardBall}
-                        style={styles.cardLogo}
-                        resizeMode="contain"
-                      />
-                      <Text style={[styles.cardText, styles.scorebookText]}>
-                        Scorebook
-                      </Text>
-                    </Pressable>
-                  </>
+                {/* Stats */}
+                {fixtures.length > 0 && (
+                  <Pressable
+                    style={styles.statsButton}
+                    onPress={() => {
+                      closeStartModal();
+                      router.push("/stats");
+                    }}
+                  >
+                    <Text style={styles.statsButtonText}>View Stats</Text>
+                  </Pressable>
                 )}
-              </ImageBackground>
-              {/* View Stats Button (only if fixtures exist) */}
-              {fixtures.length > 0 && (
+
+                {/* Fixtures */}
+                {fixtures.length > 0 && (
+                  <Pressable
+                    style={styles.statsButton}
+                    onPress={() => {
+                      closeStartModal();
+                      router.push("/fixtureList");
+                    }}
+                  >
+                    <Text style={styles.statsButtonText}>
+                      View Fixtures Results
+                    </Text>
+                  </Pressable>
+                )}
+
+                {/* Login */}
                 <Pressable
-                  style={styles.statsButton}
-                  onPress={() => {
-                    closeStartModal(); // 👈 THIS is what you're missing
-                    router.push("/stats");
-                  }}
+                  style={styles.loginButton}
+                  onPress={() => setAuthVisible(true)}
                 >
-                  <Text style={styles.statsButtonText}>View Stats</Text>
+                  <Text style={styles.loginButtonText}>Login / Sign Up</Text>
                 </Pressable>
-              )}
-              {/* View Fixtures Button (only if fixtures exist) */}
-              {fixtures.length > 0 && (
-                <Pressable
-                  style={styles.statsButton}
-                  onPress={() => {
-                    closeStartModal();
-                    router.push("/fixtureList");
-                  }}
-                >
-                  <Text style={styles.statsButtonText}>
-                    View Fixtures Results
-                  </Text>
-                </Pressable>
-              )}
-              <Pressable
-                style={styles.loginButton}
-                onPress={() => {
-                  setAuthVisible(true); // show AuthModal
-                }}
-              >
-                <Text style={styles.loginButtonText}>Login / Sign Up</Text>
-              </Pressable>
-            </ScrollView>
+              </ScrollView>
+            </ImageBackground>
           </SafeAreaView>
         </View>
       </Modal>
-      <AuthModal
-        visible={authVisible}
-        onClose={() => {
-          setAuthVisible(false);
-        }}
-      />
+
+      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
     </>
   );
 }
@@ -371,6 +344,7 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: "700",
   },
+  /*
   ballCounter: {
     backgroundColor: "#12c2e9",
   },
@@ -385,6 +359,7 @@ const styles = StyleSheet.create({
   scorebookText: {
     color: "#12c2e9",
   },
+  */
   devButton: {
     marginTop: 30,
     paddingVertical: 12,
@@ -434,13 +409,10 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   container: {
-    //width: "90%",
-    alignSelf: "center",
-    // Ensure the container has room for the image
-    paddingBottom: 20,
-    flex: 1, // Takes up all available height
-    width: "100%", // Takes up all available width
+    flex: 1,
+    width: "100%",
     paddingTop: 60,
+    paddingBottom: 20,
   },
   backgroundImage: {
     resizeMode: "cover",
@@ -511,6 +483,11 @@ const styles = StyleSheet.create({
 
   continueText: {
     fontWeight: "600",
+  },
+  bg: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
   },
 });
 

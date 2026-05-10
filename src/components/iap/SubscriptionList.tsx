@@ -23,23 +23,25 @@ import {
 } from "../../services/revenuecat";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
+import { useLiveStore } from "../../state/liveStore";
 
 type Package = {
   identifier: string;
   product: { priceString: string; title?: string; description?: string };
 };
 
+type Tier = "coach" | "supporter";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  mode?: "ball" | "scorebook" | "all";
+  tier?: Tier; // undefined = show all
 };
 
 //type Props = { visible: boolean; onClose: () => void };
 
 // ...imports remain the same
 
-export default function SubscriptionModal({ visible, onClose }: Props) {
+export default function SubscriptionModal({ visible, onClose, tier }: Props) {
   const Wrapper = Platform.OS === "android" ? SafeAreaView : View;
 
   const [packages, setPackages] = useState<Package[]>([]);
@@ -47,6 +49,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<any>({});
   const selectedMode = useStartModalStore((state) => state.selectedMode);
+  const setLivePro = useLiveStore((s) => s.setLivePro);
 
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
   const setProUnlockedScorebook = useMatchStore(
@@ -75,14 +78,46 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         const currentOffering = offerings?.current;
         const allPackages = currentOffering?.availablePackages || [];
 
+        const PACKAGE_MAP = {
+          coach: [
+            "pro_monthly_live",
+            "pro_season_live",
+            "4dot6_scorebook_lifetime_upgrade_live",
+          ],
+          supporter: [
+            "pro_monthly_live_supporter",
+            "pro_season_live_supporter",
+            "4dot6_scorebook_lifetime_upgrade_live_supporter",
+          ],
+        };
+
         let filteredPackages = allPackages;
 
+        // 1. Filter by tier first
+        if (tier === "supporter") {
+          filteredPackages = filteredPackages.filter((pkg: any) =>
+            PACKAGE_MAP.supporter.includes(pkg.product.identifier),
+          );
+        } else if (tier === "coach") {
+          filteredPackages = filteredPackages.filter((pkg: any) =>
+            PACKAGE_MAP.coach.includes(pkg.product.identifier),
+          );
+        }
+
+        // 2. Then apply mode filter on TOP
         if (selectedMode === "scorebook") {
-          filteredPackages = allPackages.filter(
+          filteredPackages = filteredPackages.filter(
             (pkg: any) =>
               pkg.product.identifier.includes("scorebook") ||
               pkg.product.identifier === "4DOT6BYCPRO" ||
               pkg.product.identifier === "4dot6bycplayerstats_android",
+          );
+        }
+
+        if (tier !== "supporter" && tier !== "coach") {
+          filteredPackages = filteredPackages.filter(
+            (pkg: any) =>
+              !PACKAGE_MAP.supporter.includes(pkg.product.identifier),
           );
         }
 
@@ -103,6 +138,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         setProUnlockedScorebook(
           activeEntitlements["scorebook_pro"]?.isActive ?? false,
         );
+        setLivePro(activeEntitlements["live_pro"]?.isActive ?? false);
       } catch (err) {
         console.warn("Failed to fetch customer info:", err);
         // ✅ do nothing — keep existing state
@@ -154,11 +190,13 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       const active = customerInfo.entitlements.active || {};
       console.log("🔔 Customer info update:", active);
 
+      const isLiveProActive = active["live_pro"]?.isActive ?? false;
       const isBallActive = active["pro"]?.isActive ?? false;
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
+      setLivePro(isLiveProActive);
       setEntitlements(active);
 
       try {
@@ -206,6 +244,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
       const isBallActive = active["pro"]?.isActive ?? false;
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+      const isLiveProActive = active["live_pro"]?.isActive ?? false;
 
       console.log(
         "🎯 isBallActive:",
@@ -216,6 +255,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
+      setLivePro(isLiveProActive);
       setEntitlements(active);
 
       if (isBallActive || isScorebookActive) {
@@ -223,6 +263,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           await saveSubscription({
             ballPro: isBallActive,
             scorebookPro: isScorebookActive,
+            livePro: isLiveProActive,
           });
           console.log("✅ Subscription state saved (purchase):", {
             ballPro: isBallActive,

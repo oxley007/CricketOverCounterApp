@@ -1,7 +1,14 @@
 import * as SecureStore from "expo-secure-store";
+import { Alert } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { LEGAL_BALLS, useGameStore } from "./gameStore";
+import { useFixtureStore } from "./fixtureStore";
+import {
+  deleteLiveEvent,
+  addLiveEvent,
+  syncLiveGame,
+} from "../services/firestoreService";
 
 const secureStore = {
   getItem: async (name: string) => {
@@ -24,6 +31,7 @@ export type MatchEvent =
   | {
       id: string;
       timestamp: number;
+      ballNumber: number;
       type: "ball";
       batterId?: string;
       batterInningId?: string;
@@ -44,6 +52,7 @@ export type MatchEvent =
   | {
       id: string;
       timestamp: number;
+      ballNumber: number;
       type: "wicket";
       batterId?: string;
       bowlerId?: string;
@@ -60,7 +69,65 @@ export type MatchEvent =
       wicketPenaltyWicketType?: string;
     };
 
+export interface MatchState {
+  // -------------------------
+  // State Properties
+  // -------------------------
+  liveTeamId?: string;
+  events: MatchEvent[];
+  baseRuns: number;
+  wideIsExtraBall: boolean;
+  wicketsAsNegativeRuns: boolean;
+  wicketPenaltyRuns: number;
+  wicketPenaltyAffectsBatter: boolean;
+  wicketPenaltyAffectsBowler: boolean;
+  autoSwapStrikeAfterWicket: boolean;
+  wideExtraBallThreshold: number;
+  ballReminderEnabled: boolean;
+  ballReminderThresholdPercent: number;
+  showMatchRulesModal: boolean;
+  proUnlocked: boolean;
+  proUnlockedScorebook: boolean;
+  season: string;
+
+  // -------------------------
+  // Actions
+  // -------------------------
+
+  // Event Management
+  addEvent: (event: Partial<MatchEvent> & { kind?: string }) => void;
+  undoLastEvent: () => void;
+  setMatchEvents: (events: MatchEvent[]) => void;
+  getBallCount: () => number;
+  reset: () => void;
+
+  // Global / Sync
+  setLiveTeamId: (id: string) => void;
+  setSeason: (season: string) => void;
+  setBaseRuns: (runs: number) => void;
+
+  // UI Actions
+  openMatchRulesModal: () => void;
+  closeMatchRulesModal: () => void;
+
+  // Rules & Settings
+  setWideIsExtraBall: (value: boolean) => void;
+  setWideExtraBallThreshold: (value: number) => void;
+  setWicketsAsNegativeRuns: (value: boolean) => void;
+  setWicketPenaltyRuns: (value: number) => void;
+  setWicketPenaltyAffectsBatter: (value: boolean) => void;
+  setWicketPenaltyAffectsBowler: (value: boolean) => void;
+  setAutoSwapStrikeAfterWicket: (val: boolean) => void;
+  setBallReminderEnabled: (value: boolean) => void;
+  setBallReminderThresholdPercent: (value: number) => void;
+
+  // IAP / Permissions
+  setProUnlocked: (value: boolean) => void;
+  setProUnlockedScorebook: (value: boolean) => void;
+}
+
 const initialState = {
+  liveTeamId: undefined,
   events: [],
   baseRuns: 0,
   wideIsExtraBall: true,
@@ -86,6 +153,8 @@ export const matchStoreRef = create<MatchState>()(
       // -------------------------
       events: [],
       baseRuns: 0,
+      liveTeamId: undefined,
+      season: "",
 
       // rules
       wideIsExtraBall: true,
@@ -198,6 +267,7 @@ export const matchStoreRef = create<MatchState>()(
           ...event,
           id: generateId(),
           timestamp: Date.now(),
+          ballNumber: get().events.length + 1,
           countsAsBall,
           runs: totalRuns,
           runBreakdown: { bat: batRuns, extras: extraRuns },
@@ -209,6 +279,14 @@ export const matchStoreRef = create<MatchState>()(
         } as MatchEvent;
 
         set((state) => ({ events: [...state.events, newEvent] }));
+
+        const { liveTeamId } = get();
+
+        if (liveTeamId) {
+          addLiveEvent(liveTeamId, newEvent).catch((e) =>
+            console.warn("⚠️ Failed to sync live event:", e),
+          );
+        }
 
         const { updateBatterStats, updateBowlerStats, currentGame, setStrike } =
           useGameStore.getState();
@@ -285,7 +363,17 @@ export const matchStoreRef = create<MatchState>()(
             );
           }
         }
+
+        // after all updates (local + live sync + stats)
+        const game = useGameStore.getState().currentGame;
+        const fixture = useFixtureStore.getState().currentFixture;
+
+        if (game && fixture?.yourTeam?.id) {
+          syncLiveGame(fixture.yourTeam.id, game);
+        }
       },
+
+      setLiveTeamId: (id: string) => set({ liveTeamId: id }),
 
       undoLastEvent: () =>
         set((state) => {
@@ -377,6 +465,13 @@ export const matchStoreRef = create<MatchState>()(
             (game.ballCount - 1) % LEGAL_BALLS === 0,
           );
 
+          // ✅ Sync delete to Firebase (AFTER all logic)
+          if (lastEvent && state.liveTeamId) {
+            deleteLiveEvent(state.liveTeamId, lastEvent.id).catch((e) =>
+              console.warn("⚠️ Failed to delete live event:", e),
+            );
+          }
+
           return { ...state, events: updatedEvents };
         }),
 
@@ -395,6 +490,10 @@ export const matchStoreRef = create<MatchState>()(
 
       setBaseRuns: (runs: number) =>
         set((state) => ({ ...state, baseRuns: Math.max(0, runs) })),
+
+      setMatchEvents: (events: MatchEvent[]) => {
+        set({ events });
+      },
 
       // ✅ Add getter here
       getBallCount: () => {
@@ -455,6 +554,7 @@ export const matchStoreRef = create<MatchState>()(
       partialize: (state) => ({
         events: state.events ?? [],
         baseRuns: state.baseRuns,
+        liveTeamId: state.liveTeamId,
         wideIsExtraBall: state.wideIsExtraBall,
         wideExtraBallThreshold: state.wideExtraBallThreshold,
         wicketsAsNegativeRuns: state.wicketsAsNegativeRuns,

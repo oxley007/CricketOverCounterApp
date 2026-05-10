@@ -1,22 +1,22 @@
-import "dotenv/config";
+require("dotenv/config");
+const TENANTS = require("./tenants.config.js");
 
 export default ({ config }) => {
-  const isUmpire = process.env.APP_VARIANT === "umpire";
+  const variant = process.env.APP_VARIANT || "littlewicket";
+  const tenant = TENANTS[variant];
+
+  // Safety check: if variant is wrong, the build should fail early with a clear message
+  if (!tenant) {
+    throw new Error(`Invalid APP_VARIANT: ${variant}. Check tenants.config.js`);
+  }
 
   return {
     ...config,
-    // --- Dynamic Identity ---
-    name: isUmpire
-      ? "4dot6 Umpire Ball Counter"
-      : "LittleWicket Cricket Scorebook",
+    name: tenant.name,
     slug: "cricket-umpire-ball-counter",
     version: "5.3.2",
-
-    // --- Shared Logic ---
+    icon: tenant.icon,
     orientation: "portrait",
-    icon: isUmpire
-      ? "./assets/images/splash-icon-4dot6.png"
-      : "./assets/images/icon-littlewicket.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
 
@@ -25,28 +25,14 @@ export default ({ config }) => {
     },
 
     ios: {
+      bundleIdentifier: tenant.bundleId,
+      googleServicesFile: tenant.googleIos,
       supportsTablet: false,
-      bundleIdentifier: isUmpire
-        ? "com.4dot6.cricketballandovercounter"
-        : "com.fourdootsix.cricketscorebookbyc",
-      googleServicesFile: isUmpire
-        ? "./config/umpire/GoogleService-Info.plist"
-        : "./config/littlewicket/GoogleService-Info.plist",
       buildNumber: "5.3.2",
-      icon: isUmpire
-        ? "./assets/ios-icon.png"
-        : "./assets/ios-icon-littlewicket.png",
+      icon: tenant.iosIcon,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        CFBundleURLTypes: [
-          {
-            CFBundleURLSchemes: [
-              isUmpire
-                ? "com.4dot6.cricketballandovercounter"
-                : "com.fourdootsix.cricketscorebookbyc",
-            ],
-          },
-        ],
+        CFBundleURLTypes: [{ CFBundleURLSchemes: [tenant.scheme] }],
       },
       entitlements: {
         "com.apple.developer.applesignin": ["Default"],
@@ -54,29 +40,19 @@ export default ({ config }) => {
     },
 
     android: {
-      package: isUmpire
-        ? "com.cricketovercounterapp"
-        : "com.cricketscorebookbyc",
-      googleServicesFile: isUmpire
-        ? "./config/umpire/google-services.json"
-        : "./config/littlewicket/google-services.json",
+      package: tenant.package,
+      googleServicesFile: tenant.googleAndroid,
       versionCode: 54,
       adaptiveIcon: {
-        backgroundColor: isUmpire ? "#12c2e9" : "#2E7D32", // Unique colors per app
-        foregroundImage: isUmpire
-          ? "./assets/ios-icon.png"
-          : "./assets/ios-icon-littlewicket.png",
+        backgroundColor: tenant.color,
+        foregroundImage: tenant.iosIcon,
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
       intentFilters: [
         {
           action: "VIEW",
-          data: {
-            scheme: isUmpire
-              ? "com.cricketovercounterapp"
-              : "com.cricketscorebookbyc",
-          },
+          data: { scheme: tenant.package }, // Using package/bundleId for the scheme
           category: ["BROWSABLE", "DEFAULT"],
         },
       ],
@@ -87,13 +63,11 @@ export default ({ config }) => {
       [
         "expo-splash-screen",
         {
-          image: isUmpire
-            ? "./assets/images/splash-icon-4dot6.png"
-            : "./assets/images/splash-littlewicket.png",
+          image: tenant.splash,
           resizeMode: "cover",
-          backgroundColor: isUmpire ? "#12c2e9" : "#ffffff",
+          backgroundColor: tenant.splashColor,
           dark: {
-            backgroundColor: isUmpire ? "#12c2e9" : "#ffffff",
+            backgroundColor: tenant.splashColor,
           },
         },
       ],
@@ -101,7 +75,9 @@ export default ({ config }) => {
     ],
 
     extra: {
-      variant: process.env.APP_VARIANT, // Allows you to check inside your React code
+      variant: variant,
+      features: tenant.features,
+      tenantConfig: tenant,
       eas: {
         projectId: "01f25192-0a2a-4868-a640-b12a9dd6b98d",
       },

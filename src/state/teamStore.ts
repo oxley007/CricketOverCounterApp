@@ -12,7 +12,8 @@ export type Player = {
 export type Team = {
   id: string;
   name: string;
-  players: Player[]; // 👈 NEW
+  players: Player[];
+  liveScoresConfigured?: boolean;
 };
 
 interface TeamStore {
@@ -25,6 +26,7 @@ interface TeamStore {
   archivePlayer: (teamId: string, playerId: string, archive: boolean) => void;
   loadTeams: () => Promise<void>;
   clearTeams: () => Promise<void>;
+  markLiveConfigured: (teamId: string) => void;
 }
 
 const TEAMS_KEY = "@teams";
@@ -178,4 +180,15 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     );
   },
   reset: () => set({ teams: [] }),
+  markLiveConfigured: (teamId) => {
+    const updatedTeams = get().teams.map((t) =>
+      t.id === teamId ? { ...t, liveScoresConfigured: true } : t,
+    );
+
+    set({ teams: updatedTeams });
+
+    AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
+      console.warn,
+    );
+  },
 }));

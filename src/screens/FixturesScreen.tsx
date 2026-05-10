@@ -158,6 +158,7 @@ export default function FixturesScreen() {
       <SubscriptionList
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
+        tier="coach"
       />
     </View>
   );

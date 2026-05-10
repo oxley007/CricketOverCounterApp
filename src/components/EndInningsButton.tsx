@@ -8,14 +8,18 @@ import {
   View,
 } from "react-native";
 import { Button, Modal, Portal } from "react-native-paper";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+//import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 
 import { useRouter } from "expo-router";
-import { auth } from "../services/firebaseConfig";
+//import { auth } from "../services/firebaseConfig";
 import {
   saveFixture,
   saveSubscription,
   saveTeamWithPlayers,
+  clearLiveEvents,
+  saveLiveFixture,
+  deletePublicFixture,
 } from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore, type Fixture } from "../state/fixtureStore";
@@ -23,12 +27,14 @@ import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
+import { useLiveStore } from "../state/liveStore";
 import { useUIStore } from "../state/uiStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
 import { calculateFixtureResult } from "../utils/calculateFixtureResult";
 import { generateId } from "../utils/generateId";
 import AuthModal from "./AuthModal";
 import NewInningsButton from "./NewInningsButton";
+import { useRequireAuth } from "../hooks/useRequireAuth";
 
 type EndInningsButtonProps = {
   onComplete?: () => void;
@@ -47,22 +53,27 @@ export default function EndInningsButton({
 
   const resetStartModal = useStartModalStore((s) => s.reset);
 
-  const [modalFixture, setModalFixture] = useState<any | null>(null); // snapshot for modal
-  const [modalVisible, setModalVisible] = useState(false);
-  const [authVisible, setAuthVisible] = useState(false);
-  const guestMatchesPlayed = useAuthStore((s) => s.guestMatchesPlayed);
+  //const [modalFixture, setModalFixture] = useState<any | null>(null); // snapshot for modal
+  //const [modalVisible, setModalVisible] = useState(false);
+  //const [authVisible, setAuthVisible] = useState(false);
+  //const guestMatchesPlayed = useAuthStore((s) => s.guestMatchesPlayed);
 
   const saving = useUIStore((s) => s.saving);
   const setSaving = useUIStore((s) => s.setSaving);
 
   const currentFixture = useFixtureStore((s) => s.currentFixture);
 
-  const incrementGuestMatches = useAuthStore((s) => s.incrementGuestMatches);
-  const isGuest = useAuthStore((s) => s.isGuest);
+  //const incrementGuestMatches = useAuthStore((s) => s.incrementGuestMatches);
+  //const isGuest = useAuthStore((s) => s.isGuest);
 
   const selectedMode = useStartModalStore((s) => s.selectedMode);
   //const isScorebook = selectedMode === "scorebook";
 
+  const { requireAuth, authVisible, setAuthVisible } = useRequireAuth({
+    enforceGuestLimit: true,
+  });
+
+  /*
   const requireAuth = async (action: () => Promise<void>) => {
     const isGuest = useAuthStore.getState().isGuest;
     const guestMatchesPlayed = useAuthStore.getState().guestMatchesPlayed;
@@ -96,6 +107,7 @@ export default function EndInningsButton({
 
     await action();
   };
+  */
 
   /*
   const saveFixtureToFirebase = async (fixture: any) => {
@@ -212,6 +224,31 @@ export default function EndInningsButton({
           await saveSubscription(useMatchStore.getState().proUnlocked ?? false);
         } catch (e) {
           console.warn("⚠️ Failed to save subscription status:", e);
+        }
+
+        // ✅ Clear live Firebase events (match is finished)
+        const liveStore = useLiveStore.getState();
+
+        /*
+        const liveTeam = liveStore.teams.find(
+          (t) => t.teamId === completedFixture.yourTeam?.id,
+        );
+        */
+
+        if (liveStore.teamCode) {
+          try {
+            await clearLiveEvents(liveStore.teamCode);
+          } catch (e) {
+            console.warn("⚠️ Failed to clear live events:", e);
+          }
+        }
+
+        if (liveStore.teamCode) {
+          try {
+            await saveLiveFixture(liveStore.teamCode, completedFixture);
+          } catch (e) {
+            console.warn("⚠️ Failed to save public fixture:", e);
+          }
         }
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
@@ -336,6 +373,31 @@ export default function EndInningsButton({
         } catch (e) {
           console.warn("⚠️ Failed to save subscription status:", e);
         }
+
+        // ✅ Clear live Firebase events (match is finished)
+        const liveStore = useLiveStore.getState();
+
+        /*
+        const liveTeam = liveStore.teams.find(
+          (t) => t.teamId === abandonedFixture.yourTeam?.id,
+        );
+        */
+
+        if (liveStore.teamCode) {
+          try {
+            await clearLiveEvents(liveStore.teamCode);
+          } catch (e) {
+            console.warn("⚠️ Failed to clear live events:", e);
+          }
+        }
+
+        if (liveStore.teamCode) {
+          try {
+            await saveLiveFixture(liveStore.teamCode, abandonedFixture);
+          } catch (e) {
+            console.warn("⚠️ Failed to save public fixture:", e);
+          }
+        }
       } catch (err) {
         console.error("❌ Error saving abandoned fixture to Firebase:", err);
         Alert.alert("Error", "Failed to save abandoned fixture. Try again.");
@@ -374,7 +436,7 @@ export default function EndInningsButton({
   };
 
   /* ======================== END GAME WITHOUT SAVE ======================== */
-  const handleEndGameNoSave = () => {
+  const handleEndGameNoSave = async () => {
     resetGuestIfNeeded();
 
     const fixtureStore = useFixtureStore.getState();
@@ -402,6 +464,34 @@ export default function EndInningsButton({
     // Mark as completed locally (no Firestore save)
     fixtureSnapshot.completed = true;
     fixtureSnapshot.result = calculateFixtureResult(fixtureSnapshot);
+
+    const liveStore = useLiveStore.getState();
+
+    /*
+    const liveTeam = liveStore.teams.find(
+      (t) => t.teamId === fixtureSnapshot.yourTeam?.id,
+    );
+    */
+
+    if (liveStore.teamCode) {
+      try {
+        await clearLiveEvents(liveStore.teamCode);
+      } catch (e) {
+        console.warn("⚠️ Failed to clear live events:", e);
+      }
+    }
+
+    // 🧹 DELETE PUBLIC FIXTURE (important for "no save")
+    const teamId = fixtureSnapshot.yourTeam?.id;
+    const fixtureId = fixtureSnapshot.id;
+
+    if (teamId && fixtureId) {
+      try {
+        await deletePublicFixture(teamId, fixtureId);
+      } catch (e) {
+        console.warn("⚠️ Failed to delete public fixture:", e);
+      }
+    }
 
     // Keep it in memory so `match-summary` can render it without relying on fixtures[]
     useFixtureStore.setState({ currentFixture: fixtureSnapshot });
@@ -433,7 +523,8 @@ export default function EndInningsButton({
     router.replace({
       pathname: "/match-summary",
       params: {
-        fixtureId: currentFixture?.id,
+        //fixtureId: currentFixture?.id,
+        fixtureId: fixtureSnapshot.id,
         prevMode: modeAtTimeOfReset,
       },
     });
@@ -481,7 +572,9 @@ export default function EndInningsButton({
                     onPress={async () => {
                       setSaving(true);
                       try {
-                        await requireAuth(handleEndGame);
+                        await requireAuth(async () => {
+                          await handleEndGame();
+                        });
                       } finally {
                         setSaving(false);
                       }
@@ -499,7 +592,9 @@ export default function EndInningsButton({
                     onPress={async () => {
                       setSaving(true);
                       try {
-                        await requireAuth(handleAbandonMatch);
+                        await requireAuth(async () => {
+                          await handleAbandonMatch();
+                        });
                       } finally {
                         setSaving(false);
                       }

@@ -3,9 +3,15 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { Button } from "react-native-paper";
 
 import { auth } from "../services/firebaseConfig";
-import { saveFixture, saveTeamWithPlayers } from "../services/firestoreService";
+import {
+  saveFixture,
+  saveTeamWithPlayers,
+  clearLiveEvents,
+  saveLiveFixture,
+} from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore } from "../state/fixtureStore";
+import { useLiveStore } from "../state/liveStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
@@ -13,7 +19,8 @@ import { useTeamStore } from "../state/teamStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
 import AuthModal from "./AuthModal";
 
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+//import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 
 type Props = {
   onComplete?: () => void; // parent can close modal
@@ -23,14 +30,14 @@ export default function NewInningsButton({ onComplete }: Props) {
   const [log, setLog] = useState("");
 
   // Live store resets
-  const resetInnings = useMatchStore((s) => s.resetInningsOnly);
-  const resetGame = useGameStore((s) => s.resetGame);
-  const resetBatters = useGameStore((s) => s.resetBatters);
+  //const resetInnings = useMatchStore((s) => s.resetInningsOnly);
+  //const resetGame = useGameStore((s) => s.resetGame);
+  //const resetBatters = useGameStore((s) => s.resetBatters);
   const saveCurrentInnings = useFixtureStore((s) => s.saveCurrentInnings);
 
   const [authVisible, setAuthVisible] = useState(false);
 
-  const isGuest = useAuthStore((s) => s.isGuest);
+  //const isGuest = useAuthStore((s) => s.isGuest);
 
   const [saving, setSaving] = useState(false);
 
@@ -121,6 +128,33 @@ export default function NewInningsButton({ onComplete }: Props) {
           } catch (e) {
             console.warn("⚠️ Failed to save team:", team.name, e);
           }
+        }
+      }
+
+      // ✅ Clear live Firebase events (match is finished / new innings reset)
+      const liveStore = useLiveStore.getState();
+
+      console.log(JSON.stringify(liveStore), "cehck liveStore");
+
+      const liveTeam = liveStore.teams.find(
+        (t) => t.teamId === currentFixture.yourTeam?.id,
+      );
+
+      console.log(liveStore.teamCode, "cehck liveStore.teamCode");
+
+      if (liveStore.teamCode) {
+        try {
+          await clearLiveEvents(liveTeam.teamCode);
+        } catch (e) {
+          console.warn("⚠️ Failed to clear live events:", e);
+        }
+      }
+
+      if (liveStore.teamId) {
+        try {
+          await saveLiveFixture(liveTeam.teamId, currentFixture);
+        } catch (e) {
+          console.warn("⚠️ Failed to save public fixture:", e);
         }
       }
     } catch (err) {
@@ -268,10 +302,10 @@ export default function NewInningsButton({ onComplete }: Props) {
     );
 
     // 🔟 Save to Firebase if scorebook mode
-    if (isScorebook) {
-      await saveNewInningsFixture();
-      console.log("💾 New innings saved to Firebase");
-    }
+    //if (isScorebook) {
+    await saveNewInningsFixture();
+    console.log("💾 New innings saved to Firebase");
+    //}
 
     console.log("💾 Fixture saved successfully!");
 
@@ -284,6 +318,51 @@ export default function NewInningsButton({ onComplete }: Props) {
       "📌 Final currentGame state:",
       useGameStore.getState().currentGame,
     );
+
+    try {
+      console.log("💾 Saving fixture to Firestore... ballCounter", fixture.id);
+
+      // ✅ Clear live Firebase events (match is finished / new innings reset)
+      const liveStore = useLiveStore.getState();
+
+      console.log(JSON.stringify(liveStore), "cehck liveStore ballCounter");
+
+      const liveTeam = liveStore.teams.find(
+        (t) => t.teamId === fixture.yourTeam?.id,
+      );
+
+      console.log(liveStore.teamCode, "cehck liveStore.teamCode ballCounter");
+
+      if (liveStore.teamCode) {
+        try {
+          await clearLiveEvents(liveStore.teamCode);
+        } catch (e) {
+          console.warn("⚠️ Failed to clear live events ballCounter:", e);
+        }
+      }
+
+      if (liveStore.teamCode) {
+        try {
+          const latestFixture = useFixtureStore.getState().currentFixture;
+
+          console.log(
+            "🚀 SENDING TO FIREBASE:",
+            JSON.stringify(latestFixture?.innings, null, 2),
+          );
+
+          await saveLiveFixture(liveStore.teamCode, latestFixture);
+        } catch (e) {
+          console.warn("⚠️ Failed to save public fixture ballCounter:", e);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error in saveNewInningsFixture ballCounter:", err);
+      Alert.alert(
+        "Error",
+        "Failed to save new innings. Check console for details ballCounter.",
+      );
+      throw err; // re-throw so parent knows
+    }
 
     // 1️⃣1️⃣ Done
     onComplete?.();

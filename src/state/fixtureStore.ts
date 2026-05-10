@@ -8,6 +8,9 @@ import { calculateFixtureResult } from "../utils/calculateFixtureResult";
 import { generateId } from "../utils/generateId";
 import { useGameStore, type BattingEntry, type BowlerStats } from "./gameStore";
 import { useMatchStore, type MatchEvent } from "./matchStore";
+import { useStartModalStore } from "./startModalStore";
+
+import { saveLiveFixture, updateLiveData } from "../services/firestoreService";
 
 /* =========================================================
    Types
@@ -80,6 +83,7 @@ export type Fixture = {
   abandoned?: boolean;
   result?: FixtureResult;
   completed: boolean;
+  mode?: "ballcounter" | "scorebook";
 };
 
 interface FixtureState {
@@ -93,6 +97,8 @@ interface FixtureState {
 
   startFixture: () => void;
   addInnings: () => void;
+
+  setCurrentFixture: (fixture: Fixture) => void;
 
   getCurrentInningsNumber: () => number;
 
@@ -124,11 +130,15 @@ export const useFixtureStore = create<FixtureState>()(
       fixtures: [],
       currentFixture: undefined,
 
+      setCurrentFixture: (fixture) => {
+        set({ currentFixture: fixture });
+      },
+
       /* ========================
          Start Fixture
       ======================== */
 
-      startFixture: () => {
+      startFixture: async () => {
         const existing = get().currentFixture;
 
         if (existing && !existing.completed) {
@@ -160,6 +170,22 @@ export const useFixtureStore = create<FixtureState>()(
         set({ currentFixture: newFixture });
 
         console.log("✅ Fixture started:", newFixture.id);
+        const { selectedMode } = useStartModalStore.getState();
+
+        // ✅ OPTIONAL: create initial live fixture doc
+        try {
+          await saveLiveFixture(gameConfig.yourTeam.id, {
+            ...newFixture,
+            status: "live",
+          });
+
+          await updateLiveData(gameConfig.yourTeam.id, {
+            fixtureId: newFixture.id,
+            mode: selectedMode,
+          });
+        } catch (err) {
+          console.warn("⚠️ Failed to create live fixture:", err);
+        }
       },
 
       /* ========================
@@ -238,12 +264,14 @@ export const useFixtureStore = create<FixtureState>()(
         return fixture?.innings.length ?? 0;
       },
 
-      addInnings: () => {
+      addInnings: async () => {
         const fixture = get().currentFixture;
         if (!fixture) {
           console.warn("⚠️ No fixture in progress to add innings to");
           return;
         }
+
+        const teamId = useMatchStore.getState().liveTeamId;
 
         // 1️⃣ Try to find an empty innings
         const emptyInningsIndex = fixture.innings.findIndex(isEmptyInnings);
@@ -266,23 +294,33 @@ export const useFixtureStore = create<FixtureState>()(
             battingTeamId,
             bowlingTeamId,
             matchEvents: [],
-            battingEntries: battingEntries ?? [],
+            battingEntries: [],
             bowlers: [],
             totalRuns: 0,
             totalWickets: 0,
             totalBalls: 0,
           };
 
-          set({
-            currentFixture: {
-              ...fixture,
-              innings: updatedInnings,
-            },
-          });
+          // ✅ 3. create updated fixture FIRST
+          const updatedFixture = {
+            ...fixture,
+            innings: updatedInnings,
+          };
+
+          // ✅ 4. set it
+          set({ currentFixture: updatedFixture });
 
           console.log(
             `♻️ Reused empty innings at position ${emptyInningsIndex + 1}`,
           );
+
+          // ✅ 5. save to Firebase
+          try {
+            await saveLiveFixture(teamId, updatedFixture);
+          } catch (err) {
+            console.warn("⚠️ Failed to sync live fixture:", err);
+          }
+
           return;
         }
 
@@ -310,14 +348,25 @@ export const useFixtureStore = create<FixtureState>()(
           isPlaceholder: true,
         };
 
+        // ✅ 3. create updated fixture
+        const updatedFixture = {
+          ...fixture,
+          innings: [...fixture.innings, newInnings],
+        };
+
+        // ✅ 4. set it
         set({
-          currentFixture: {
-            ...fixture,
-            innings: [...fixture.innings, newInnings],
-          },
+          currentFixture: updatedFixture,
         });
 
         console.log(`✅ Added new innings: ${inningsNumber}`);
+
+        // ✅ 5. save to Firebase
+        try {
+          await saveLiveFixture(teamId, updatedFixture);
+        } catch (err) {
+          console.warn("⚠️ Failed to sync live fixture:", err);
+        }
       },
 
       markFixtureAbandoned: () => {
@@ -346,7 +395,7 @@ export const useFixtureStore = create<FixtureState>()(
          Complete Fixture
       ======================== */
 
-      completeFixture: () => {
+      completeFixture: async () => {
         const fixture = get().currentFixture;
         if (!fixture) return;
 
@@ -364,6 +413,16 @@ export const useFixtureStore = create<FixtureState>()(
         }));
 
         console.log("🏁 Fixture completed:", completedFixture.id);
+
+        // ✅ NEW: save to public live collection
+        try {
+          await saveLiveFixture(
+            completedFixture.yourTeam.id, // or whichever team owns live
+            completedFixture,
+          );
+        } catch (err) {
+          console.warn("⚠️ Failed to save live fixture:", err);
+        }
       },
 
       /* ========================

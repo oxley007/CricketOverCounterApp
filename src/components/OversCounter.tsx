@@ -118,17 +118,24 @@ export default function OversCounter() {
 ========================= */
   let canShowTargetAndRRR = false;
 
-  if (currentFixture && currentGame?.battingTeamId) {
-    console.log("hitting this???");
+  if (currentFixture && (currentGame?.battingTeamId || !isScorebook)) {
+    console.log("hitting this???##");
 
-    const battingTeamId = currentGame.battingTeamId;
+    const battingTeamId = currentGame?.battingTeamId;
 
     let battingTeamInnings = 0;
     let oppositionTeamInnings = 0;
 
+    console.log(
+      JSON.stringify(currentFixture),
+      "checking currentFixture before going on",
+    );
+
     const innings = Array.isArray(currentFixture?.innings)
       ? currentFixture.innings
       : [];
+
+    console.log(JSON.stringify(innings), " check innings");
 
     //currentFixture.innings.forEach((inn) => {
     innings.forEach((inn) => {
@@ -141,8 +148,24 @@ export default function OversCounter() {
       }
     });
 
+    console.log("🏏 current batting team:", currentGame?.battingTeamId);
+
+    innings.forEach((inn) => {
+      console.log("🏏 innings check", {
+        battingTeamId: inn.battingTeamId,
+        events: inn.matchEvents?.length,
+      });
+    });
+
     // Only show target & RRR if opposition has batted more innings than batting team
-    canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
+    //canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
+
+    if (!isScorebook) {
+      canShowTargetAndRRR =
+        innings.length >= 2 && (innings[0]?.totalRuns ?? 0) > 0;
+    } else {
+      canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
+    }
   } /*else if (!isScorebook) {
     console.log("or hitting this?");
     console.log("--- INNINGS DEBUG ---");

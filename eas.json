@@ -4,18 +4,16 @@
     "appVersionSource": "local"
   },
   "build": {
-    "umpire-dev": {
+    "base-dev": {
       "extends": "development",
       "ios": {
         "simulator": true
       },
       "android": {
         "buildType": "apk"
-      },
-      "env": { "APP_VARIANT": "umpire" }
+      }
     },
-
-    "umpire-dev-device": {
+    "base-dev-device": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -23,63 +21,17 @@
       },
       "android": {
         "buildType": "apk"
-      },
-      "env": { "APP_VARIANT": "umpire" }
-    },
-
-    "umpire-prod-preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "APP_VARIANT": "umpire"
       }
     },
-
-    "umpire-prod": {
-      "extends": "production",
-      "env": { "APP_VARIANT": "umpire" }
-    },
-
-    "littlewicket-dev": {
-      "extends": "development",
-      "ios": {
-        "simulator": true
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "env": { "APP_VARIANT": "littlewicket" }
-    },
-
-    "littlewicket-dev-device": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "env": { "APP_VARIANT": "littlewicket" }
-    },
-
-    "littlewicket-prod-preview": {
+    "base-preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "APP_VARIANT": "littlewicket"
       }
     },
-
-    "littlewicket-prod": {
-      "extends": "production",
-      "env": { "APP_VARIANT": "littlewicket" }
+    "base-prod": {
+      "extends": "production"
     },
-
     "development": {
       "developmentClient": true,
       "distribution": "internal"

@@ -576,7 +576,7 @@ export default function SelectPlayersModal({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  safe: { flex: 1, backgroundColor: "#fff", paddingTop: "5%" },
   container: { flex: 1, padding: 20 },
   title: { fontSize: 20, fontWeight: "600", marginBottom: 16 },
   scroll: { flex: 1 },

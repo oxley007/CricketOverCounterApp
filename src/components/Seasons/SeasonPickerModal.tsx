@@ -15,6 +15,7 @@ import { useGameStore } from "../../state/gameStore";
 interface Props {
   visible: boolean;
   title: string;
+  seasons: string[];
   onSelect: (season: string) => void;
   onClose: () => void;
 }

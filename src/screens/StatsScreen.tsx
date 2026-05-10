@@ -12,6 +12,7 @@ import {
 } from "../state/seasonStatsHelpers";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
+import { getActiveTeams } from "../utils/getActiveTeams";
 
 export default function StatsScreen() {
   const { teams } = useTeamStore();
@@ -35,12 +36,7 @@ export default function StatsScreen() {
      DERIVED TEAMS
   ========================= */
   const yourTeams = useMemo(() => {
-    const map = new Map<string, boolean>();
-    fixtures.forEach((f) => {
-      const teamId = f.yourTeamId ?? f.yourTeam?.id;
-      if (teamId) map.set(teamId, true);
-    });
-    return teams.filter((t) => map.has(t.id));
+    return getActiveTeams(fixtures, teams);
   }, [fixtures, teams]);
 
   /* =========================
@@ -216,6 +212,7 @@ export default function StatsScreen() {
       <SubscriptionList
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
+        tier="coach"
       />
     </View>
   );
