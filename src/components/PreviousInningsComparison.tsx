@@ -4,6 +4,9 @@ import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 
+import { useIsLiveViewer } from "../hooks/useIsLiveViewer";
+import { getInningsTeamNames } from "../utils/teamUtils";
+
 export default function PreviousInningsComparison() {
   const events = useMatchStore((s) => s.events);
   const wideIsExtraBall = useMatchStore((s) => s.wideIsExtraBall);
@@ -13,15 +16,38 @@ export default function PreviousInningsComparison() {
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   const currentGame = useGameStore((s) => s.currentGame);
 
+  const isLiveViewer = useIsLiveViewer();
+
   /* =========================
      Should we show
   ========================= */
   const { canShow, previousInnings } = useMemo(() => {
-    if (!currentFixture || !currentGame?.battingTeamId) {
+    console.log(currentFixture, " currentFixture in here comparrison is what?");
+    console.log(
+      currentGame?.battingTeamId,
+      " currentGame?.battingTeamId in here comparrison is what?",
+    );
+    console.log(
+      currentFixture?.battingTeamId,
+      " currentFixture?.battingTeamId in here comparrison is what?",
+    );
+
+    if (!currentGame || !currentGame?.battingTeamId) {
       return { canShow: false, previousInnings: null };
     }
 
-    const battingTeamId = currentGame.battingTeamId;
+    let battingTeamId = "";
+
+    if (isLiveViewer && currentFixture) {
+      console.log("shiouldnt hit if live game");
+      // If battingTeamId is undefined, fall back to ""
+      battingTeamId = currentFixture.battingTeamId ?? "";
+    } else {
+      console.log("shiould hit if live game");
+
+      // currentGame is also optional, so use safe chaining and fallback
+      battingTeamId = currentGame?.battingTeamId ?? "";
+    }
 
     let battingTeamInnings = 0;
     let oppositionInnings: any[] = [];
@@ -136,10 +162,33 @@ export default function PreviousInningsComparison() {
   }, [previousInnings, wideIsExtraBall, wideExtraBallThreshold]);
 
   // Logic: Hide if conditions aren't met OR if we are still in the first over
+  console.log(canShow, "canShow is what?");
+  console.log(snapshots, "snapshots is what?");
+  console.log(totalLegalBalls, "totalLegalBalls is what?");
   if (!canShow || !snapshots || totalLegalBalls < 6) return null;
 
   const current = snapshots[currentOverNumber];
   const next = snapshots[currentOverNumber + 1];
+
+  let activeBattingId = "";
+
+  console.log(isLiveViewer, " isLiveViewer comparrision.");
+
+  if (isLiveViewer) {
+    console.log("shiouldnt hit if live game inningTeamName!");
+    // If battingTeamId is undefined, fall back to ""
+    activeBattingId = currentFixture?.battingTeamId ?? "";
+  } else {
+    console.log("shiould hit if live game inningTeamName!");
+
+    // currentGame is also optional, so use safe chaining and fallback
+    activeBattingId = currentGame?.battingTeamId ?? "";
+  }
+
+  const { battingTeamName, bowlingTeamName } = getInningsTeamNames(
+    currentFixture,
+    activeBattingId,
+  );
 
   if (!current && !next) return null;
 
@@ -164,7 +213,8 @@ export default function PreviousInningsComparison() {
         {current && (
           <View style={styles.info}>
             <Text style={styles.textDesc}>
-              Over {currentOverNumber - 1}: {current.runs}/{current.wickets}
+              After over {currentOverNumber - 1}, {bowlingTeamName} were:{" "}
+              {current.runs}/{current.wickets}
             </Text>
             <Text
               style={[
@@ -172,7 +222,7 @@ export default function PreviousInningsComparison() {
                 { color: getDelta(current.runs).color },
               ]}
             >
-              {getDelta(current.runs).text}
+              {battingTeamName} are {getDelta(current.runs).text}
             </Text>
           </View>
         )}
@@ -181,7 +231,8 @@ export default function PreviousInningsComparison() {
         {next && (
           <View style={styles.info}>
             <Text style={[styles.textDesc, { marginTop: 6 }]}>
-              Over {currentOverNumber}: {next.runs}/{next.wickets}
+              After over {currentOverNumber}, {bowlingTeamName} were:{" "}
+              {next.runs}/{next.wickets}
             </Text>
             {/* getOverDiff removed from here */}
             <Text
@@ -227,10 +278,12 @@ const styles = StyleSheet.create({
   textDesc: {
     fontSize: 16,
     color: "#c471ed",
+    textAlign: "center",
   },
   deltaText: {
     fontSize: 14,
     fontWeight: "600",
     marginTop: 2,
+    textAlign: "center",
   },
 });

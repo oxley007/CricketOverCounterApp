@@ -259,6 +259,8 @@ export default function EndInningsButton({
       // Ensure the options modal is closed before navigating
       setVisible(false);
 
+      const modeAtTimeOfReset = selectedMode;
+
       // 7️⃣ Reset live stores
       useMatchStore.getState().resetInnings();
       useGameStore.getState().resetBatters();
@@ -279,7 +281,11 @@ export default function EndInningsButton({
 
       router.replace({
         pathname: "/match-summary",
-        params: { fixtureId: completedFixture.id },
+        params: {
+          //fixtureId: currentFixture?.id,
+          fixtureId: fixtureSnapshot.id,
+          prevMode: modeAtTimeOfReset,
+        },
       });
 
       console.log(
@@ -563,28 +569,29 @@ export default function EndInningsButton({
             <NewInningsButton onComplete={() => setVisible(false)} />
 
             <View style={styles.actionsColumn}>
+              <Button
+                mode="contained"
+                buttonColor="#c471ed"
+                disabled={saving}
+                onPress={async () => {
+                  setSaving(true);
+                  try {
+                    await requireAuth(async () => {
+                      await handleEndGame();
+                    });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                style={styles.primaryAction}
+                labelStyle={{ color: "#fff" }} // make sure text renders
+              >
+                {selectedMode === "scorebook"
+                  ? "End Game (Save, with result)"
+                  : "Reset Ball Counter"}
+              </Button>
               {selectedMode === "scorebook" && (
                 <>
-                  <Button
-                    mode="contained"
-                    buttonColor="#c471ed"
-                    disabled={saving}
-                    onPress={async () => {
-                      setSaving(true);
-                      try {
-                        await requireAuth(async () => {
-                          await handleEndGame();
-                        });
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    style={styles.primaryAction}
-                    labelStyle={{ color: "#fff" }} // make sure text renders
-                  >
-                    End Game (Save, with result)
-                  </Button>
-
                   <Button
                     mode="contained"
                     buttonColor="#f97316"
@@ -602,18 +609,18 @@ export default function EndInningsButton({
                   >
                     Match Abandoned (save stats, no result)
                   </Button>
+
+                  <Button
+                    mode="outlined"
+                    buttonColor="transparent"
+                    onPress={handleEndGameNoSave}
+                  >
+                    {selectedMode === "scorebook"
+                      ? "End Game Without Saving"
+                      : "Reset Ball Counter"}
+                  </Button>
                 </>
               )}
-
-              <Button
-                mode="outlined"
-                buttonColor="transparent"
-                onPress={handleEndGameNoSave}
-              >
-                {selectedMode === "scorebook"
-                  ? "End Game Without Saving"
-                  : "Reset Ball Counter"}
-              </Button>
 
               <Button onPress={() => setVisible(false)}>Cancel</Button>
             </View>

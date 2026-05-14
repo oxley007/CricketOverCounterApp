@@ -8,10 +8,12 @@ import {
   View,
   Pressable,
   Text,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
+import { useExitGame } from "../../hooks/useExitGame";
 
 import BattingTeamSelector from "../../components/Scorebook/BattingTeamSelector";
 import {
@@ -24,6 +26,7 @@ import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 import { useRouter } from "expo-router";
+import { useFeedback } from "../../hooks/useFeedback";
 
 import ActionTabs from "../../components/ActionTabs";
 import AveragePartnership from "../../components/AveragePartnership";
@@ -104,6 +107,9 @@ function HomeContent() {
     JSON.stringify(currentFixture),
     "need to ceh current fixture here.",
   );
+
+  const { handleExitNoSave } = useExitGame();
+  const { triggerTap } = useFeedback();
 
   // Keep screen awake
   useKeepAwake();
@@ -305,6 +311,11 @@ function HomeContent() {
 
   const isLiveViewer = useIsLiveViewer();
 
+  const onPress = () => {
+    triggerTap();
+    handleExitNoSave();
+  };
+
   if (__DEV__) {
     //console.log("MATCH EVENTS:", events);
     //console.log("Overs:", overs, "Pro unlocked:", proUnlocked);
@@ -421,15 +432,47 @@ function HomeContent() {
           </>
         )}
       </ScrollView>
-
-      {Platform.OS === "android" ? (
-        <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#12c2e9" }}>
-          <View style={{ paddingBottom: 8 }}>
+      {!isLiveViewer && (
+        <>
+          {Platform.OS === "android" ? (
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: "#12c2e9" }}
+            >
+              <View style={{ paddingBottom: 8 }}>
+                <ActionTabs />
+              </View>
+            </SafeAreaView>
+          ) : (
             <ActionTabs />
-          </View>
-        </SafeAreaView>
-      ) : (
-        <ActionTabs />
+          )}
+        </>
+      )}
+      {isLiveViewer && (
+        <>
+          {Platform.OS === "android" ? (
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: "#12c2e9" }}
+            >
+              <TouchableOpacity
+                onPress={onPress}
+                activeOpacity={0.7}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Exit Live View</Text>
+              </TouchableOpacity>
+            </SafeAreaView>
+          ) : (
+            <TouchableOpacity
+              onPress={onPress}
+              activeOpacity={0.7}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Exit Live View</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
@@ -504,5 +547,31 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: "#333",
     marginLeft: 10,
+  },
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e2339c",
+    borderWidth: 1,
+    borderColor: "#ff4444",
+    paddingVertical: 30,
+    borderRadius: 12,
+    gap: 8,
+    // Soft shadow
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "600",
   },
 });

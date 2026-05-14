@@ -28,6 +28,7 @@ import { useStartModalStore } from "../../state/startModalStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
 import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { APP_LOGOS } from "../../constants/Assets";
+import { useExitGame } from "../../hooks/useExitGame";
 
 export default function DrawerLayout() {
   useEffect(() => {
@@ -82,34 +83,7 @@ function DrawerContent() {
     : require("../../../assets/4dot6logo-transparent.png");
     */
 
-  const handleExitNoSave = () => {
-    // 1. Get store instances
-    const startModalStore = useStartModalStore.getState();
-    const gameStore = useGameStore.getState();
-
-    // 2. Perform all standard cleanup first
-    resetGuestIfNeeded();
-    useFixtureStore.getState().saveCurrentInnings();
-    useFixtureStore.setState({ currentFixture: undefined });
-    useMatchStore.getState().resetInnings();
-
-    gameStore.resetGame();
-    gameStore.resetBatters();
-    gameStore.setSetupComplete(false);
-    gameStore.triggerSetup();
-
-    // 3. 🔑 THE FIX: Sequence the state before navigating
-    // First: Clear the selected mode so Index doesn't auto-redirect
-    startModalStore.reset();
-
-    // Second: Force the modal to an open state
-    startModalStore.open();
-
-    // Third: Delay navigation slightly to ensure Zustand/Storage has committed
-    setTimeout(() => {
-      router.replace("/");
-    }, 0);
-  };
+  const { handleExitNoSave } = useExitGame();
 
   const hiddenRoutes = [
     "ball-counter",

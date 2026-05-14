@@ -1,8 +1,9 @@
 // src/screens/FixturesScreen.tsx
 
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { listenAndMergeFixture } from "../services/fixtureSyncService";
 
 import FixtureCard from "../components/FixtureCard";
 import SubscriptionList from "../components/iap/SubscriptionList";
@@ -10,8 +11,10 @@ import { useFixtureStore } from "../state/fixtureStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
+import { useLiveStore } from "../state/liveStore";
 
 import FixtureSummaryModal from "../components/FixtureSummaryModal";
+import BallCounterFixtureCard from "../components/BallCounterFixtureCard";
 
 export default function FixturesScreen() {
   const { teams } = useTeamStore();
@@ -29,6 +32,38 @@ export default function FixturesScreen() {
 
   const startModal = useStartModalStore();
 
+  console.log(
+    useLiveStore.getState().teamCodesSupporter,
+    " check teamCodesSupporter here.",
+  );
+
+  // src/screens/FixturesScreen.tsx
+
+  useEffect(() => {
+    const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
+    if (supporterCodes.length === 0) return;
+
+    const unsubscribes = supporterCodes.map((code) =>
+      listenAndMergeFixture(code),
+    );
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, []); // Runs on mount
+
+  useEffect(() => {
+    console.log("📦 Current Fixture Store:", JSON.stringify(fixtures, null, 2));
+  }, [fixtures]);
+
+  useEffect(() => {
+    fixtures.forEach((f) => {
+      console.log(
+        `Fixture ID: ${f.id} | Team ID: ${f.yourTeam?.id} | Season check: ${f.season}`,
+      );
+    });
+  }, [fixtures]);
+
   const openGameModeModal = () => {
     router.replace("/");
     setTimeout(() => startModal.reset(), 100);
@@ -38,6 +73,7 @@ export default function FixturesScreen() {
      DERIVED TEAMS
   ========================= */
 
+  /*
   const yourTeams = useMemo(() => {
     const map = new Map<string, boolean>();
 
@@ -48,6 +84,34 @@ export default function FixturesScreen() {
 
     return teams.filter((t) => map.has(t.id));
   }, [fixtures, teams]);
+  */
+
+  /* ========================= DERIVED TEAMS ========================= */
+  const supporterTeamNames = useLiveStore((s) => s.supporterTeamNames); // Get reactive state
+
+  const yourTeams = useMemo(() => {
+    const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
+    const uniqueTeams = new Map();
+
+    // 1. Add your managed teams
+    teams.forEach((t) => {
+      uniqueTeams.set(t.id.toLowerCase(), { ...t, isSupporter: false });
+    });
+
+    // 2. Add supporter teams using names from liveStore
+    supporterCodes.forEach((code) => {
+      const normalizedId = code.toLowerCase();
+      if (!uniqueTeams.has(normalizedId)) {
+        uniqueTeams.set(normalizedId, {
+          id: code,
+          name: supporterTeamNames[code] || code, // This now reacts to store updates
+          isSupporter: true,
+        });
+      }
+    });
+
+    return Array.from(uniqueTeams.values());
+  }, [teams, supporterTeamNames]); // 👈 'fixtures' removed, 'supporterTeamNames' added
 
   /* =========================
      SEASONS
@@ -56,27 +120,37 @@ export default function FixturesScreen() {
   const seasons = useMemo(() => {
     if (!selectedTeamId) return [];
 
-    return Array.from(
-      new Set(
-        fixtures
-          .filter((f) => (f.yourTeamId ?? f.yourTeam?.id) === selectedTeamId)
-          .map((f) => f.season)
-          .filter(Boolean),
-      ),
-    ).sort();
+    // Helper to strip "TEAM-" and lowercase
+    const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
+    const targetId = normalize(selectedTeamId);
+
+    const filteredSeasons = fixtures
+      .filter((f) => {
+        const fixtureTeamId = normalize(f.yourTeam?.id || f.yourTeamId || "");
+        return fixtureTeamId === targetId;
+      })
+      .map((f) => f.season)
+      .filter(Boolean);
+
+    return Array.from(new Set(filteredSeasons)).sort().reverse();
   }, [fixtures, selectedTeamId]);
 
-  /* =========================
-     FIXTURES
-  ========================= */
-
-  const seasonFixtures = useMemo(() => {
+  /* ========================= FIXTURES ========================= */
+  /* ========================= FIXTURES ========================= */
+  const sortedSeasonFixtures = useMemo(() => {
     if (!selectedTeamId || !selectedSeason) return [];
 
-    return fixtures.filter(
-      (f) =>
-        (f.yourTeamId ?? f.yourTeam?.id) === selectedTeamId &&
-        f.season === selectedSeason,
+    const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
+    const targetId = normalize(selectedTeamId);
+
+    return (
+      fixtures
+        .filter((f) => {
+          const fixtureTeamId = normalize(f.yourTeam?.id || f.yourTeamId || "");
+          return fixtureTeamId === targetId && f.season === selectedSeason;
+        })
+        // 👇 Re-added the sort logic here
+        .sort((a, b) => (b.date ?? 0) - (a.date ?? 0))
     );
   }, [fixtures, selectedTeamId, selectedSeason]);
 
@@ -121,28 +195,45 @@ export default function FixturesScreen() {
 
       {/* FIXTURE LIST */}
       <FlatList
-        data={seasonFixtures}
+        data={sortedSeasonFixtures}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <FixtureCard
-            fixture={item}
-            isFreeFixture={index === 0}
-            onPress={() => {
-              const isFreeFixture = index === 0;
+        renderItem={({ item, index }) => {
+          const innings = Object.values(item.innings || {});
 
-              if (!proScorebookUnlocked && !isFreeFixture) {
-                setShowSubscriptionModal(true);
-                return;
-              }
+          const isBallCounterFixture = innings.every(
+            (i: any) => !i.battingEntries || i.battingEntries.length === 0,
+          );
 
-              useFixtureStore.setState({ currentFixture: item });
-              setSelectedFixture(item);
-              setModalVisible(true);
-            }}
-          />
-        )}
+          if (isBallCounterFixture) {
+            return (
+              <BallCounterFixtureCard
+                fixture={item}
+                isFreeFixture={index === 0}
+                onUpgradePress={() => setShowSubscriptionModal(true)}
+              />
+            );
+          }
+
+          return (
+            <FixtureCard
+              fixture={item}
+              isFreeFixture={index === 0}
+              onPress={() => {
+                const isFreeFixture = index === 0;
+
+                if (!proScorebookUnlocked && !isFreeFixture) {
+                  setShowSubscriptionModal(true);
+                  return;
+                }
+
+                useFixtureStore.setState({ currentFixture: item });
+                setSelectedFixture(item);
+                setModalVisible(true);
+              }}
+            />
+          );
+        }}
       />
-
       <View style={{ marginBottom: 16, marginTop: 16 }}>
         <Pressable style={styles.modalButton} onPress={openGameModeModal}>
           <Text style={styles.modalButtonText}>Back to Select Game Mode</Text>

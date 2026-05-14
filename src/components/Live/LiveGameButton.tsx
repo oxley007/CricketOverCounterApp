@@ -32,7 +32,7 @@ export default function LiveGameButton({ teamId }: { teamId: string }) {
       {loading ? (
         <ActivityIndicator color="#fff" />
       ) : (
-        <Text style={styles.buttonText}>Resume Scoring</Text>
+        <Text style={styles.buttonText}>View Live Scores</Text>
       )}
     </TouchableOpacity>
   );

@@ -6,6 +6,7 @@ import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
+import { useIsLiveViewer } from "../hooks/useIsLiveViewer";
 
 export default function OversCounter() {
   const events = useMatchStore((state) => state.events);
@@ -33,6 +34,13 @@ export default function OversCounter() {
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   const currentGame = useGameStore((s) => s.currentGame);
   const baseRuns = useMatchStore((s) => s.baseRuns);
+
+  const isLiveViewer = useIsLiveViewer();
+
+  console.log(
+    JSON.stringify(currentFixture),
+    " now checking currentFixture from oversCounter",
+  );
 
   let totalLegalBalls = 0;
   let widesThisOver = 0;
@@ -149,6 +157,10 @@ export default function OversCounter() {
     });
 
     console.log("🏏 current batting team:", currentGame?.battingTeamId);
+    console.log(
+      "🏏 currentFixture batting team:",
+      currentFixture?.battingTeamId,
+    );
 
     innings.forEach((inn) => {
       console.log("🏏 innings check", {
@@ -161,6 +173,9 @@ export default function OversCounter() {
     //canShowTargetAndRRR = oppositionTeamInnings > battingTeamInnings;
 
     if (!isScorebook) {
+      console.log(innings.length, " innings.length is?");
+      console.log(innings[0]?.totalRuns, " innings[0]?.totalRuns is?");
+
       canShowTargetAndRRR =
         innings.length >= 2 && (innings[0]?.totalRuns ?? 0) > 0;
     } else {
@@ -194,16 +209,57 @@ export default function OversCounter() {
   let target: number | null = null;
   let rrr: string | null = null;
 
+  console.log(canShowTargetAndRRR, " canShowTargetAndRRR here is?");
+
   if (canShowTargetAndRRR && currentFixture) {
+    console.log("i get in ok here.");
+
+    console.log(
+      currentFixture.innings,
+      " currentFixture.innings this need checked here.",
+    );
+
     let battingTeamPreviousRuns = 0;
     let oppositionRuns = 0;
     const innings = Array.isArray(currentFixture?.innings)
       ? currentFixture.innings
       : [];
 
-    if (currentGame?.battingTeamId) {
+    console.log(
+      currentGame?.battingTeamId,
+      " currentGame?.battingTeamId checking here now.",
+    );
+
+    console.log(
+      currentFixture?.battingTeamId,
+      " currentFixture?.battingTeamId checking here now.",
+    );
+
+    let battingTeamId = "";
+
+    if (isLiveViewer && currentFixture) {
+      console.log("shiouldnt hit if live game");
+      // If battingTeamId is undefined, fall back to ""
+      battingTeamId = currentFixture.battingTeamId ?? "";
+    } else {
+      console.log("shiould hit if live game");
+
+      // currentGame is also optional, so use safe chaining and fallback
+      battingTeamId = currentGame?.battingTeamId ?? "";
+    }
+
+    if (battingTeamId) {
       // 🟢 Scorebook Logic
-      const battingTeamId = currentGame.battingTeamId;
+
+      console.log(
+        currentFixture?.battingTeamId,
+        " currentFixture?.battingTeamId checking here now.",
+      );
+
+      //const battingTeamId = currentFixture.battingTeamId;
+
+      console.log(JSON.stringify(innings), " check innings in here now.");
+
       innings.forEach((inn) => {
         if (!inn.battingTeamId || inn.matchEvents?.length === 0) return;
         if (inn.battingTeamId === battingTeamId) {
@@ -220,9 +276,15 @@ export default function OversCounter() {
       }
     }*/
 
+    console.log(oppositionRuns, "oppositionRuns are?");
+    console.log(battingTeamPreviousRuns, "battingTeamPreviousRuns are?");
+
     const runsBehind = oppositionRuns - battingTeamPreviousRuns;
+    console.log(runsBehind, " runsBehind needs cehcked here");
+
     if (runsBehind >= 0) {
       target = runsBehind + 1;
+      console.log(target, " what is target in here?");
 
       const runsRemaining = target - totalRuns;
       const totalOversMatch = currentFixture.overs ?? 0;

@@ -8,6 +8,8 @@ import {
   saveTeamWithPlayers,
   clearLiveEvents,
   saveLiveFixture,
+  updateLiveData,
+  updateCurrentGameData,
 } from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore } from "../state/fixtureStore";
@@ -344,6 +346,7 @@ export default function NewInningsButton({ onComplete }: Props) {
       if (liveStore.teamCode) {
         try {
           const latestFixture = useFixtureStore.getState().currentFixture;
+          const latestGame = useGameStore.getState().currentGame;
 
           console.log(
             "🚀 SENDING TO FIREBASE:",
@@ -351,6 +354,8 @@ export default function NewInningsButton({ onComplete }: Props) {
           );
 
           await saveLiveFixture(liveStore.teamCode, latestFixture);
+          await updateLiveData(liveStore.teamCode, latestFixture);
+          await updateCurrentGameData(liveStore.teamCode, latestGame);
         } catch (e) {
           console.warn("⚠️ Failed to save public fixture ballCounter:", e);
         }

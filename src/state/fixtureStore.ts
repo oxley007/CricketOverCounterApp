@@ -78,6 +78,9 @@ export type Fixture = {
     name: string;
   };
 
+  battingTeamId?: string;
+  bowlingTeamId?: string;
+
   overs: number;
   innings: InningsSnapshot[];
   abandoned?: boolean;
@@ -107,6 +110,8 @@ interface FixtureState {
   markFixtureAbandoned: () => void;
 
   completeFixture: () => void;
+
+  upsertFixture: (incoming: Fixture) => void;
 
   clearCurrentFixture: () => void;
 
@@ -179,7 +184,15 @@ export const useFixtureStore = create<FixtureState>()(
             status: "live",
           });
 
+          /*
           await updateLiveData(gameConfig.yourTeam.id, {
+            fixtureId: newFixture.id,
+            mode: selectedMode,
+          });
+          */
+
+          await updateLiveData(gameConfig.yourTeam.id, {
+            ...newFixture,
             fixtureId: newFixture.id,
             mode: selectedMode,
           });
@@ -253,6 +266,25 @@ export const useFixtureStore = create<FixtureState>()(
             innings: updatedInnings,
           },
         });
+
+        // 🔥 ADD IT HERE
+        const updatedFixture = { ...fixture, innings: updatedInnings };
+
+        console.log(JSON.stringify(updatedFixture), "updatedFixture is>?");
+
+        // We use a self-invoking async block because saveCurrentInnings isn't async
+        (async () => {
+          try {
+            await updateLiveData(updatedFixture.yourTeam.id, {
+              ...updatedFixture,
+              status: "live",
+              // You can add more live-specific flags here
+            });
+            console.log("📡 Live Data updated with new innings");
+          } catch (err) {
+            console.warn("⚠️ Sync to Live Data failed:", err);
+          }
+        })();
 
         // 🔄 Reset live stores for next innings
         useMatchStore.getState().resetInnings();
@@ -423,6 +455,27 @@ export const useFixtureStore = create<FixtureState>()(
         } catch (err) {
           console.warn("⚠️ Failed to save live fixture:", err);
         }
+      },
+
+      // Inside useFixtureStore actions...
+
+      upsertFixture: (incoming: Fixture) => {
+        set((state) => {
+          // 1. If it's the one we are currently scoring, only update that
+          if (state.currentFixture?.id === incoming.id) {
+            return { currentFixture: { ...state.currentFixture, ...incoming } };
+          }
+
+          // 2. Otherwise, update or add to the history list
+          const index = state.fixtures.findIndex((f) => f.id === incoming.id);
+          if (index > -1) {
+            const updatedFixtures = [...state.fixtures];
+            updatedFixtures[index] = { ...updatedFixtures[index], ...incoming };
+            return { fixtures: updatedFixtures };
+          }
+
+          return { fixtures: [incoming, ...state.fixtures] };
+        });
       },
 
       /* ========================

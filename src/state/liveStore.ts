@@ -22,6 +22,7 @@ type LiveState = {
   playerIds: string[];
 
   teamCodesSupporter: string[];
+  supporterTeamNames: Record<string, string>;
 
   fixtures: Record<string, Fixture>;
 
@@ -40,6 +41,8 @@ type LiveState = {
 
   addSupporterTeam: (teamCode: string) => void;
   removeSupporterTeam: (teamCode: string) => void;
+
+  updateSupporterTeamName: (teamCode: string, name: string) => void;
 
   configureLive: (params: {
     teamId: string;
@@ -67,6 +70,7 @@ export const useLiveStore = create<LiveState>()(
       playerIds: [],
 
       teamCodesSupporter: [],
+      supporterTeamNames: {},
 
       fixtures: {},
 
@@ -122,6 +126,14 @@ export const useLiveStore = create<LiveState>()(
           teamCodesSupporter: state.teamCodesSupporter.filter(
             (code) => code !== teamCode,
           ),
+        })),
+
+      updateSupporterTeamName: (teamCode, name) =>
+        set((state) => ({
+          supporterTeamNames: {
+            ...state.supporterTeamNames,
+            [teamCode]: name,
+          },
         })),
 
       setFixture: (teamCode, fixture) =>

@@ -22,14 +22,32 @@ export default function CurrentBattingDisplay() {
 
   // Determine the display name
   const teamName = useMemo(() => {
-    if (!battingTeamId) return "Unknown Team";
+    //if (!currentFixture?.battingTeamId) return "Unknown Team";
 
     // 1. If viewing live, check the currentFixture object
+
+    /*
+    console.log(
+      JSON.stringify(currentFixture.yourTeam?.id),
+      " currentFixture.yourTeam?.id check here",
+    );
+    console.log(JSON.stringify(battingTeamId), " battingTeamId check here");
+    console.log(
+      JSON.stringify(currentFixture.battingTeamId),
+      " currentFixture.battingTeamId check here",
+    );
+
+    console.log(
+      JSON.stringify(currentFixture?.oppositionTeam?.id),
+      " currentFixture.oppositionTeam?.id check here",
+    );
+    */
+
     if (isLiveViewer && currentFixture) {
-      if (currentFixture.yourTeam?.id === battingTeamId) {
+      if (currentFixture.yourTeam?.id === currentFixture.battingTeamId) {
         return currentFixture.yourTeam.name;
       }
-      if (currentFixture.oppositionTeam?.id === battingTeamId) {
+      if (currentFixture.oppositionTeam?.id === currentFixture.battingTeamId) {
         return currentFixture.oppositionTeam.name;
       }
     }
@@ -43,6 +61,18 @@ export default function CurrentBattingDisplay() {
   if (!battingTeamId || legalBallsBowled === 0) {
     return null;
   }
+
+  /*
+  console.log(JSON.stringify(currentFixture), "i need to see this info.");
+  console.log(
+    JSON.stringify(currentFixture.bowlingTeamId),
+    "i need to see this info bowlingTeamId.",
+  );
+  console.log(
+    JSON.stringify(currentFixture.battingTeamId),
+    "i need to see this info battingTeamId.",
+  );
+  */
 
   return (
     <View style={styles.card}>
