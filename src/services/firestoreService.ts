@@ -315,64 +315,77 @@ export async function createPublicTeam(
   if (!userId) return null;
 
   const teamCode = `TEAM-${team.id.toUpperCase()}`;
-
   try {
     const teamRef = doc(db, "publicTeams", teamCode);
-
     console.log("🔥 teamCode being written:", teamCode);
 
-    // 1. Parent
-    await setDoc(teamRef, {
-      ownerId: userId,
-      teamId: team.id,
-      teamName: team.name,
-      createdAt: serverTimestamp(),
-      teamCode,
-    });
+    // 1. Parent Team - Using merge ensures we don't accidentally blow away other root fields
+    await setDoc(
+      teamRef,
+      {
+        ownerId: userId,
+        teamId: team.id,
+        teamName: team.name,
+        createdAt: serverTimestamp(),
+        teamCode,
+      },
+      { merge: true },
+    );
 
-    //console.log("👀 team players:", team.players);
-    //console.log("👀 Writing players to:", teamRef.path);
-
+    // 2. Write Team Players - Cleaned and Merged
+    // 2. Write Team Players - Added (team.players ?? []) safeguard
     await Promise.all(
-      team.players.map((p) =>
-        setDoc(doc(teamRef, "teamData", p.id), {
-          playerId: p.id,
-          name: p.name,
-        }),
+      (team.players ?? []).map((p) =>
+        setDoc(
+          doc(teamRef, "teamData", p.id),
+          cleanForFirestore({
+            playerId: p.id,
+            name: p.name,
+          }),
+          { merge: true },
+        ),
       ),
     );
 
     const testSnap = await getDocs(collection(teamRef, "teamData"));
     console.log("🧪 teamData count:", testSnap.size);
 
-    // 3. Fixtures (store snapshot per fixture)
+    // 3. Fixtures - WRAPPED with cleanForFirestore to strip out the undefined fields!
     await Promise.all(
-      fixtures.map((f) =>
-        setDoc(doc(teamRef, "fixtures", f.id), {
-          ...f,
-          updatedAt: serverTimestamp(),
-        }),
+      fixtures.map(
+        (f) =>
+          setDoc(
+            doc(teamRef, "fixtures", f.id),
+            cleanForFirestore({
+              ...f,
+              updatedAt: serverTimestamp(),
+            }),
+            { merge: true },
+          ), // ✅ Added merge to prevent loss of remote fields
       ),
     );
 
-    // 4. Live match events (append-style)
-    //const liveStore = useLiveStore.getState();
-
+    // 4. Live match events
     await Promise.all(
       liveEvents.map((e) =>
         setDoc(
           doc(teamRef, "live", e.id),
-          removeUndefined({
+          cleanForFirestore({
+            // ✅ Standardized to cleanForFirestore
             ...e,
-            teamCode, // ✅ correct
-            teamId: team.id, // ✅ correct
+            teamCode,
+            teamId: team.id,
             createdAt: serverTimestamp(),
           }),
+          { merge: true },
         ),
       ),
     );
 
-    console.log("✅ Public team created with fixtures + live:", teamCode);
+    console.log(
+      "✅ Public team created cleanly with fixtures + live:",
+      teamCode,
+    );
     return teamCode;
   } catch (err) {
     console.error("❌ Failed to create public team:", err);
@@ -470,6 +483,7 @@ export async function addLiveEvent(teamId: string, event: any) {
   );
 }
 
+/*
 export async function deleteLiveEvent(teamId: string, eventId: string) {
   const teamCode = getTeamCode(teamId);
 
@@ -478,6 +492,43 @@ export async function deleteLiveEvent(teamId: string, eventId: string) {
   await deleteDoc(ref);
 
   console.log("🗑️ Deleted live event:", teamCode, eventId);
+}
+*/
+
+/**
+ * Core helper to delete multiple document IDs under a specific subcollection
+ */
+async function deleteDocumentsFromCollection(
+  teamCode: string,
+  subCollection: "live" | "liveData",
+  documentIds: string[],
+): Promise<void> {
+  const deletePromises = documentIds.map(async (docId) => {
+    const ref = doc(db, "publicTeams", teamCode, subCollection, docId);
+    await deleteDoc(ref);
+    console.log(`🗑️ Deleted from ${subCollection}:`, teamCode, docId);
+  });
+
+  await Promise.all(deletePromises);
+}
+
+/**
+ * Deletes a single specific live event from publicTeams/{teamCode}/live/{eventId}
+ */
+export async function deleteLiveEvent(
+  teamId: string,
+  eventId: string,
+): Promise<void> {
+  const teamCode = getTeamCode(teamId);
+  await deleteDocumentsFromCollection(teamCode, "live", [eventId]);
+}
+
+/**
+ * Cleans up all game data from publicTeams/{teamCode}/liveData/
+ */
+export async function endFixtureCleanUp(teamCode: string): Promise<void> {
+  const nodesToClear = ["currentFixture", "currentGame", "currentBaseRuns"];
+  await deleteDocumentsFromCollection(teamCode, "liveData", nodesToClear);
 }
 
 export const updateLiveData = (teamId: string, data: any) =>
@@ -488,6 +539,43 @@ export const updateCurrentGameData = (teamId: string, data: any) =>
 
 export const updatebaseRunsData = (teamId: string, data: any) =>
   writeLiveData(teamId, "currentBaseRuns", data);
+
+export async function updatePublicTeamData(parentTeamId: string, team: Team) {
+  const teamCode = getTeamCode(parentTeamId);
+
+  if (!teamCode) {
+    console.error(
+      "❌ Cannot sync! Derived teamCode is empty for parent ID:",
+      parentTeamId,
+    );
+    return;
+  }
+
+  // This will successfully point to: publicTeams / [Host Code] / teams / [Opposition Team ID or Host Team ID]
+  const ref = doc(db, "publicTeams", teamCode, "teams", team.id);
+
+  await setDoc(
+    ref,
+    {
+      teamId: team.id,
+      teamName: team.name,
+      players: (team.players ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        archived: p.archived ?? false,
+      })),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  console.log(
+    "📡 Team synced smoothly:",
+    team.name,
+    "under host code →",
+    teamCode,
+  );
+}
 
 export async function syncLiveGame(teamId: string, game: any) {
   const teamCode = getTeamCode(teamId);
@@ -527,6 +615,24 @@ export async function loadSeason(): Promise<string | null> {
   if (!userSnap.exists()) return null;
 
   return userSnap.data()?.lastSeason ?? null;
+}
+
+export async function loadLiveViewTeams(teamId: string) {
+  const teamCode = getTeamCode(teamId);
+
+  const snapshot = await getDocs(
+    collection(db, "publicTeams", teamCode, "teams"),
+  );
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+
+    return {
+      teamId: data.teamId,
+      teamName: data.teamName,
+      players: data.players ?? [],
+    };
+  });
 }
 
 export { mergeById };

@@ -45,7 +45,10 @@ export function listenAndMergeFixture(teamIdOrCode: string) {
           ? data.date.toMillis()
           : (data.date ?? Date.now()),
         season: data.season || "Unknown",
-        yourTeam: data.yourTeam ?? { id: teamCode, name: "" },
+        yourTeam: data.yourTeam ?? {
+          id: data.teamId || teamCode,
+          name: data.teamName || "",
+        },
         oppositionTeam: data.oppositionTeam ?? { id: "", name: "" },
         overs: data.overs ?? 0,
         innings: data.innings ?? [],

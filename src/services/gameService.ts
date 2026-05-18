@@ -6,6 +6,8 @@ import { useMatchStore } from "../state/matchStore";
 import { useGameStore } from "../state/gameStore";
 import { getTeamCode } from "../utils/liveHelpers";
 import { router } from "expo-router";
+import { loadLiveViewTeams } from "./firestoreService";
+import { useLiveStore } from "../state/liveStore";
 
 export async function resumeLiveGame(teamId: string) {
   try {
@@ -49,6 +51,34 @@ export async function resumeLiveGame(teamId: string) {
 
     // Assuming your matchStore has a setMatchEvents or similar action
     useMatchStore.getState().setMatchEvents(events);
+
+    console.log(JSON.stringify(gameData), "checking gameData here.");
+
+    // Set the game configuration using data from gameData
+    useGameStore.getState().setGameConfig({
+      yourTeam: {
+        id: gameData.yourTeam?.id,
+        name: gameData.yourTeam?.name,
+      },
+      oppositionTeam: {
+        id: gameData.oppositionTeam?.id,
+        name: gameData.oppositionTeam?.name,
+      },
+      overs: gameData.overs,
+      season: gameData.season,
+    });
+
+    const liveTeams = await loadLiveViewTeams(teamId);
+
+    const normalizedTeams = liveTeams.map((team) => ({
+      id: team.teamId,
+      name: team.teamName,
+      players: team.players ?? [],
+    }));
+
+    useLiveStore.getState().setLiveViewTeams(normalizedTeams);
+
+    console.log(JSON.stringify(normalizedTeams), "loaded live teams");
 
     // 6. Route
     const mode = fixtureData.mode;

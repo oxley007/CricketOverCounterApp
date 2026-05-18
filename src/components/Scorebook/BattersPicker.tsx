@@ -12,6 +12,7 @@ import type { Team } from "../../state/teamStore";
 import { useTeamStore } from "../../state/teamStore";
 import AddPlayerFooter from "./AddPlayerFooter";
 import SelectPlayersModal from "./SelectPlayersModal";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 
 interface BattersPickerProps {
   battingTeam: Team | null;
@@ -35,6 +36,8 @@ export default function BattersPicker({
   const hasHydrated = useGameStore((s) => s.hasHydrated);
 
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
+
+  const isLiveViewer = useIsLiveViewer();
 
   const legalBallsBowled = matchEvents.reduce(
     (count, e) => count + (e.countsAsBall ? 1 : 0),
@@ -262,18 +265,24 @@ export default function BattersPicker({
     }
   };
 
+  console.log(battingTeam, " checking what this is on for liveViewer");
+  console.log(
+    selectedBatters,
+    " checking selectedBatters what this is on for liveViewer",
+  );
+
   return (
     <>
       {battingTeam && (
         <>
           <Pressable
             style={styles.addBatters}
-            onPress={() => setShowModal(true)}
+            onPress={() => !isLiveViewer && setShowModal(true)}
           >
             {shouldShowChangeBatters && (
               <Pressable
                 style={[styles.addBowlerButton, { marginTop: 12 }]}
-                onPress={() => setShowModal(true)}
+                onPress={() => !isLiveViewer && setShowModal(true)}
               >
                 <Text style={styles.addBowlerButtonText}>Change Batters</Text>
               </Pressable>
@@ -293,6 +302,7 @@ export default function BattersPicker({
                         onStrike && styles.onStrikeBatter,
                       ]}
                       onPress={() => {
+                        if (isLiveViewer) return;
                         if (
                           currentGame?.activeBatters?.some(
                             (b) => b.playerId === p.id,
@@ -318,7 +328,7 @@ export default function BattersPicker({
                 </Text>
                 <Pressable
                   style={[styles.addBowlerButton, { marginTop: 12 }]}
-                  onPress={() => setShowModal(true)}
+                  onPress={() => !isLiveViewer && setShowModal(true)}
                 >
                   <Text style={styles.addBowlerButtonText}>Select Batters</Text>
                 </Pressable>

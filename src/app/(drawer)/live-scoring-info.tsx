@@ -13,6 +13,7 @@ import {
   updatebaseRunsData,
   updateCurrentGameData,
   updateLiveData,
+  updatePublicTeamData,
 } from "../../services/firestoreService";
 //import { useLiveStore } from "../../state/liveStore";
 import { getActiveTeams } from "../../utils/getActiveTeams";
@@ -55,73 +56,80 @@ export default function LiveScoringInfo() {
 
   const handleConfigureLive = async () => {
     if (loading) return;
-
     await requireAuth(async () => {
       setLoading(true);
-
       try {
-        const { teams } = useTeamStore.getState();
-
-        if (!teams.length) {
-          alert("Please create a team first");
-          return;
-        }
-
         const fixtures = useFixtureStore.getState().fixtures;
         console.log(JSON.stringify(fixtures), "fixtures is what?");
 
-        //const liveEvents = useMatchStore.getState().events;
-        //const activeTeams = getActiveTeams(fixtures, teams);
+        if (!fixtures.length) {
+          alert("No fixtures found. Please start a game first.");
+          return;
+        }
 
-        const liveEvents = useMatchStore.getState().events;
-        const activeTeams = teams;
+        // 1. Extract raw yourTeam references from all fixtures
+        const rawTeamsFromFixtures = fixtures
+          .map((f) => f.yourTeam)
+          .filter((team) => !!team);
+
+        // 2. Filter out duplicate IDs
+        const uniqueTeamIds = [
+          ...new Set(rawTeamsFromFixtures.map((t) => t.id)),
+        ];
+
+        // 3. Look up the FULL Team structures from your global useTeamStore state
+        const { teams: globalTeams } = useTeamStore.getState();
+
+        const activeTeams = uniqueTeamIds
+          .map((id) => globalTeams.find((t) => t.id === id))
+          .filter((team): team is Team => !!team); // ✅ Tells TS this is a real Team with players
 
         if (!activeTeams.length) {
           alert(
-            "No teams added yet. please add a start a game and add a team before you can setup live scores",
+            "No active teams found in your team store matching these fixtures.",
           );
           return;
         }
 
-        const currentFixture = useFixtureStore.getState().currentFixture;
-
-        if (!currentFixture || !currentFixture.yourTeam) {
-          alert("No active fixture found. Please start a game first.");
-          return;
-        }
-
+        const liveEvents = useMatchStore.getState().events;
         const liveTeams: LiveTeam[] = [];
-
         const { selectedMode } = useStartModalStore.getState();
         const currentGame = useGameStore.getState().currentGame;
         const { baseRuns } = useMatchStore.getState();
 
+        // 4. Loop through the verified, complete team objects
         for (const team of activeTeams) {
           const teamCode = await createPublicTeam(team, fixtures, liveEvents);
-
           if (!teamCode) continue;
 
           const liveTeam: LiveTeam = {
             teamId: team.id,
             teamCode,
-            playerIds: team.players.map((p) => p.id),
+            playerIds: (team.players ?? []).map((p) => p.id), // ✅ Safe & clear of TS errors
           };
-
           liveTeams.push(liveTeam);
 
           useTeamStore.getState().markLiveConfigured(team.id);
 
-          await updateLiveData(currentFixture.yourTeam.id, {
-            ...currentFixture,
-            fixtureId: currentFixture.id,
-            mode: selectedMode,
-          });
+          // Sync the team and its full roster cleanly into subcollections
+          await updatePublicTeamData(team.id, team); // ✅ Safe & clear of TS errors
 
-          await updateCurrentGameData(currentFixture.yourTeam.id, {
+          // Find the specific fixture snapshot corresponding to this team
+          const teamFixture = fixtures.find((f) => f.yourTeam?.id === team.id);
+
+          if (teamFixture) {
+            await updateLiveData(team.id, {
+              ...teamFixture,
+              fixtureId: teamFixture.id,
+              mode: selectedMode,
+            });
+          }
+
+          await updateCurrentGameData(team.id, {
             ...currentGame,
           });
 
-          await updatebaseRunsData(currentFixture.yourTeam.id, {
+          await updatebaseRunsData(team.id, {
             baseRuns,
           });
         }
@@ -135,7 +143,8 @@ export default function LiveScoringInfo() {
         if (selectedTier === "coach") {
           setShowSubscriptionModal(true);
         } else {
-          router.back();
+          //router.back();
+          router.push("/live-scoring-instructions");
         }
       } finally {
         setLoading(false);

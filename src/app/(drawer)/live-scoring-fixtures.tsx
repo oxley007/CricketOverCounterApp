@@ -9,6 +9,8 @@ import { useStartModalStore } from "../../state/startModalStore";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useLiveStore } from "../../state/liveStore";
 import ConnectToLiveTeam from "../../components/Live/ConnectToLiveTeam";
+import ConnectToLivePlayer from "../../components/Live/ConnectToLivePlayer";
+import ConnectToLiveEntity from "../../components/Live/ConnectToLiveEntity";
 import {
   startLiveGameListener,
   stopLiveGameListener,
@@ -81,12 +83,7 @@ export default function LiveScoringFixtures() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.tierTitle}>Enter Team ID</Text>
-            <Text style={styles.bodyText}>
-              Paste the Team ID shared by a coach to see live scorecards and
-              player stats for another team.
-            </Text>
-            <ConnectToLiveTeam
+            <ConnectToLiveEntity
               requireAuth={requireAuth}
               onAuthSuccess={() => router.push("/live-scoring-fixtures")}
             />

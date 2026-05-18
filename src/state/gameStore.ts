@@ -5,7 +5,13 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 import { useMatchStore } from "./matchStore";
 import { useFixtureStore } from "./fixtureStore";
-import { syncLiveGame } from "../services/firestoreService";
+import { useLiveStore } from "./liveStore";
+import {
+  syncLiveGame,
+  updateLiveData,
+  updateCurrentGameData,
+  updatebaseRunsData,
+} from "../services/firestoreService";
 
 export const LEGAL_BALLS = 6;
 
@@ -218,11 +224,21 @@ export const useGameStore = create<GameState>()(
             return state;
           }
 
-          const game = state.currentGame;
           const fixture = useFixtureStore.getState().currentFixture;
 
-          if (game && fixture?.yourTeam?.id) {
-            syncLiveGame(fixture.yourTeam.id, game);
+          if (nextGame && fixture?.yourTeam?.id) {
+            const teamId = fixture.yourTeam.id;
+
+            // 🏏 Pull the live baseRuns number directly from your match store
+            // (Replace 'useMatchStore' with the exact name of your store hook)
+            const baseRunsValue = useMatchStore.getState().baseRuns;
+
+            // 📡 Sync all three parts of liveData to Firebase
+            updateLiveData(teamId, fixture); // currentFixture
+            updateCurrentGameData(teamId, nextGame); // currentGame
+
+            // Firestore setDoc expects an object, so we wrap the number in an object payload
+            updatebaseRunsData(teamId, { value: baseRunsValue }); // currentBaseRuns
           }
 
           return { currentGame: nextGame };
@@ -361,14 +377,27 @@ export const useGameStore = create<GameState>()(
           const game = state.currentGame;
           if (!game) return state;
 
-          // 🚨 KEY: prevent unnecessary updates
           if (game.currentBowlerId === playerId) return state;
+          const nextGame = { ...state.currentGame, currentBowlerId: playerId };
+          const fixture = useFixtureStore.getState().currentFixture;
+
+          if (nextGame && fixture?.yourTeam?.id) {
+            const teamId = fixture.yourTeam.id;
+
+            // 🚨 FIX: Check if the application is currently running as a read-only viewer.
+            // Replace 'state.isLiveViewer' with wherever you track viewer mode status.
+            const isViewer = useLiveStore.getState().isReadOnly;
+
+            if (!isViewer) {
+              // 📡 ONLY sync to Firebase if the user is the scorer, NOT the viewer!
+              updateCurrentGameData(teamId, nextGame).catch(console.warn);
+            } else {
+              console.log("ℹ️ Viewer mode: Skipped Firebase write operation.");
+            }
+          }
 
           return {
-            currentGame: {
-              ...game,
-              currentBowlerId: playerId,
-            },
+            currentGame: nextGame,
           };
         }),
 
@@ -470,10 +499,30 @@ export const useGameStore = create<GameState>()(
 
           const fixture = useFixtureStore.getState().currentFixture;
 
-          if (game && fixture?.yourTeam?.id) {
-            syncLiveGame(fixture.yourTeam.id, game);
+          if (fixture?.yourTeam?.id) {
+            const teamId = fixture.yourTeam.id;
+
+            // 🚨 FIX: Check if the application is currently running as a read-only viewer
+            const isViewer = useLiveStore.getState().isReadOnly;
+
+            if (!isViewer) {
+              // 📡 ONLY sync to Firebase if the user is the scorer, NOT the viewer!
+              // First sync the current raw state
+              syncLiveGame(teamId, game);
+
+              console.log(
+                playerId,
+                " checking playerId here why is this weird.",
+              );
+              // Create the updated next game snapshot with the new strike ID 🏏
+              const nextGame = { ...game, currentStrikeId: playerId };
+              updateCurrentGameData(teamId, nextGame).catch(console.warn);
+            } else {
+              console.log("ℹ️ Viewer mode: Skipped Firebase write operation.");
+            }
           }
 
+          // Locally update the UI for both scorer and viewer
           return {
             currentGame: {
               ...game,
@@ -599,8 +648,37 @@ export const useGameStore = create<GameState>()(
           //const game = useGameStore.getState().currentGame;
           const fixture = useFixtureStore.getState().currentFixture;
 
-          if (game && fixture?.yourTeam?.id) {
-            syncLiveGame(fixture.yourTeam.id, game);
+          if (fixture?.yourTeam?.id) {
+            const teamId = fixture.yourTeam.id;
+
+            // 🚨 FIX: Check if the application is currently running as a read-only viewer
+            const isViewer = useLiveStore.getState().isReadOnly;
+
+            if (!isViewer) {
+              // 1. First sync the current raw state
+              syncLiveGame(teamId, game);
+
+              // 2. Build the exact same updated game snapshot used in your return
+              const nextGame = {
+                ...game,
+                currentStrikeId,
+                ballsThisOver: endsOver ? 0 : ballsThisOver,
+                lastBowlerId: endsOver
+                  ? game.currentBowlerId
+                  : game.lastBowlerId,
+                ballCount,
+              };
+
+              console.log(
+                JSON.stringify(nextGame),
+                "need to check nextGame here to see whats in",
+              );
+
+              // 3. Push the complete, accurate update to Firestore
+              updateCurrentGameData(teamId, nextGame).catch(console.warn);
+            } else {
+              console.log("ℹ️ Viewer mode: Skipped Firebase write operation.");
+            }
           }
 
           return {

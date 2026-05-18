@@ -3,7 +3,14 @@
 import { useKeepAwake } from "expo-keep-awake";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/shallow";
 
@@ -16,6 +23,17 @@ import { useFixtureStore } from "../../../state/fixtureStore";
 import { useGameStore } from "../../../state/gameStore";
 import { useMatchStore } from "../../../state/matchStore";
 import { useTeamStore } from "../../../state/teamStore";
+import { useLiveStore } from "../../../state/liveStore";
+
+import { useIsLiveViewer } from "../../../hooks/useIsLiveViewer";
+
+import { useFeedback } from "../../../hooks/useFeedback";
+import { useExitGame } from "../../../hooks/useExitGame";
+
+import {
+  startLiveGameEventListener,
+  stopLiveGameEventListener,
+} from "../../../services/liveGameEventListener";
 
 import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
@@ -44,6 +62,8 @@ import BaseRunsInput from "../../../components/Settings/BaseRunsInput";
 import MatchRulesModal from "../../../components/Settings/MatchRulesModal";
 import TotalDots from "../../../components/TotalDots";
 import { getSeasonPlayerStats } from "../../../state/seasonStatsHelpers";
+import { useStartModalStore } from "../../../state/startModalStore";
+import LiveScoresCard from "../../../components/Live/LiveScoresInfoCard";
 
 export default function ScorebookIndex() {
   console.log(
@@ -62,6 +82,7 @@ export default function ScorebookIndex() {
   const startGame = useGameStore((s) => s.startGame);
   const setStrike = useGameStore((s) => s.setStrike);
   const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
+  useStartModalStore();
   // State Selectors (Primitives)
   const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
   const proUnlocked = useMatchStore((s) => s.proUnlocked);
@@ -75,7 +96,13 @@ export default function ScorebookIndex() {
   const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
 
   const router = useRouter();
-  const teams = useTeamStore((s) => s.teams);
+  const isLiveViewer = useIsLiveViewer();
+
+  const localTeams = useTeamStore((s) => s.teams);
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+
+  const teams = isLiveViewer ? liveViewTeams : localTeams;
+
   const loadTeams = useTeamStore((s) => s.loadTeams);
   const gameConfig = useGameStore((s) => s.gameConfig);
 
@@ -84,6 +111,7 @@ export default function ScorebookIndex() {
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   //const isSetupComplete = useGameStore((s) => s.isSetupComplete);
   const setupTrigger = useGameStore((s) => s.setupTrigger);
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
   //const [isSetupVisible, setIsSetupVisible] = useState(false);
 
   console.log("=== SCOREBOOK RENDER ===");
@@ -115,7 +143,12 @@ export default function ScorebookIndex() {
   const closeStatsModal = useGameStore((s) => s.closeStatsModal);
   //const fixtures = useFixtureStore((s) => s.fixtures);
   const fixtures = useFixtureStore(useShallow((s) => s.fixtures));
+  const currentFixtureTeamId = useFixtureStore(
+    (s) => s.currentFixture?.yourTeam?.id,
+  );
 
+  const { handleExitNoSave } = useExitGame();
+  const { triggerTap } = useFeedback();
   useKeepAwake();
 
   /*
@@ -196,6 +229,25 @@ export default function ScorebookIndex() {
     };
   }, [isSetupComplete, isSetupVisible, openMatchRulesModal]);
 
+  useEffect(() => {
+    // Only start listening if we have a fixture and a team ID
+    if (currentFixtureTeamId) {
+      console.log(
+        "🔗 Connecting real-time listener for Team:",
+        currentFixtureTeamId,
+      );
+      startLiveGameEventListener(currentFixtureTeamId);
+    }
+
+    return () => {
+      // 🛑 Critical: Stop listening when the user leaves this screen
+      if (currentFixtureTeamId) {
+        console.log("🔌 Disconnecting real-time listener");
+        stopLiveGameEventListener(currentFixtureTeamId);
+      }
+    };
+  }, [currentFixtureTeamId]);
+
   // Ball reminder & stats visibility
   // This selector calculates the value before it even hits your component
   const legalBallsBowled = useMemo(
@@ -228,6 +280,11 @@ export default function ScorebookIndex() {
   );
 
   useEffect(() => {
+    console.log(
+      JSON.stringify(currentGame),
+      " currentGame is what in scorebook index???",
+    );
+
     if (!currentGame) {
       setSelectedBatters([]);
       setSelectedBowlerId(null);
@@ -260,6 +317,7 @@ export default function ScorebookIndex() {
     currentGame?.currentBowlerId,
   ]);
 
+  /*
   // Sync selected bowler to game store
   useEffect(() => {
     if (!selectedBowlerId) return;
@@ -272,6 +330,24 @@ export default function ScorebookIndex() {
     selectedBowlerId,
     currentGame?.battingTeamId,
     currentGame?.currentBowlerId, // ✅ add this
+    setCurrentBowler,
+  ]);*/
+
+  useEffect(() => {
+    // 🚨 1. Check if the app is running in read-only Viewer mode
+    // (Use whatever hook or store tracks your viewer state, e.g., useLiveStore)
+    const isViewer = useLiveStore.getState().isReadOnly;
+    if (isViewer) return; // 🛑 Stop completely! Viewers do not force-sync bowler states.
+
+    if (!selectedBowlerId) return;
+    if (!currentGame?.battingTeamId) return;
+    if (currentGame.currentBowlerId === selectedBowlerId) return;
+
+    setCurrentBowler(selectedBowlerId);
+  }, [
+    selectedBowlerId,
+    currentGame?.battingTeamId,
+    currentGame?.currentBowlerId,
     setCurrentBowler,
   ]);
 
@@ -347,6 +423,9 @@ export default function ScorebookIndex() {
   }, []);
 
   const playingTeams = useMemo(() => {
+    console.log(JSON.stringify(gameConfig), "what do we ahve in gameConfig?");
+    console.log(JSON.stringify(teams), "and what do we have in team here?");
+
     if (!gameConfig) return [];
 
     return teams.filter(
@@ -501,18 +580,27 @@ export default function ScorebookIndex() {
     };
   };
 
+  const onPress = () => {
+    triggerTap();
+    handleExitNoSave();
+  };
+
+  console.log(JSON.stringify(teams), "doubt team has anything...");
+  console.log(battingTeamId, "and waht does battingTeamId have?");
+  console.log(selectedBatters, " selectedBatter havea anything ya?");
+
   return (
     <View style={styles.screen}>
       {/* 1. Only render the component if setup is NOT complete */}
-      {isSetupVisible && (
+      {isSetupVisible && selectedMode !== null && (
         <GameSetupModal
           visible={isSetupVisible}
           onClose={() => setIsSetupVisible(false)}
         />
       )}
-
+      {/* Match rules modal */}
       <MatchRulesModal
-        visible={showMatchRulesModal && !isSetupVisible}
+        visible={showMatchRulesModal}
         onClose={async () => {
           await SecureStore.setItemAsync("hasSeenMatchRules", "true");
           closeMatchRulesModal();
@@ -531,12 +619,17 @@ export default function ScorebookIndex() {
 
       <ScrollView contentContainerStyle={styles.container}>
         <BallTimerDisplay />
-        <EndInningsButton
-          onComplete={() => {
-            setSelectedBatters([]);
-            setSelectedBowlerId(null);
-          }}
-        />
+        {!isLiveViewer && (
+          <>
+            <EndInningsButton
+              onComplete={() => {
+                setSelectedBatters([]);
+                setSelectedBowlerId(null);
+              }}
+            />
+            <LiveScoresCard onPress={() => router.push("/live-scoring-info")} />
+          </>
+        )}
         <CurrentOverDisplay />
 
         <View style={styles.scoreRow}>
@@ -563,20 +656,21 @@ export default function ScorebookIndex() {
           onReset={handleResetTeams}
         />
         */}
-
-        <BattingTeamSelector
-          allTeams={playingTeams}
-          selectedBattingTeamId={currentGame?.battingTeamId ?? null}
-          bowlingTeamId={currentGame?.bowlingTeamId ?? null}
-          legalBallsBowled={legalBallsBowled}
-          onSelectTeam={(battingId, bowlingId) => {
-            console.log("START GAME", battingId, bowlingId);
-            setSelectedBatters([]);
-            setSelectedBowlerId(null);
-            startGame(battingId, bowlingId, []);
-          }}
-          onReset={handleResetTeams}
-        />
+        {!isLiveViewer && (
+          <BattingTeamSelector
+            allTeams={playingTeams}
+            selectedBattingTeamId={currentGame?.battingTeamId ?? null}
+            bowlingTeamId={currentGame?.bowlingTeamId ?? null}
+            legalBallsBowled={legalBallsBowled}
+            onSelectTeam={(battingId, bowlingId) => {
+              console.log("START GAME", battingId, bowlingId);
+              setSelectedBatters([]);
+              setSelectedBowlerId(null);
+              startGame(battingId, bowlingId, []);
+            }}
+            onReset={handleResetTeams}
+          />
+        )}
 
         <BattersPicker
           battingTeam={teams.find((t) => t.id === battingTeamId) ?? null}
@@ -670,15 +764,48 @@ export default function ScorebookIndex() {
           }
         />
       </Portal>
-
-      {Platform.OS === "android" ? (
-        <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#12c2e9" }}>
-          <View style={{ paddingBottom: 8 }}>
+      {!isLiveViewer && (
+        <>
+          {Platform.OS === "android" ? (
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: "#12c2e9" }}
+            >
+              <View style={{ paddingBottom: 8 }}>
+                <ActionTabs />
+              </View>
+            </SafeAreaView>
+          ) : (
             <ActionTabs />
-          </View>
-        </SafeAreaView>
-      ) : (
-        <ActionTabs />
+          )}
+        </>
+      )}
+
+      {isLiveViewer && (
+        <>
+          {Platform.OS === "android" ? (
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: "#12c2e9" }}
+            >
+              <TouchableOpacity
+                onPress={onPress}
+                activeOpacity={0.7}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Exit Live View</Text>
+              </TouchableOpacity>
+            </SafeAreaView>
+          ) : (
+            <TouchableOpacity
+              onPress={onPress}
+              activeOpacity={0.7}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Exit Live View</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
@@ -701,5 +828,31 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#fff",
     textAlign: "center",
+  },
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e2339c",
+    borderWidth: 1,
+    borderColor: "#ff4444",
+    paddingVertical: 30,
+    borderRadius: 12,
+    gap: 8,
+    // Soft shadow
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "600",
   },
 });

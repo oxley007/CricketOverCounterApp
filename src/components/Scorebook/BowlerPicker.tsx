@@ -14,6 +14,7 @@ import type { Team } from "../../state/teamStore";
 import { useTeamStore } from "../../state/teamStore";
 import AddPlayerFooter from "./AddPlayerFooter";
 import SelectPlayersModal from "./SelectPlayersModal";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 
 interface BowlerPickerProps {
   bowlingTeam: Team | null;
@@ -62,6 +63,8 @@ export default function BowlerPicker({
 
   const ballsInCurrentOver = ballCount % 6;
   const isOverComplete = ballsInCurrentOver === 0 && ballCount > 0;
+
+  const isLiveViewer = useIsLiveViewer();
 
   // ======= CURRENT BOWLER STATS =======
   const stats = useMemo(() => {
@@ -189,32 +192,39 @@ export default function BowlerPicker({
             </View>
           </View>
         ) : (
-          <Text style={styles.selectedText}>Add a bowler to start</Text>
+          <>
+            {!isLiveViewer && (
+              <Text style={styles.selectedText}>Add a bowler to start</Text>
+            )}
+          </>
         )}
 
-        {!bowlingTeam && <Text>Select a bowling team first</Text>}
+        {!bowlingTeam && !isLiveViewer && (
+          <Text>Select a bowling team first</Text>
+        )}
+        {!isLiveViewer && (
+          <View style={{ marginTop: 0 }}>
+            {shouldShowChangeBowler && (
+              <Pressable
+                style={styles.addBowlerButton}
+                onPress={() => setShowModal(true)}
+              >
+                <Text style={styles.addBowlerButtonText}>
+                  {currentBowler ? "Change Bowler" : "Add Bowler"}
+                </Text>
+              </Pressable>
+            )}
 
-        <View style={{ marginTop: 0 }}>
-          {shouldShowChangeBowler && (
-            <Pressable
-              style={styles.addBowlerButton}
-              onPress={() => setShowModal(true)}
-            >
-              <Text style={styles.addBowlerButtonText}>
-                {currentBowler ? "Change Bowler" : "Add Bowler"}
-              </Text>
-            </Pressable>
-          )}
-
-          {currentBowler && isOverInProgress && (
-            <Pressable
-              onPress={() => setShowModal(true)}
-              style={{ marginTop: 6 }}
-            >
-              <Text style={styles.swapBowlerLink}>Swap Bowler</Text>
-            </Pressable>
-          )}
-        </View>
+            {currentBowler && isOverInProgress && (
+              <Pressable
+                onPress={() => setShowModal(true)}
+                style={{ marginTop: 6 }}
+              >
+                <Text style={styles.swapBowlerLink}>Swap Bowler</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
 
       {bowlingTeam && (

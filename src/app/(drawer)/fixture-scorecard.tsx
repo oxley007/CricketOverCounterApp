@@ -30,7 +30,10 @@ export default function FixtureScorecardScreen() {
           </Text>
 
           {from === "scorebook" && (
-            <Text style={styles.backLink} onPress={() => router.back()}>
+            <Text
+              style={styles.backLink}
+              onPress={() => router.push("/scorebook")} // Forces navigation back to Scorebook layout
+            >
               ← Back to Scorebook
             </Text>
           )}
@@ -39,11 +42,16 @@ export default function FixtureScorecardScreen() {
     );
   }
 
+  console.log(from, "si from where?");
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
         {from === "scorebook" && (
-          <Text style={styles.backLink} onPress={() => router.back()}>
+          <Text
+            style={styles.backLink}
+            onPress={() => router.push("/scorebook")} // Forces navigation back to Scorebook layout
+          >
             ← Back to Scorebook
           </Text>
         )}

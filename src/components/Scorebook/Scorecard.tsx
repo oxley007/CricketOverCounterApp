@@ -9,6 +9,8 @@ import { useGameStore } from "../../state/gameStore";
 import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import { useLiveStore } from "../../state/liveStore";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -24,7 +26,14 @@ export default function Scorecard({ events, inningsSnapshot }: Props) {
   //const matchEvents = events ?? storeEvents;
   const matchEvents = inningsSnapshot?.matchEvents ?? events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
-  const teams = useTeamStore((s) => s.teams);
+  //const teams = useTeamStore((s) => s.teams);
+
+  const localTeams = useTeamStore((s) => s.teams);
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+
+  const isLiveViewer = useIsLiveViewer();
+
+  const teams = isLiveViewer ? liveViewTeams : localTeams;
 
   const battingEntries =
     inningsSnapshot?.battingEntries ?? currentGame?.battingEntries;
@@ -33,65 +42,9 @@ export default function Scorecard({ events, inningsSnapshot }: Props) {
 
   if (!battingEntries?.length) return null;
 
-  /*
-  const batters = Array.from(
-    new Set([
-      ...activeBatters.map((b) => b.playerId), // <-- map to string
-      ...battingEntries.map((e) => e.playerId),
-    ]),
-  );
-  */
-
   const playerNameMap = Object.fromEntries(
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
   );
-
-  /*
-  const getBatterStats = (batterInningId: string) => {
-    const eventsForEntry = matchEvents.filter(
-      (e) => e.batterInningId === batterInningId,
-    );
-
-    const runs = eventsForEntry.reduce(
-      (sum, e) => sum + (e.runBreakdown?.bat ?? 0),
-      0,
-    );
-
-    const balls = eventsForEntry.filter((e) => e.countsAsBall).length;
-
-    const strikeRate = balls > 0 ? ((runs / balls) * 100).toFixed(1) : "0.0";
-
-    return { runs, balls, strikeRate };
-  };
-  */
-
-  /*
-  const batterFirstEventTime: Record<string, number> = {};
-
-  const allBatterIdsSet = new Set<string>([
-    ...batters, // batters is now string[]
-    ...(wickets?.map((w) => w.batterId) ?? []),
-  ]);
-
-  allBatterIdsSet.forEach((playerId) => {
-    const firstEvent = matchEvents.find((e) => e.batterId === playerId);
-    const wicketEvent = wickets?.find((w) => w.batterId === playerId);
-    const firstTimestamp = firstEvent
-      ? firstEvent.timestamp
-      : wicketEvent
-        ? wicketEvent.timestamp
-        : Infinity;
-
-    batterFirstEventTime[playerId] = firstTimestamp;
-  });
-  
-
-  const allBatterIds = Array.from(allBatterIdsSet).sort(
-    (a, b) =>
-      (batterFirstEventTime[a] ?? Infinity) -
-      (batterFirstEventTime[b] ?? Infinity),
-  );
-  */
 
   const scorecard = battingEntries.map((entry) => {
     const stats = calculateBatterStats(
@@ -133,6 +86,11 @@ export default function Scorecard({ events, inningsSnapshot }: Props) {
       ),
     };
   });
+
+  console.log(
+    JSON.stringify(scorecard),
+    "what is scorecard saying on scorecard comp.",
+  );
 
   return (
     <View style={styles.container}>

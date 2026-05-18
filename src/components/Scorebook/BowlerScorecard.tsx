@@ -5,7 +5,9 @@ import { useGameStore } from "../../state/gameStore";
 import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
+import { useLiveStore } from "../../state/liveStore";
 import type { InningsSnapshot } from "../../state/fixtureStore";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -24,7 +26,12 @@ export default function BowlerScorecard({ events, inningsSnapshot }: Props) {
   const storeEvents = useMatchStore((s) => s.events);
   const matchEvents: MatchEvent[] = events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
-  const teams = useTeamStore((s) => s.teams);
+  const localTeams = useTeamStore((s) => s.teams);
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+
+  const isLiveViewer = useIsLiveViewer();
+
+  const teams = isLiveViewer ? liveViewTeams : localTeams;
 
   if (!currentGame && (!matchEvents || matchEvents.length === 0)) return null;
 

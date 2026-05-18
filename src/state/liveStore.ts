@@ -3,11 +3,22 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Fixture } from "./fixtureStore";
+import type { Team } from "./teamStore";
 
 export type LiveTeam = {
   teamId: string;
   teamCode: string;
   playerIds: string[];
+};
+
+export type LiveViewTeam = {
+  teamId: string;
+  teamName: string;
+  players: {
+    id: string;
+    name: string;
+    archived?: boolean;
+  }[];
 };
 
 type LiveState = {
@@ -24,9 +35,14 @@ type LiveState = {
   teamCodesSupporter: string[];
   supporterTeamNames: Record<string, string>;
 
+  playerCodesSupporter: string[];
+  supporterPlayerNames: Record<string, string>;
+
   fixtures: Record<string, Fixture>;
 
   isReadOnly: boolean;
+
+  liveViewTeams: Team[];
 
   setLiveConfigured: (value: boolean) => void;
   setLivePro: (value: boolean) => void;
@@ -44,6 +60,10 @@ type LiveState = {
 
   updateSupporterTeamName: (teamCode: string, name: string) => void;
 
+  addSupporterPlayer: (playerId: string) => void;
+  removeSupporterPlayer: (playerId: string) => void;
+  updateSupporterPlayerName: (playerId: string, name: string) => void;
+
   configureLive: (params: {
     teamId: string;
     teamCode: string;
@@ -55,6 +75,8 @@ type LiveState = {
   setFixture: (teamCode: string, fixture: Fixture) => void;
 
   setReadOnly: (val: boolean) => void;
+
+  setLiveViewTeams: (teams: Team[]) => void;
 };
 
 export const useLiveStore = create<LiveState>()(
@@ -72,9 +94,14 @@ export const useLiveStore = create<LiveState>()(
       teamCodesSupporter: [],
       supporterTeamNames: {},
 
+      playerCodesSupporter: [],
+      supporterPlayerNames: {},
+
       fixtures: {},
 
       isReadOnly: false,
+
+      liveViewTeams: [],
 
       setLiveConfigured: (value) => set({ liveConfigured: value }),
       setLivePro: (value) => set({ livePro: value }),
@@ -103,6 +130,7 @@ export const useLiveStore = create<LiveState>()(
           liveConfigured: false,
           livePro: false,
           teams: [],
+          liveViewTeams: [],
           teamCode: null,
           teamId: null,
           playerIds: [],
@@ -136,6 +164,27 @@ export const useLiveStore = create<LiveState>()(
           },
         })),
 
+      addSupporterPlayer: (playerId) =>
+        set((state) => {
+          if (state.playerCodesSupporter.includes(playerId)) return state;
+          return {
+            playerCodesSupporter: [...state.playerCodesSupporter, playerId],
+          };
+        }),
+      removeSupporterPlayer: (playerId) =>
+        set((state) => ({
+          playerCodesSupporter: state.playerCodesSupporter.filter(
+            (id) => id !== playerId,
+          ),
+        })),
+      updateSupporterPlayerName: (playerId, name) =>
+        set((state) => ({
+          supporterPlayerNames: {
+            ...state.supporterPlayerNames,
+            [playerId]: name,
+          },
+        })),
+
       setFixture: (teamCode, fixture) =>
         set((state) => ({
           fixtures: {
@@ -145,6 +194,8 @@ export const useLiveStore = create<LiveState>()(
         })),
 
       setReadOnly: (val) => set({ isReadOnly: val }),
+
+      setLiveViewTeams: (teams) => set({ liveViewTeams: teams }),
     }),
     {
       name: "live-storage", // 🔑 required

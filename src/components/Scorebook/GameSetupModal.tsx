@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   saveSeason,
   ensurePublicTeamExists,
+  updatePublicTeamData,
 } from "../../services/firestoreService";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
@@ -93,16 +94,40 @@ export default function GameSetupModal({ visible, onClose }: Props) {
 
     //if (liveConfigured) {
     const teamStore = useTeamStore.getState();
-    const team = teamStore.teams.find((t) => t.id === yourTeam.id);
 
-    if (!team) return;
+    console.log(
+      JSON.stringify(teamStore.teams),
+      " teamStore.teams is what now?",
+    );
 
-    //const teamCode = await ensurePublicTeamExists(team);
+    // Get full team objects
+    console.log(JSON.stringify(yourTeam), "checking yourTeam.id here");
+    const selectedYourTeam = teamStore.teams.find((t) => t.id === yourTeam.id);
 
+    console.log(
+      JSON.stringify(oppositionTeam),
+      "checking oppositionTeam.id here",
+    );
+
+    const selectedOppositionTeam = teamStore.teams.find(
+      (t) => t.id === oppositionTeam.id,
+    );
+
+    if (!selectedYourTeam || !selectedOppositionTeam) return;
+
+    // Create ONLY the public node for your team
+    await ensurePublicTeamExists(selectedYourTeam);
+
+    // Save both teams under your team's public node
+    for (const team of [selectedYourTeam, selectedOppositionTeam]) {
+      await updatePublicTeamData(selectedYourTeam.id, team);
+    }
+
+    // Configure live using ONLY your team
     liveStore.configureLive({
-      teamId: team.id,
-      teamCode: team.id, // ✅ keep RAW in store
-      playerIds: liveStore.playerIds ?? [],
+      teamId: selectedYourTeam.id,
+      teamCode: selectedYourTeam.id, // raw ID
+      playerIds: selectedYourTeam.players.map((p) => p.id),
     });
 
     //console.log("🔴 Live configured for game:", teamCode);

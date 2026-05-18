@@ -2,6 +2,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { generateId } from "../utils/generateId";
+import { updatePublicTeamData } from "../services/firestoreService";
+import { useFixtureStore } from "./fixtureStore";
 
 export type Player = {
   id: string;
@@ -73,6 +75,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     const updatedTeams = [...get().teams, newTeam];
     set({ teams: updatedTeams });
 
+    updatePublicTeamData(newTeam).catch(console.warn);
+
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,
     );
@@ -92,11 +96,10 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 
   addPlayer: (teamId, name) => {
     const teams = get().teams;
-
     const team = teams.find((t) => t.id === teamId);
     if (!team) return null;
 
-    const trimmed = name.trim(); // ✅ trim here
+    const trimmed = name.trim();
     if (!trimmed) return null;
 
     const exists = team.players.some(
@@ -104,21 +107,32 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     );
     if (exists) return null;
 
-    const newPlayer: Player = {
-      id: generateId(),
-      name: trimmed, // ✅ use trimmed
-    };
+    const newPlayer: Player = { id: generateId(), name: trimmed };
 
     const updatedTeams = teams.map((t) =>
       t.id === teamId ? { ...t, players: [...t.players, newPlayer] } : t,
     );
 
     set({ teams: updatedTeams });
+    const updatedTeam = updatedTeams.find((t) => t.id === teamId);
+
+    if (updatedTeam) {
+      // 🏏 1. Grab your actual host team ID from the active match fixture
+      const fixture = useFixtureStore.getState().currentFixture;
+      const hostTeamId = fixture?.yourTeam?.id;
+
+      // 📡 2. Always use the host team ID as the parent container inside Firebase
+      if (hostTeamId) {
+        updatePublicTeamData(hostTeamId, updatedTeam).catch(console.warn);
+      } else {
+        // Fallback if no match is running, just use the local team id
+        updatePublicTeamData(teamId, updatedTeam).catch(console.warn);
+      }
+    }
 
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,
     );
-
     return newPlayer;
   },
 
@@ -133,6 +147,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     );
 
     set({ teams: updatedTeams });
+
+    const updatedTeam = updatedTeams.find((t) => t.id === teamId);
+
+    if (updatedTeam) {
+      updatePublicTeamData(updatedTeam).catch(console.warn);
+    }
 
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,
@@ -156,6 +176,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 
     set({ teams: updatedTeams });
 
+    const updatedTeam = updatedTeams.find((t) => t.id === teamId);
+
+    if (updatedTeam) {
+      updatePublicTeamData(updatedTeam).catch(console.warn);
+    }
+
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,
     );
@@ -175,6 +201,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 
     set({ teams: updatedTeams });
 
+    const updatedTeam = updatedTeams.find((t) => t.id === teamId);
+
+    if (updatedTeam) {
+      updatePublicTeamData(updatedTeam).catch(console.warn);
+    }
+
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,
     );
@@ -186,6 +218,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     );
 
     set({ teams: updatedTeams });
+
+    const updatedTeam = updatedTeams.find((t) => t.id === teamId);
+
+    if (updatedTeam) {
+      updatePublicTeamData(updatedTeam).catch(console.warn);
+    }
 
     AsyncStorage.setItem(TEAMS_KEY, JSON.stringify(updatedTeams)).catch(
       console.warn,

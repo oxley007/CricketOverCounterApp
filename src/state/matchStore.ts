@@ -4,11 +4,14 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { LEGAL_BALLS, useGameStore } from "./gameStore";
 import { useFixtureStore } from "./fixtureStore";
+import { useLiveStore } from "./liveStore";
 import {
   deleteLiveEvent,
   addLiveEvent,
   syncLiveGame,
+  updateCurrentGameData,
 } from "../services/firestoreService";
+import { useCounterStore } from "./counterStore";
 
 const secureStore = {
   getItem: async (name: string) => {
@@ -368,8 +371,28 @@ export const matchStoreRef = create<MatchState>()(
         const game = useGameStore.getState().currentGame;
         const fixture = useFixtureStore.getState().currentFixture;
 
-        if (game && fixture?.yourTeam?.id) {
-          syncLiveGame(fixture.yourTeam.id, game);
+        // 🚨 CHECK VIEWER MODE STATUS (adjust this flag name to match your store)
+        const isLiveViewer = useLiveStore.getState().isReadOnly;
+
+        if (!isLiveViewer && fixture?.yourTeam?.id) {
+          const teamId = fixture.yourTeam.id;
+
+          // 📡 Scorer only: sync game events
+          if (game) {
+            syncLiveGame(teamId, game);
+          }
+
+          /*
+          // 📡 Scorer only: update bowler state changes
+          const nextGame = { ...game, currentBowlerId: newEvent.bowlerId };
+          if (nextGame) {
+            updateCurrentGameData(teamId, nextGame);
+          }
+          */
+        } else if (isLiveViewer) {
+          console.log(
+            "ℹ️ Read-only Viewer: Suppressed remote database sync requests.",
+          );
         }
       },
 

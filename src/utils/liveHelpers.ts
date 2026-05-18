@@ -7,3 +7,12 @@ export function getTeamCode(input: string) {
 
   return `TEAM-${cleaned}`;
 }
+
+export function getPlayerCode(input: string) {
+  if (!input) return "";
+  const cleaned = input.trim().toUpperCase();
+  if (cleaned.startsWith("P-")) {
+    return cleaned;
+  }
+  return `P-${cleaned}`;
+}
