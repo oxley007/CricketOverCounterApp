@@ -10,6 +10,7 @@ import {
   addLiveEvent,
   syncLiveGame,
   updateCurrentGameData,
+  updateSyncControl,
 } from "../services/firestoreService";
 import { useCounterStore } from "./counterStore";
 
@@ -374,21 +375,28 @@ export const matchStoreRef = create<MatchState>()(
         // 🚨 CHECK VIEWER MODE STATUS (adjust this flag name to match your store)
         const isLiveViewer = useLiveStore.getState().isReadOnly;
 
+        // ... inside your addEvent method right after syncLiveGame(teamId, game);
+
         if (!isLiveViewer && fixture?.yourTeam?.id) {
           const teamId = fixture.yourTeam.id;
 
+          // 📡 Scorer only: sync game events
           // 📡 Scorer only: sync game events
           if (game) {
             syncLiveGame(teamId, game);
           }
 
-          /*
-          // 📡 Scorer only: update bowler state changes
-          const nextGame = { ...game, currentBowlerId: newEvent.bowlerId };
-          if (nextGame) {
-            updateCurrentGameData(teamId, nextGame);
-          }
-          */
+          const updatedEvents = get().events;
+          const isFinished = false;
+
+          // Spawns a separate background thread execution context
+          (async () => {
+            try {
+              await updateSyncControl(teamId, updatedEvents, isFinished);
+            } catch (e) {
+              console.warn("⚠️ Failed to update sync control metadata:", e);
+            }
+          })();
         } else if (isLiveViewer) {
           console.log(
             "ℹ️ Read-only Viewer: Suppressed remote database sync requests.",

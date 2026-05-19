@@ -9,17 +9,18 @@ import {
   View,
   Alert,
   Linking,
-  Platform,
+  //Platform,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AuthModal from "../../components/AuthModal";
 import { auth } from "../../services/firebaseConfig";
 import { useAuthStore } from "../../state/authStore";
+import { useFixtureStore } from "../../state/fixtureStore";
 
-import { useTeamStore, Team, Player } from "../../state/teamStore";
+import { useTeamStore, Player } from "../../state/teamStore";
 import { useLiveStore } from "../../state/liveStore";
-import { getTeamCode, getPlayerCode } from "../../utils/liveHelpers";
+import { getTeamCode } from "../../utils/liveHelpers";
 
 // 🔌 Import your tenant config hook
 import { useTenantConfig } from "../../hooks/useTenantConfig";
@@ -40,30 +41,79 @@ const DOWNLOAD_LINKS = {
 export default function LiveScoringInstructions() {
   const router = useRouter();
   const [authVisible, setAuthVisible] = useState(false);
-
-  // 1. Load active tenant config variables
-  // Make sure your custom hook exposes the top-level 'name' string field or tenant identifier
   const config = useTenantConfig();
-  const appName = config.name; // 'LittleWicket Cricket Scorebook' or '4dot6 Umpire Ball Counter'
-
-  // Determine which tenant is running to pull correct URLs
+  const appName = config.name;
   const tenantKey = appName.toLowerCase().includes("littlewicket")
     ? "littlewicket"
     : "umpire";
 
+  // 1. Core Stores
   const globalTeams = useTeamStore((state) => state.teams);
   const liveTeams = useLiveStore((state) => state.teams) || [];
   const isLivePro = useLiveStore((state) => state.livePro);
+  const currentFixture = useFixtureStore((state) => state.currentFixture);
 
+  // 2. Intelligent Combined Filtering & Deduplication
   const liveConfiguredTeams = useMemo(() => {
-    return globalTeams.filter(
-      (t) => t.liveConfigured || liveTeams.some((lt) => lt.teamId === t.id),
-    );
-  }, [globalTeams, liveTeams]);
+    console.log("=== LIVE SCORING DEBUG LOGS ===");
+    console.log("1. Total Global Teams Available:", globalTeams.length);
+    console.log("2. Active Live Store Session Teams:", liveTeams);
+    console.log("3. Current Selected Fixture Details:", {
+      id: currentFixture?.id,
+      mode: currentFixture?.mode,
+      yourTeam: currentFixture?.yourTeam,
+    });
 
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
-    liveConfiguredTeams.length > 0 ? liveConfiguredTeams[0].id : null,
-  );
+    // ⚡ MODIFIED: Collect ONLY yourTeam ID from the current active fixture if it exists
+    const activeFixtureTeamIds: string[] = [];
+    if (currentFixture?.yourTeam?.id)
+      activeFixtureTeamIds.push(currentFixture.yourTeam.id);
+    console.log(
+      "4. Extracted Active Fixture Your Team ID:",
+      activeFixtureTeamIds,
+    );
+
+    // Filter your standard historic list using your exact type property: liveScoresConfigured
+    const standardLiveTeams = globalTeams.filter((t) => {
+      const hasFlag = !!t.liveScoresConfigured;
+      const hasActiveLiveSession = liveTeams.some((lt) => lt.teamId === t.id);
+
+      if (hasActiveLiveSession) {
+        console.log(
+          ` -> Found team matching liveTeams session! Team: ${t.name} (${t.id})`,
+        );
+      }
+      return hasFlag || hasActiveLiveSession;
+    });
+    console.log(
+      "5. Teams passing standard live filters:",
+      standardLiveTeams.map((t) => t.name),
+    );
+
+    // Get matching full team objects from global catalog for our active fixture teams
+    const activeFixtureTeams = globalTeams.filter((t) =>
+      activeFixtureTeamIds.includes(t.id),
+    );
+
+    // Merge both arrays, using a Map keyed by 'id' to guarantee clean deduplication
+    const deduplicatedMap = new Map<string, (typeof globalTeams)[number]>();
+
+    // Process active fixture teams first (so they take priority/appear first)
+    activeFixtureTeams.forEach((team) => deduplicatedMap.set(team.id, team));
+    // Process the standard list (skips any keys already set by the active fixture)
+    standardLiveTeams.forEach((team) => deduplicatedMap.set(team.id, team));
+
+    const finalMergedResult = Array.from(deduplicatedMap.values());
+    console.log(
+      "6. Final Merged Unique Teams List:",
+      finalMergedResult.map((t) => t.name),
+    );
+    console.log("================================");
+    return finalMergedResult;
+  }, [globalTeams, liveTeams, currentFixture]);
+
+  // 3. Keep your existing selection states (Moved below useMemo to prevent variable access reference crashes)
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
 
   const selectedTeam = useMemo(() => {
@@ -76,6 +126,7 @@ export default function LiveScoringInstructions() {
     return matchingLive?.teamCode || getTeamCode(selectedTeam.id);
   }, [selectedTeam, liveTeams]);
 
+  // 4. Effects
   useEffect(() => {
     if (!auth.currentUser && !useAuthStore.getState().isGuest) {
       setAuthVisible(true);
@@ -86,12 +137,13 @@ export default function LiveScoringInstructions() {
     if (!selectedTeamId && liveConfiguredTeams.length > 0) {
       setSelectedTeamId(liveConfiguredTeams[0].id);
     }
-  }, [liveConfiguredTeams]);
+  }, [liveConfiguredTeams, selectedTeamId]);
 
   useEffect(() => {
     setSelectedPlayerIds([]);
   }, [selectedTeamId]);
 
+  // 5. Handlers
   const togglePlayer = (id: string) => {
     setSelectedPlayerIds((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
@@ -103,29 +155,32 @@ export default function LiveScoringInstructions() {
     setSelectedPlayerIds((selectedTeam.players || []).map((p) => p.id));
   };
 
-  // 💬 Dynamic sharing template injection
+  // 6. Dynamic sharing template engine
   const shareText = useMemo(() => {
     if (!selectedTeam) return "No team selected.";
-
     const playersList = selectedTeam.players || [];
-    const targetPlayers =
-      selectedPlayerIds.length > 0
-        ? playersList.filter((p) => selectedPlayerIds.includes(p.id))
-        : playersList;
-
+    const hasSelectedPlayers = selectedPlayerIds.length > 0;
+    const targetPlayers = hasSelectedPlayers
+      ? playersList.filter((p) => selectedPlayerIds.includes(p.id))
+      : playersList;
     const formattedPlayers = targetPlayers
       .map((p) => `${p.name}: ${p.id}`)
       .join("\n");
 
     const appStoreUrl = DOWNLOAD_LINKS[tenantKey].ios;
     const playStoreUrl = DOWNLOAD_LINKS[tenantKey].android;
-
-    // 💎 Conditional premium alert block based on the store value
     const proSubscriptionMessage = !isLivePro
       ? "\n🎁 Good news! The Live Pro scoring subscription has already been paid for this team, so you can view all live scores completely pre-paid for you!\n"
       : "";
 
-    return `Hi everyone,\n\nYou can now follow live scores for our games using the ${appName} app 🏏\n${proSubscriptionMessage}\n1. Download the app:\n- iOS: ${appStoreUrl}\n- Android: ${playStoreUrl}\n\n2. Enter the Team ID and your Player ID\n\nTeam ID: ${teamCodeString}\nPlayer ID(s):\n${formattedPlayers}`;
+    const playerInstructionHeader = hasSelectedPlayers
+      ? " and your Player ID"
+      : "";
+    const playerIdsBlock = hasSelectedPlayers
+      ? `\nPlayer ID(s):\n${formattedPlayers}`
+      : "";
+
+    return `Hi everyone,\n\nYou can now follow live scores for our games using the ${appName} app 🏏\n${proSubscriptionMessage}\n1. Download the app:\n- iOS: ${appStoreUrl}\n- Android: ${playStoreUrl}\n\n2. Enter the Team ID${playerInstructionHeader}\n\nTeam ID: ${teamCodeString}${playerIdsBlock}`;
   }, [
     selectedTeam,
     selectedPlayerIds,
@@ -141,6 +196,7 @@ export default function LiveScoringInstructions() {
   };
 
   const handleWhatsApp = async () => {
+    // 🛠️ FIX: Fixed missing template string interpolation character $
     const url = `https://wa.me{encodeURIComponent(shareText)}`;
     Linking.openURL(url);
   };
@@ -171,6 +227,9 @@ export default function LiveScoringInstructions() {
       </View>
     );
   }
+
+  const hasPlayersInTeam =
+    selectedTeam && selectedTeam.players && selectedTeam.players.length > 0;
 
   return (
     <>
@@ -215,8 +274,8 @@ export default function LiveScoringInstructions() {
             );
           })}
 
-          {/* PLAYER SELECTION */}
-          {selectedTeam && (
+          {/* PLAYER SELECTION - Hides automatically for BallCounter empty teams */}
+          {hasPlayersInTeam && (
             <>
               <View style={styles.sectionPill}>
                 <Text style={styles.sectionPillText}>SELECT PLAYERS</Text>

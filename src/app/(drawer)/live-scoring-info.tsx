@@ -56,8 +56,12 @@ export default function LiveScoringInfo() {
 
   const handleConfigureLive = async () => {
     if (loading) return;
+
     await requireAuth(async () => {
       setLoading(true);
+      // 1. Declare success at the function root level so 'finally' can see it
+      let success = false;
+
       try {
         const fixtures = useFixtureStore.getState().fixtures;
         console.log(JSON.stringify(fixtures), "fixtures is what?");
@@ -79,10 +83,9 @@ export default function LiveScoringInfo() {
 
         // 3. Look up the FULL Team structures from your global useTeamStore state
         const { teams: globalTeams } = useTeamStore.getState();
-
         const activeTeams = uniqueTeamIds
           .map((id) => globalTeams.find((t) => t.id === id))
-          .filter((team): team is Team => !!team); // ✅ Tells TS this is a real Team with players
+          .filter((team): team is Team => !!team);
 
         if (!activeTeams.length) {
           alert(
@@ -97,6 +100,9 @@ export default function LiveScoringInfo() {
         const currentGame = useGameStore.getState().currentGame;
         const { baseRuns } = useMatchStore.getState();
 
+        const store = useLiveStore.getState();
+        store.setLiveConfigured(true);
+
         // 4. Loop through the verified, complete team objects
         for (const team of activeTeams) {
           const teamCode = await createPublicTeam(team, fixtures, liveEvents);
@@ -105,18 +111,15 @@ export default function LiveScoringInfo() {
           const liveTeam: LiveTeam = {
             teamId: team.id,
             teamCode,
-            playerIds: (team.players ?? []).map((p) => p.id), // ✅ Safe & clear of TS errors
+            playerIds: (team.players ?? []).map((p) => p.id),
           };
           liveTeams.push(liveTeam);
 
           useTeamStore.getState().markLiveConfigured(team.id);
 
-          // Sync the team and its full roster cleanly into subcollections
-          await updatePublicTeamData(team.id, team); // ✅ Safe & clear of TS errors
+          await updatePublicTeamData(team.id, team);
 
-          // Find the specific fixture snapshot corresponding to this team
           const teamFixture = fixtures.find((f) => f.yourTeam?.id === team.id);
-
           if (teamFixture) {
             await updateLiveData(team.id, {
               ...teamFixture,
@@ -124,29 +127,34 @@ export default function LiveScoringInfo() {
               mode: selectedMode,
             });
           }
-
-          await updateCurrentGameData(team.id, {
-            ...currentGame,
-          });
-
-          await updatebaseRunsData(team.id, {
-            baseRuns,
-          });
+          await updateCurrentGameData(team.id, { ...currentGame });
+          await updatebaseRunsData(team.id, { baseRuns });
         }
 
         if (liveTeams.length) {
           const store = useLiveStore.getState();
           store.setTeams(liveTeams);
-          store.configureLive(liveTeams[0]);
+
+          // ✅ Pass as an object matching the store's destructive parameter signature
+          store.configureLive({
+            teamId: liveTeams[0].teamId,
+            teamCode: liveTeams[0].teamCode,
+            playerIds: liveTeams[0].playerIds,
+          });
+
+          success = true;
         }
 
         if (selectedTier === "coach") {
           setShowSubscriptionModal(true);
         } else {
-          //router.back();
           router.push("/live-scoring-instructions");
         }
       } finally {
+        // ✅ This block can now read the success variable clearly
+        if (!success) {
+          useLiveStore.getState().setLiveConfigured(false);
+        }
         setLoading(false);
       }
     });

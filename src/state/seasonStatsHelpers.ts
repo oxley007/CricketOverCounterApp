@@ -77,9 +77,21 @@ export function getSeasonPlayers({
   fixtures,
   team,
   season,
-}: SeasonPlayersParams): SeasonPlayerListItem[] {
+  isLiveViewer = false, // 👈 1. Add this new configuration flag
+  liveViewTeams = [], // 👈 2. Pass your liveViewTeams array from the store
+}: SeasonPlayersParams & {
+  isLiveViewer?: boolean;
+  liveViewTeams?: any[];
+}): SeasonPlayerListItem[] {
+  // Normalize comparison helper
+  const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
+  const targetTeamId = normalize(team.id);
+
+  // Filter fixtures using normalized ID comparisons
   const seasonFixtures = fixtures.filter(
-    (f) => f.season === season && f.yourTeam?.id === team.id,
+    (f) =>
+      f.season === season &&
+      normalize(f.yourTeam?.id || f.yourTeamId || "") === targetTeamId,
   );
 
   const playerIds = new Set<string>();
@@ -93,11 +105,19 @@ export function getSeasonPlayers({
 
     inningsArray.forEach((inn) => {
       // Batting
-      if (inn.battingTeamId === team.id && Array.isArray(inn.battingEntries)) {
-        inn.battingEntries.forEach((entry) => playerIds.add(entry.playerId));
+      if (
+        normalize(inn.battingTeamId || "") === targetTeamId &&
+        Array.isArray(inn.battingEntries)
+      ) {
+        inn.battingEntries.forEach((entry) => {
+          if (entry.playerId) playerIds.add(entry.playerId);
+        });
       }
       // Bowling
-      if (inn.bowlingTeamId === team.id && Array.isArray(inn.matchEvents)) {
+      if (
+        normalize(inn.bowlingTeamId || "") === targetTeamId &&
+        Array.isArray(inn.matchEvents)
+      ) {
         inn.matchEvents.forEach((e) => {
           if (e.bowlerId) playerIds.add(e.bowlerId);
         });
@@ -105,7 +125,21 @@ export function getSeasonPlayers({
     });
   });
 
-  return team.players
+  // 💎 3. DETERMINE THE ROSTER SOURCE
+  // If it's a live viewer team, extract the roster from the loaded liveViewTeams store
+  let basePlayersList = team.players || [];
+
+  if (isLiveViewer) {
+    const matchedLiveTeam = liveViewTeams.find(
+      (t) => normalize(t.id || t.teamId || "") === targetTeamId,
+    );
+    if (matchedLiveTeam && matchedLiveTeam.players) {
+      basePlayersList = matchedLiveTeam.players;
+    }
+  }
+
+  // Filter and format the matching active players cleanly
+  return basePlayersList
     .filter((p) => playerIds.has(p.id) && !p.archived)
     .map((p) => ({ id: p.id, name: p.name }))
     .sort((a, b) => a.name.localeCompare(b.name));

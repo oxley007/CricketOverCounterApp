@@ -52,9 +52,11 @@ export default function FixturesScreen() {
     };
   }, []); // Runs on mount
 
+  /*
   useEffect(() => {
     console.log("📦 Current Fixture Store:", JSON.stringify(fixtures, null, 2));
   }, [fixtures]);
+  */
 
   useEffect(() => {
     fixtures.forEach((f) => {

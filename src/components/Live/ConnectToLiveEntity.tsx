@@ -167,8 +167,8 @@ export default function ConnectToLiveEntity({
       {/* Player ID Segment */}
       <Text style={styles.tierTitle}>Enter Player ID (Optional)</Text>
       <Text style={styles.bodyText}>
-        Paste your Player ID alongside the Team ID above to track your personal
-        performance stats live.
+        Paste your Player ID alongside the Team ID above to see player stats
+        (optional).
       </Text>
       <TextInput
         value={playerInput}

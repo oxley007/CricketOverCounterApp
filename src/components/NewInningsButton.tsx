@@ -13,13 +13,14 @@ import {
 } from "../services/firestoreService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore } from "../state/fixtureStore";
-import { useLiveStore } from "../state/liveStore";
+//import { useLiveStore } from "../state/liveStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
 import AuthModal from "./AuthModal";
+import { getTeamCode } from "../utils/liveHelpers";
 
 //import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -100,7 +101,6 @@ export default function NewInningsButton({ onComplete }: Props) {
 
       // Save to Firestore (await!)
       await saveFixture(currentFixture);
-
       console.log("✅ Fixture saved remotely:", currentFixture.id);
 
       // Replace or append in local store so latest fixture (with all innings) wins
@@ -111,7 +111,6 @@ export default function NewInningsButton({ onComplete }: Props) {
         ],
         currentFixture,
       }));
-
       console.log("💾 Fixture merged locally:", currentFixture.id);
 
       // Save teams and players used in this fixture (best-effort)
@@ -122,6 +121,7 @@ export default function NewInningsButton({ onComplete }: Props) {
       const oppositionTeam = currentFixture.oppositionTeam?.id
         ? teams.find((t) => t.id === currentFixture.oppositionTeam!.id)
         : null;
+
       for (const team of [yourTeam, oppositionTeam]) {
         if (team) {
           try {
@@ -133,31 +133,40 @@ export default function NewInningsButton({ onComplete }: Props) {
         }
       }
 
-      // ✅ Clear live Firebase events (match is finished / new innings reset)
-      const liveStore = useLiveStore.getState();
+      // 🛠️ REWRITTEN: Safe live sync orchestration using currentFixture parameters directly
+      const targetTeamId = currentFixture.yourTeam?.id;
 
-      console.log(JSON.stringify(liveStore), "cehck liveStore");
+      if (targetTeamId) {
+        console.log(
+          "🎯 TARGETING RELIABLE TEAM ID FOR INNINGS SYNC:",
+          targetTeamId,
+        );
+        console.log(
+          "📡 GENERATED NEW ROOM CODE MATRIX:",
+          getTeamCode(targetTeamId),
+        );
 
-      const liveTeam = liveStore.teams.find(
-        (t) => t.teamId === currentFixture.yourTeam?.id,
-      );
-
-      console.log(liveStore.teamCode, "cehck liveStore.teamCode");
-
-      if (liveStore.teamCode) {
+        // 1. Clear live events array using the team ID string token
         try {
-          await clearLiveEvents(liveTeam.teamCode);
+          await clearLiveEvents(targetTeamId);
+          console.log(
+            "✅ Live match event subcollection purged successfully for new innings.",
+          );
         } catch (e) {
-          console.warn("⚠️ Failed to clear live events:", e);
+          console.warn("⚠️ Failed to clear live events for new innings:", e);
         }
-      }
 
-      if (liveStore.teamId) {
+        // 2. Save latest fixture state using the team ID string token
         try {
-          await saveLiveFixture(liveTeam.teamId, currentFixture);
+          await saveLiveFixture(targetTeamId, currentFixture);
+          console.log("✅ Public live fixture updated safely for new innings.");
         } catch (e) {
-          console.warn("⚠️ Failed to save public fixture:", e);
+          console.warn("⚠️ Failed to save public fixture state layouts:", e);
         }
+      } else {
+        console.warn(
+          "⚠️ Skipped live updates: yourTeam.id was missing from the fixture context.",
+        );
       }
     } catch (err) {
       console.error("❌ Error in saveNewInningsFixture:", err);
@@ -177,7 +186,6 @@ export default function NewInningsButton({ onComplete }: Props) {
     const fixtureStore = useFixtureStore.getState();
     const matchStore = useMatchStore.getState();
     const fixture = fixtureStore.currentFixture;
-
     if (!fixture) return;
 
     console.log("🔹 Starting test setup for fixture:", fixture.id);
@@ -185,7 +193,6 @@ export default function NewInningsButton({ onComplete }: Props) {
     // 3️⃣ Save current innings (SOURCE OF TRUTH)
     console.log("💾 Saving current innings...");
     saveCurrentInnings();
-
     console.log(
       "📌 Fixture after save:",
       JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
@@ -216,17 +223,19 @@ export default function NewInningsButton({ onComplete }: Props) {
       wicketPenaltyAffectsBowler,
       baseRuns,
     } = matchStore;
-
     console.log("📏 Match rules from store:", matchStore);
 
     // 6️⃣ Setup next game (CRITICAL: before addInnings)
     useGameStore.getState().setGameConfig({
       yourTeam: { id: yourTeam.id, name: yourTeam.name },
       oppositionTeam: { id: oppositionTeam.id, name: oppositionTeam.name },
-      overs: overs === "Unlimited" ? 0 : parseInt(String(overs), 10),
+      overs:
+        typeof overs === "string" && overs === "Unlimited"
+          ? 0
+          : parseInt(String(overs), 10),
+
       season,
     });
-
     console.log(
       "⚙️ Game config after setGameConfig:",
       useGameStore.getState().gameConfig,
@@ -234,12 +243,10 @@ export default function NewInningsButton({ onComplete }: Props) {
 
     useGameStore.getState().setLastSeason(season);
     useGameStore.getState().setSetupComplete(true);
-
     console.log("✅ Setup marked complete");
 
     // 7️⃣ Apply match rules cleanly
     const isNewGame = false; // we just set setupComplete → not a new game
-
     useMatchStore.setState({
       wideIsExtraBall,
       wideExtraBallThreshold,
@@ -250,7 +257,6 @@ export default function NewInningsButton({ onComplete }: Props) {
       baseRuns,
       showMatchRulesModal: isNewGame,
     });
-
     console.log("📝 Applied match rules headless");
 
     // 8️⃣ Prepare new innings batting entries
@@ -261,7 +267,6 @@ export default function NewInningsButton({ onComplete }: Props) {
 
     // Get all teams from store
     const teams = useTeamStore.getState().teams;
-
     // Get players for this team
     const nextTeam = teams.find((t) => t.id === nextBattingTeamId);
     const battingEntries =
@@ -274,7 +279,6 @@ export default function NewInningsButton({ onComplete }: Props) {
     // Add next innings with prepared batters
     useFixtureStore.getState().addInnings(battingEntries);
     console.log("➕ New innings added with batting entries");
-
     console.log(
       "📌 Fixture after adding innings:",
       JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
@@ -308,65 +312,75 @@ export default function NewInningsButton({ onComplete }: Props) {
     await saveNewInningsFixture();
     console.log("💾 New innings saved to Firebase");
     //}
-
     console.log("💾 Fixture saved successfully!");
-
     console.log(
       "📌 Final fixture state:",
       JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
     );
-
     console.log(
       "📌 Final currentGame state:",
       useGameStore.getState().currentGame,
     );
 
+    // 🛠️ REWRITTEN STRIP: Sourcing all room configurations safely from yourTeam.id
     try {
-      console.log("💾 Saving fixture to Firestore... ballCounter", fixture.id);
+      const targetTeamId = yourTeam?.id || fixture.yourTeam?.id;
 
-      // ✅ Clear live Firebase events (match is finished / new innings reset)
-      const liveStore = useLiveStore.getState();
-
-      console.log(JSON.stringify(liveStore), "cehck liveStore ballCounter");
-
-      const liveTeam = liveStore.teams.find(
-        (t) => t.teamId === fixture.yourTeam?.id,
-      );
-
-      console.log(liveStore.teamCode, "cehck liveStore.teamCode ballCounter");
-
-      if (liveStore.teamCode) {
-        try {
-          await clearLiveEvents(liveStore.teamCode);
-        } catch (e) {
-          console.warn("⚠️ Failed to clear live events ballCounter:", e);
-        }
+      if (!targetTeamId) {
+        console.warn(
+          "⚠️ Cannot run live synchronization: yourTeam.id parameter was missing.",
+        );
+        onComplete?.();
+        return;
       }
 
-      if (liveStore.teamCode) {
-        try {
-          const latestFixture = useFixtureStore.getState().currentFixture;
-          const latestGame = useGameStore.getState().currentGame;
+      // Explicitly logging our accurate derived room code for your tracking verification
+      console.log("🎯 TARGETING RELIABLE TEAM ID FOR SYNC:", targetTeamId);
+      console.log(
+        "📡 GENERATED LIVE ROOM CODE MATRIX:",
+        getTeamCode(targetTeamId),
+      );
 
-          console.log(
-            "🚀 SENDING TO FIREBASE:",
-            JSON.stringify(latestFixture?.innings, null, 2),
-          );
+      // 1. Clear live events array using the team ID string token
+      try {
+        await clearLiveEvents(targetTeamId);
+        console.log("✅ Live match event subcollection purged successfully.");
+      } catch (e) {
+        console.warn(
+          "⚠️ Failed to clear live events for new innings wrapper:",
+          e,
+        );
+      }
 
-          await saveLiveFixture(liveStore.teamCode, latestFixture);
-          await updateLiveData(liveStore.teamCode, latestFixture);
-          await updateCurrentGameData(liveStore.teamCode, latestGame);
-        } catch (e) {
-          console.warn("⚠️ Failed to save public fixture ballCounter:", e);
+      // 2. Upload latest currentFixture, currentGame data bundles to liveData pathway nodes
+      try {
+        const latestFixture = useFixtureStore.getState().currentFixture;
+        const latestGame = useGameStore.getState().currentGame;
+
+        if (latestFixture) {
+          await saveLiveFixture(targetTeamId, latestFixture);
+          await updateLiveData(targetTeamId, latestFixture);
         }
+
+        if (latestGame) {
+          await updateCurrentGameData(targetTeamId, latestGame);
+        } else if (latestFixture) {
+          // Fallback heal handler if game database structures are missing in BallCounter mode
+          await updateCurrentGameData(targetTeamId, { ...latestFixture });
+        }
+        console.log("✅ Core liveData configurations synced successfully.");
+      } catch (e) {
+        console.warn("⚠️ Failed to save public fixture state layouts:", e);
       }
     } catch (err) {
-      console.error("❌ Error in saveNewInningsFixture ballCounter:", err);
-      Alert.alert(
-        "Error",
-        "Failed to save new innings. Check console for details ballCounter.",
+      console.error(
+        "❌ Error running final cloud sync processing blocks:",
+        err,
       );
-      throw err; // re-throw so parent knows
+      Alert.alert(
+        "Sync Notice",
+        "The new innings saved locally, but live scoring updates experienced a cloud delivery timeout.",
+      );
     }
 
     // 1️⃣1️⃣ Done

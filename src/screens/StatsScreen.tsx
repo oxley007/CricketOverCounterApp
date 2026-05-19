@@ -11,20 +11,18 @@ import {
   getSeasonTeamStats,
 } from "../state/seasonStatsHelpers";
 import { useStartModalStore } from "../state/startModalStore";
-import { useTeamStore } from "../state/teamStore";
-import { getActiveTeams } from "../utils/getActiveTeams";
+import { useTeamStore, Team } from "../state/teamStore";
+import { useLiveStore } from "../state/liveStore";
 
 export default function StatsScreen() {
   const { teams } = useTeamStore();
   const { fixtures } = useFixtureStore();
-
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"player" | "team">("player");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-
   const startModal = useStartModalStore();
 
   const openGameModeModal = () => {
@@ -32,66 +30,174 @@ export default function StatsScreen() {
     setTimeout(() => startModal.reset(), 100);
   };
 
-  /* =========================
-     DERIVED TEAMS
-  ========================= */
-  const yourTeams = useMemo(() => {
-    return getActiveTeams(fixtures, teams);
-  }, [fixtures, teams]);
+  // Helper utility to safely compare local and remote team identifiers
+  const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
 
-  /* =========================
-     DERIVED SEASONS
-  ========================= */
+  /* ========================= 1. DERIVED TEAMS (MERGED) ========================= */
+  const supporterTeamNames = useLiveStore((s) => s.supporterTeamNames);
+
+  const yourTeams = useMemo(() => {
+    const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
+    const uniqueTeams = new Map();
+
+    // Add your managed teams
+    teams.forEach((t) => {
+      uniqueTeams.set(normalize(t.id), { ...t, isSupporter: false });
+    });
+
+    // Merge in supporter teams
+    supporterCodes.forEach((code) => {
+      const normalizedId = normalize(code);
+      if (!uniqueTeams.has(normalizedId)) {
+        uniqueTeams.set(normalizedId, {
+          id: code, // Keep original casing for lookups
+          name: supporterTeamNames[code] || code,
+          isSupporter: true,
+        });
+      }
+    });
+
+    return Array.from(uniqueTeams.values());
+  }, [teams, supporterTeamNames]);
+
+  /* ========================= 2. DERIVED SEASONS ========================= */
   const seasons = useMemo(() => {
     if (!selectedTeamId) return [];
-    return Array.from(
-      new Set(
-        fixtures
-          .filter((f) => (f.yourTeamId ?? f.yourTeam?.id) === selectedTeamId)
-          .map((f) => f.season)
-          .filter(Boolean),
-      ),
-    ).sort();
+    const targetId = normalize(selectedTeamId);
+
+    const filteredSeasons = fixtures
+      .filter(
+        (f) => normalize(f.yourTeam?.id || f.yourTeamId || "") === targetId,
+      )
+      .map((f) => f.season)
+      .filter(Boolean);
+
+    return Array.from(new Set(filteredSeasons)).sort().reverse();
   }, [fixtures, selectedTeamId]);
 
-  /* =========================
-     SELECTED TEAM
-  ========================= */
-  const selectedTeam = teams.find((t) => t.id === selectedTeamId);
+  /* ========================= 3. SELECTED TEAM PROFILE LOOKUP ========================= */
+  const selectedTeam = useMemo(() => {
+    if (!selectedTeamId) return null;
+    const targetId = normalize(selectedTeamId);
 
-  /* =========================
-     PLAYER LIST
-  ========================= */
+    // Look inside your local team store first
+    const managedTeam = teams.find((t) => normalize(t.id) === targetId);
+    if (managedTeam) return managedTeam;
+
+    // Build a dynamic team skeleton from downloaded fixture schemas if it's a supporter team
+    const matchMetadata = yourTeams.find((t) => normalize(t.id) === targetId);
+
+    // Scan all matching downloaded fixtures to piece together a collection of players
+    const extractedPlayersMap = new Map();
+    fixtures
+      .filter(
+        (f) => normalize(f.yourTeam?.id || f.yourTeamId || "") === targetId,
+      )
+      .forEach((f) => {
+        // Fall back to scanning any inner innings records if parent references are slim
+        (f.innings || []).forEach((inn) => {
+          (inn.battingEntries || []).forEach((b) => {
+            if (b.playerId && b.playerName) {
+              extractedPlayersMap.set(b.playerId, {
+                id: b.playerId,
+                name: b.playerName,
+              });
+            }
+          });
+        });
+      });
+
+    return {
+      id: selectedTeamId,
+      name: matchMetadata?.name || "Supporter Team",
+      players: Array.from(extractedPlayersMap.values()),
+    } as Team;
+  }, [selectedTeamId, teams, yourTeams, fixtures]);
+
+  /* ========================= SELECT LIVE SELECTION STATES ========================= */
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+
+  // Check if the currently active selected team is a supporter profile card
+  const isCurrentTeamSupporter = useMemo(() => {
+    if (!selectedTeamId) return false;
+    const match = yourTeams.find(
+      (t) => normalize(t.id) === normalize(selectedTeamId),
+    );
+    return !!match?.isSupporter;
+  }, [selectedTeamId, yourTeams]);
+
+  /* ========================= 4. PLAYER LIST ========================= */
+  /* ========================= 4. DYNAMIC PLAYER LIST ========================= */
   const players = useMemo(() => {
     if (!selectedTeam || !selectedSeason) return [];
-    return getSeasonPlayers({
+
+    // 1. Get the baseline list of players who played in this season
+    const allSeasonPlayers = getSeasonPlayers({
       fixtures,
       team: selectedTeam,
       season: selectedSeason,
+      isLiveViewer: isCurrentTeamSupporter,
+      liveViewTeams: liveViewTeams,
     });
-  }, [fixtures, selectedTeam, selectedSeason]);
 
-  /* =========================
-     TEAM STATS
-  ========================= */
+    // 2. If it's a managed team, show everyone normally
+    if (!isCurrentTeamSupporter) {
+      return allSeasonPlayers;
+    }
+
+    // 3. For supporter teams, check what player IDs are tracked in the store
+    const playerCodesSupporter =
+      useLiveStore.getState().playerCodesSupporter || [];
+
+    // Clean and normalize the tracked IDs for bulletproof matching
+    const cleanTrackedIds = playerCodesSupporter.map((id) =>
+      id.trim().toUpperCase(),
+    );
+
+    // 4. Look to see if any of our tracked players actually exist in this team's roster
+    const teamTrackedPlayers = allSeasonPlayers.filter((p) =>
+      cleanTrackedIds.includes(p.id.toUpperCase()),
+    );
+
+    // 5. Smart Filtering Decision:
+    // If the user linked a specific player ID, show ONLY that player.
+    // If they linked via Team ID only (leaving player codes empty), show all players.
+    if (teamTrackedPlayers.length > 0) {
+      return teamTrackedPlayers;
+    }
+
+    return allSeasonPlayers;
+  }, [
+    fixtures,
+    selectedTeam,
+    selectedSeason,
+    isCurrentTeamSupporter,
+    liveViewTeams,
+  ]);
+
+  /* ========================= 5. TEAM STATS ========================= */
   const selectedTeamStats = useMemo(() => {
     if (!selectedTeam || !selectedSeason) return null;
 
     return getSeasonTeamStats({
       fixtures,
-      team: selectedTeam, // <-- pass the full team object
+      // 🧼 FIX: Pass the clean, base ID (stripping away "TEAM-")
+      team: {
+        ...selectedTeam,
+        id: normalize(selectedTeam.id),
+      },
       season: selectedSeason,
     });
   }, [fixtures, selectedTeam, selectedSeason]);
 
-  /* =========================
-     PLAYER STATS
-  ========================= */
+  /* ========================= 6. PLAYER STATS ========================= */
   const selectedPlayerStats = useMemo(() => {
     if (!selectedPlayerId || !selectedTeamId || !selectedSeason) return null;
+
     return getSeasonPlayerStats({
       fixtures,
-      teamId: selectedTeamId,
+      // 🧼 FIX: Clear the "TEAM-" prefix out of the query target key
+      teamId: normalize(selectedTeamId),
       season: selectedSeason,
       playerId: selectedPlayerId,
     });
@@ -109,16 +215,19 @@ export default function StatsScreen() {
             onPress={() => {
               setSelectedTeamId(team.id);
               setSelectedSeason(null);
+              setSelectedPlayerId(null);
             }}
             style={[
               styles.selectorCard,
-              selectedTeamId === team.id && styles.selectorCardSelected,
+              normalize(selectedTeamId || "") === normalize(team.id) &&
+                styles.selectorCardSelected,
             ]}
           >
             <Text
               style={[
                 styles.selectorText,
-                selectedTeamId === team.id && styles.selectorTextSelected,
+                normalize(selectedTeamId || "") === normalize(team.id) &&
+                  styles.selectorTextSelected,
               ]}
             >
               {team.name}
@@ -200,7 +309,7 @@ export default function StatsScreen() {
         }
         stats={modalType === "player" ? selectedPlayerStats : selectedTeamStats}
         type={modalType}
-        onUpgrade={() => setShowSubscriptionModal(true)} // <-- add this
+        onUpgrade={() => setShowSubscriptionModal(true)}
       />
 
       <View style={{ marginBottom: 16 }}>

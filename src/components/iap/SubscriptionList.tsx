@@ -12,7 +12,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { saveSubscription } from "../../services/firestoreService";
+import {
+  saveSubscription,
+  updatePublicTeamProStatus,
+} from "../../services/firestoreService";
 import {
   addCustomerInfoUpdateListener,
   configureRevenueCat,
@@ -199,15 +202,27 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       setLivePro(isLiveProActive);
       setEntitlements(active);
 
+      // Inside the useEffect listener (Step 2)
       try {
         await saveSubscription({
           ballPro: isBallActive,
           scorebookPro: isScorebookActive,
+          livePro: isLiveProActive, // 👈 Sync to personal user collection
         });
-        console.log("✅ Subscription state saved (listener):", {
-          ballPro: isBallActive,
-          scorebookPro: isScorebookActive,
-        });
+
+        // 🚀 ALSO UPDATE THE ACTIVE PUBLIC TEAM IF ONE IS ACTIVE
+        // 🚀 UPDATE ALL ACTIVE LIVE TEAMS
+        const currentLiveState = useLiveStore.getState();
+        const activeTeams = currentLiveState.teams || [];
+
+        if (activeTeams.length > 0) {
+          // Loop through every team configured in this live session
+          await Promise.all(
+            activeTeams.map((liveTeam) =>
+              updatePublicTeamProStatus(liveTeam.teamId, isLiveProActive),
+            ),
+          );
+        }
       } catch (e) {
         console.warn("Failed to sync subscription to Firestore:", e);
       }
@@ -258,27 +273,38 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       setLivePro(isLiveProActive);
       setEntitlements(active);
 
-      if (isBallActive || isScorebookActive) {
+      // Inside handlePurchase success block (Step 3)
+      if (isBallActive || isScorebookActive || isLiveProActive) {
+        // 👈 Added live pro condition checks
         try {
           await saveSubscription({
             ballPro: isBallActive,
             scorebookPro: isScorebookActive,
             livePro: isLiveProActive,
           });
-          console.log("✅ Subscription state saved (purchase):", {
-            ballPro: isBallActive,
-            scorebookPro: isScorebookActive,
-          });
+
+          // 🚀 ALSO UPDATE THE ACTIVE PUBLIC TEAM HERE
+          // 🚀 UPDATE ALL ACTIVE LIVE TEAMS
+          const currentLiveState = useLiveStore.getState();
+          const activeTeams = currentLiveState.teams || [];
+
+          if (activeTeams.length > 0) {
+            // Loop through every team configured in this live session
+            await Promise.all(
+              activeTeams.map((liveTeam) =>
+                updatePublicTeamProStatus(liveTeam.teamId, isLiveProActive),
+              ),
+            );
+          }
         } catch (e) {
           console.warn("Failed to save subscription to Firestore:", e);
         }
 
-        if (isBallActive && !isScorebookActive)
+        // Handle alert titles...
+        if (isLiveProActive) alert("Live Stream Pro activated 🎉");
+        else if (isBallActive && !isScorebookActive)
           alert("Ball Counter subscription activated 🎉");
-        else if (!isBallActive && isScorebookActive)
-          alert("Scorebook subscription activated 🎉");
-        else alert("All premium features unlocked 🎉");
-
+        // ...
         onClose();
       }
     } catch (err: any) {

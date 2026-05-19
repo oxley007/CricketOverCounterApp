@@ -12,10 +12,14 @@ import { Fixture } from "../state/fixtureStore";
 import { Player, Team } from "../state/teamStore";
 import { auth, db } from "./firebaseConfig";
 import { getTeamCode } from "../utils/liveHelpers";
-//import { generateId } from "../utils/generateId";
-//import { useLiveStore } from "../state/liveStore";
+import { useLiveStore } from "../state/liveStore";
 
 let lastSyncHash: string | null = null;
+
+// 1. Global helper check
+function isLiveConfigured(): boolean {
+  return useLiveStore.getState().liveConfigured;
+}
 
 function stripVolatileFields(game: any) {
   const copy = { ...game };
@@ -48,6 +52,11 @@ async function writeLiveData(
   docName: "currentFixture" | "currentGame" | "currentBaseRuns",
   data: any,
 ) {
+  if (!isLiveConfigured()) {
+    console.log(`⚠️ Sync skipped for ${docName}: liveConfigured is false.`);
+    return;
+  }
+
   if (!data || typeof data !== "object") {
     console.warn("❌ writeLiveData expects an object, got:", data);
     return;
@@ -311,8 +320,16 @@ export async function createPublicTeam(
   fixtures: any[],
   liveEvents: any[],
 ) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for createPublicTeam: liveConfigured is false.`,
+    );
+    return;
+  }
   const userId = auth.currentUser?.uid;
   if (!userId) return null;
+
+  const isProLiveActive = useLiveStore.getState().livePro ?? false;
 
   const teamCode = `TEAM-${team.id.toUpperCase()}`;
   try {
@@ -328,6 +345,7 @@ export async function createPublicTeam(
         teamName: team.name,
         createdAt: serverTimestamp(),
         teamCode,
+        proLive: isProLiveActive,
       },
       { merge: true },
     );
@@ -394,6 +412,12 @@ export async function createPublicTeam(
 }
 
 export async function clearLiveEvents(teamCodeRaw: string) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for clearLiveEvents: liveConfigured is false.`,
+    );
+    return;
+  }
   //const teamCode = `TEAM-${teamCodeRaw.toUpperCase()}`;
   const teamCode = getTeamCode(teamCodeRaw);
 
@@ -413,9 +437,40 @@ export async function clearLiveEvents(teamCodeRaw: string) {
 }
 
 /**
+ * Explicitly updates the proLive status of an existing active public team
+ */
+export async function updatePublicTeamProStatus(
+  teamId: string,
+  isProLive: boolean,
+) {
+  try {
+    const teamCode = `TEAM-${teamId.toUpperCase()}`;
+    const teamRef = doc(db, "publicTeams", teamCode);
+
+    await setDoc(
+      teamRef,
+      {
+        proLive: isProLive,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    console.log(`🚀 Public team ${teamCode} proLive tier set to:`, isProLive);
+  } catch (error) {
+    console.error("❌ Failed to update public team live tier status:", error);
+  }
+}
+
+/**
  * Saves a fixture snapshot into publicTeams/{teamCode}/fixtures/{fixtureId}
  */
 export async function saveLiveFixture(teamId: string, fixture: any) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for saveLiveFixture: liveConfigured is false.`,
+    );
+    return;
+  }
   //const teamCode = `TEAM-${teamId.toUpperCase()}`;
   const teamCode = getTeamCode(teamId);
 
@@ -430,6 +485,12 @@ export async function saveLiveFixture(teamId: string, fixture: any) {
 }
 
 export async function deletePublicFixture(teamId: string, fixtureId: string) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for deletePublicFixture: liveConfigured is false.`,
+    );
+    return;
+  }
   const teamCode = `TEAM-${teamId.toUpperCase()}`;
 
   const ref = doc(db, "publicTeams", teamCode, "fixtures", fixtureId);
@@ -440,11 +501,19 @@ export async function deletePublicFixture(teamId: string, fixtureId: string) {
 }
 
 export async function ensurePublicTeamExists(team: Team) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for ensurePublicTeamExists: liveConfigured is false.`,
+    );
+    return;
+  }
   const userId = auth.currentUser?.uid;
   if (!userId) return null;
 
   const teamCode = `TEAM-${team.id.toUpperCase()}`;
   const teamRef = doc(db, "publicTeams", teamCode);
+
+  const isProLiveActive = useLiveStore.getState().livePro ?? false;
 
   const snap = await getDoc(teamRef);
 
@@ -456,6 +525,7 @@ export async function ensurePublicTeamExists(team: Team) {
       teamName: team.name,
       teamCode,
       createdAt: serverTimestamp(),
+      proLive: isProLiveActive,
     });
 
     console.log("🆕 Created public team:", teamCode);
@@ -467,6 +537,10 @@ export async function ensurePublicTeamExists(team: Team) {
 }
 
 export async function addLiveEvent(teamId: string, event: any) {
+  if (!isLiveConfigured()) {
+    console.log(`⚠️ Sync skipped for addLiveEvent: liveConfigured is false.`);
+    return;
+  }
   const teamCode = getTeamCode(teamId);
 
   const ref = doc(db, "publicTeams", teamCode, "live", event.id);
@@ -503,6 +577,12 @@ async function deleteDocumentsFromCollection(
   subCollection: "live" | "liveData",
   documentIds: string[],
 ): Promise<void> {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for deleteDocumentsFromCollection: liveConfigured is false.`,
+    );
+    return;
+  }
   const deletePromises = documentIds.map(async (docId) => {
     const ref = doc(db, "publicTeams", teamCode, subCollection, docId);
     await deleteDoc(ref);
@@ -541,6 +621,12 @@ export const updatebaseRunsData = (teamId: string, data: any) =>
   writeLiveData(teamId, "currentBaseRuns", data);
 
 export async function updatePublicTeamData(parentTeamId: string, team: Team) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for updatePublicTeamData: liveConfigured is false.`,
+    );
+    return;
+  }
   const teamCode = getTeamCode(parentTeamId);
 
   if (!teamCode) {
@@ -578,6 +664,10 @@ export async function updatePublicTeamData(parentTeamId: string, team: Team) {
 }
 
 export async function syncLiveGame(teamId: string, game: any) {
+  if (!isLiveConfigured()) {
+    console.log(`⚠️ Sync skipped for syncLiveGame: liveConfigured is false.`);
+    return;
+  }
   const teamCode = getTeamCode(teamId);
 
   const gameData = cleanForFirestore(stripVolatileFields(game));
@@ -618,6 +708,12 @@ export async function loadSeason(): Promise<string | null> {
 }
 
 export async function loadLiveViewTeams(teamId: string) {
+  if (!isLiveConfigured()) {
+    console.log(
+      `⚠️ Sync skipped for loadLiveViewTeams: liveConfigured is false.`,
+    );
+    return;
+  }
   const teamCode = getTeamCode(teamId);
 
   const snapshot = await getDocs(
@@ -633,6 +729,86 @@ export async function loadLiveViewTeams(teamId: string) {
       players: data.players ?? [],
     };
   });
+}
+
+/**
+ * Initializes all 3 core liveData tracking templates in parallel
+ * to ensure resume states never fail validation screens.
+ */
+export async function initializeLiveTracking(teamId: string, fixture: Fixture) {
+  try {
+    const teamCode = getTeamCode(teamId);
+    if (!teamCode) return;
+
+    // 1. Core fixture layout config
+    await updateLiveData(teamId, fixture);
+
+    // 2. Core running stats state model
+    const defaultGamePlaceholder = {
+      id: fixture.id,
+      fixtureId: fixture.id,
+      mode: fixture.mode || "scorebook",
+      completed: false,
+      totalRuns: 0,
+      totalBalls: 0,
+      wickets: [],
+      overs: fixture.overs || 20,
+      yourTeam: fixture.yourTeam,
+      oppositionTeam: fixture.oppositionTeam,
+    };
+    await updateCurrentGameData(teamId, defaultGamePlaceholder);
+
+    // 3. Simple run counter block
+    await updatebaseRunsData(teamId, { runs: 0 });
+
+    console.log(
+      `🚀 Live documents initialized smoothly for team code: ${teamCode}`,
+    );
+  } catch (error) {
+    console.error(
+      "❌ Failed to run cloud live initialization sequence:",
+      error,
+    );
+  }
+}
+
+export async function updateSyncControl(
+  teamId: string,
+  events: any[],
+  isGameComplete: boolean = false,
+) {
+  try {
+    const teamCode = getTeamCode(teamId);
+    const ref = doc(db, "publicTeams", teamCode, "liveData", "syncControl");
+
+    // 1. Calculate valid legal balls bowled to determine current over count
+    const legalBallsCount = events.filter((e) => e.countsAsBall).length;
+    const completedOvers = Math.floor(legalBallsCount / 6);
+    const ballsInOver = legalBallsCount % 6;
+    const overString = `${completedOvers}.${ballsInOver}`; // e.g., 4.2 overs
+
+    // 2. Derive score calculations
+    // (Assuming simple total runs sum; adjust if you track multiple innings)
+    const totalRunsScored = events.reduce((sum, e) => sum + (e.runs || 0), 0);
+
+    await setDoc(
+      ref,
+      {
+        completedOvers, // Integer used for our % 2 throttling (e.g., 2, 4, 6)
+        overDisplay: overString,
+        totalRuns: totalRunsScored,
+        isCompleted: isGameComplete,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    console.log(
+      `📡 Sync Control Updated: Over ${overString}, Runs: ${totalRunsScored}`,
+    );
+  } catch (error) {
+    console.error("❌ Failed to update sync control document:", error);
+  }
 }
 
 export { mergeById };
