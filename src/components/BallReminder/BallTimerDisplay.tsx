@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useBallReminder } from "../../hooks/useBallReminder";
 import { useMatchStore } from "../../state/matchStore";
+import { useLiveStore } from "../../state/liveStore";
 import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
 
 export default function BallTimerDisplay() {
@@ -10,6 +11,12 @@ export default function BallTimerDisplay() {
   const proUnlockedScorebook = useMatchStore(
     (state) => state.proUnlockedScorebook,
   );
+
+  const livePro = useLiveStore((s) => s.livePro);
+  const liveProViewer = useLiveStore((state) => state.liveProViewer);
+
+  // 2. Derive the status on every render
+  const isProLiveUnlocked = liveProViewer || livePro;
 
   const isLiveViewer = useIsLiveViewer();
 

@@ -11,8 +11,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
+import { useFixtureStore } from "../../state/fixtureStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import WicketsNegativeInfo from "./WicketsNegativeInfo";
+import { updatebaseRunsData } from "@/src/services/firestoreService";
 
 export default function MatchRulesModal({
   visible,
@@ -28,8 +30,17 @@ export default function MatchRulesModal({
   //const addInnings = useFixtureStore((s) => s.addInnings);
   const wicketsAsNegativeRuns = useMatchStore((s) => s.wicketsAsNegativeRuns);
 
-  //const selectedMode = useStartModalStore((s) => s.selectedMode);
-  //const isScorebook = selectedMode === "scorebook";
+  const baseRuns = useMatchStore((s) => s.baseRuns ?? 0);
+
+  // Inside MatchRulesModal component:
+  const fixtureTeamId = useFixtureStore((s) => s.currentFixture?.yourTeam?.id);
+  const gameTeamId = useGameStore((s) => (s as any).yourTeam?.id);
+
+  // 🔍 Track exactly which hook is feeding the component the wrong data
+  console.log("🔍 Debug Hook Output [Fixture Store Team ID]:", fixtureTeamId);
+  console.log("🔍 Debug Hook Output [Game Store Team ID]:", gameTeamId);
+
+  const teamId = fixtureTeamId || gameTeamId || "";
 
   const handleBack = () => {
     // Remove any partial fixture
@@ -82,6 +93,8 @@ export default function MatchRulesModal({
             <Pressable
               style={styles.button}
               onPress={() => {
+                // 🚀 3. Push the data to Firestore before closing
+                updatebaseRunsData(teamId, baseRuns);
                 onClose();
               }}
             >

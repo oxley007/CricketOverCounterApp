@@ -24,6 +24,7 @@ export type LiveViewTeam = {
 type LiveState = {
   liveConfigured: boolean;
   livePro: boolean;
+  liveProViewer: boolean;
 
   teams: LiveTeam[];
 
@@ -46,6 +47,7 @@ type LiveState = {
 
   setLiveConfigured: (value: boolean) => void;
   setLivePro: (value: boolean) => void;
+  setLiveProViewer: (value: boolean) => void;
 
   setTeamCode: (code: string) => void;
   setTeamId: (id: string) => void;
@@ -84,6 +86,7 @@ export const useLiveStore = create<LiveState>()(
     (set) => ({
       liveConfigured: false,
       livePro: false,
+      liveProViewer: false,
 
       teams: [],
 
@@ -105,6 +108,7 @@ export const useLiveStore = create<LiveState>()(
 
       setLiveConfigured: (value) => set({ liveConfigured: value }),
       setLivePro: (value) => set({ livePro: value }),
+      setLiveProViewer: (value) => set({ liveProViewer: value }),
 
       setTeamCode: (code) => set({ teamCode: code }),
       setTeamId: (id) => set({ teamId: id }),
@@ -129,6 +133,7 @@ export const useLiveStore = create<LiveState>()(
         set({
           liveConfigured: false,
           livePro: false,
+          liveProViewer: false,
           teams: [],
           liveViewTeams: [],
           teamCode: null,

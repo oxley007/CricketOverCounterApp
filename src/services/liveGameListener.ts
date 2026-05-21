@@ -1,8 +1,9 @@
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { useFixtureStore } from "../state/fixtureStore";
 import { getTeamCode } from "../utils/liveHelpers";
 import { useLiveStore } from "../state/liveStore";
+import { useMatchStore } from "../state/matchStore";
 
 // Store grouped unsubs by teamCode instead of just single unsubs
 const listeners: Record<string, () => void> = {};
@@ -10,6 +11,7 @@ const lastSyncedOverTracker: Record<string, number> = {};
 
 export function startLiveGameListener(teamId: string) {
   const teamCode = getTeamCode(teamId);
+  console.log(teamCode, " teamCode in her is wha?");
 
   // avoid duplicate listener
   if (listeners[teamCode]) return;
@@ -21,13 +23,20 @@ export function startLiveGameListener(teamId: string) {
 
   // Premium access bridge check
   const isProLiveUnlocked = () => {
-    return useLiveStore.getState().livePro || remoteProLive;
+    const localViewerPro = useLiveStore.getState().liveProViewer; // 🚀 Read supporter state
+    return localViewerPro || remoteProLive;
   };
 
   // 1. Listen to the Root Document for team-level proLive upgrades
+  // 1. Listen to the Root Document for team-level proLive upgrades
   const unsubRootTeam = onSnapshot(doc(db, "publicTeams", teamCode), (snap) => {
     if (snap.exists()) {
-      remoteProLive = snap.data()?.proLive ?? false;
+      const isTeamPro = snap.data()?.proLive ?? false;
+      remoteProLive = isTeamPro;
+
+      // 🚀 CRITICAL UI FIX: Sync this state directly into your Zustand store
+      // so your UI re-renders immediately and hides the locked card!
+      useLiveStore.getState().setLivePro(isTeamPro);
     }
   });
 
@@ -90,11 +99,76 @@ export function startLiveGameListener(teamId: string) {
     useLiveStore.getState().setFixture(teamCode, mappedFixture);
   });
 
+  // 4. Real-time Teams Subcollection Listener
+  const teamsCollectionRef = collection(db, "publicTeams", teamCode, "teams");
+  const unsubscribeTeams = onSnapshot(teamsCollectionRef, (snapshot) => {
+    const teamCode = getTeamCode(teamId);
+
+    // 🚀 DEBUG LOGS: Check these in your browser console!
+    console.log("🔍 [DEBUG] startLiveGameListener input teamId:", teamId);
+    console.log("🔍 [DEBUG] Derived teamCode string:", teamCode);
+    console.log(
+      `📡 Full Firestore Target Path: publicTeams / ${teamCode} / teams`,
+    );
+    const updatedTeams = snapshot.docs.map((doc) => {
+      const data = doc.data();
+
+      // Fallback logic to read exactly what is in your screenshot
+      const playersArray = Array.isArray(data.players) ? data.players : [];
+
+      return {
+        id: data.teamId || doc.id,
+        name: data.teamName || "Unnamed Team",
+        players: playersArray.map((p: any) => ({
+          id: p?.id || "",
+          name: p?.name || "Unknown Player",
+          archived: p?.archived ?? false,
+        })),
+      } as unknown as Team;
+    });
+
+    console.log("📡 Real-time teams payload incoming:", updatedTeams);
+    useLiveStore.getState().setLiveViewTeams(updatedTeams);
+  });
+
+  // 5. Baseruns Document Listener
+  const baserunsRef = doc(
+    db,
+    "publicTeams",
+    teamCode,
+    "liveData",
+    "currentBaseRuns",
+  );
+  const unsubscribeBaseruns = onSnapshot(baserunsRef, (snap) => {
+    console.log(
+      `📡 TARGET BASE RUNS PATH: publicTeams/${teamCode}/liveData/currentBaseRuns`,
+    );
+    if (!snap.exists()) return;
+
+    // Optional: Keep your same pro-user/sync gating logic
+    if (!allowDataUpdates && !isProLiveUnlocked()) return;
+
+    const data = snap.data();
+
+    // Extract baseRuns, falling back to the 'value' field or 0 if empty
+    const runsCount = data.baseRuns ?? data.value ?? 0;
+
+    // Sync to your Zustand store matching its single-argument signature
+    useMatchStore.getState().setBaseRuns(runsCount);
+
+    console.log("⚾ CurrentBaseruns synchronized:", {
+      runs: runsCount,
+      updatedAt: data.updatedAt,
+    });
+  });
+
   // Combine all 3 cleanup operations under this team code key
   listeners[teamCode] = () => {
     unsubRootTeam();
     unsubControl();
     unsubscribeFixture();
+    unsubscribeTeams();
+    unsubscribeBaseruns();
   };
 }
 

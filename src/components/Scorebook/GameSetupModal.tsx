@@ -9,12 +9,14 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   saveSeason,
   ensurePublicTeamExists,
   updatePublicTeamData,
+  clearLiveEvents,
 } from "../../services/firestoreService";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
@@ -49,6 +51,8 @@ export default function GameSetupModal({ visible, onClose }: Props) {
     return useGameStore.getState().lastSeason || "";
   });
 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (visible) {
       setYourTeam(null);
@@ -68,92 +72,105 @@ export default function GameSetupModal({ visible, onClose }: Props) {
   const startGame = async () => {
     if (!yourTeam || !oppositionTeam) return;
 
-    const finalOvers = isUnlimited ? 0 : parseInt(overs, 10) || 0;
+    try {
+      setLoading(true); // 🚀 Start loading spinner
+      useGameStore.getState().resetGame();
 
-    // 1️⃣ Save game config
-    setGameConfig({
-      yourTeam: {
-        id: yourTeam.id,
-        name: yourTeam.name,
-      },
-      oppositionTeam: {
-        id: oppositionTeam.id,
-        name: oppositionTeam.name,
-      },
-      overs: finalOvers,
-      season,
-    });
+      const finalOvers = isUnlimited ? 0 : parseInt(overs, 10) || 0;
 
-    // ✅ 🔥 THIS IS THE KEY PART
-    const liveStore = useLiveStore.getState();
-    const liveConfigured = liveStore.liveConfigured;
+      // 1️⃣ Save game config
+      setGameConfig({
+        yourTeam: {
+          id: yourTeam.id,
+          name: yourTeam.name,
+        },
+        oppositionTeam: {
+          id: oppositionTeam.id,
+          name: oppositionTeam.name,
+        },
+        overs: finalOvers,
+        season,
+      });
 
-    console.log(liveConfigured, "liveConfigured is?");
-    console.log(JSON.stringify(liveStore), "liveStore is?");
-    console.log(yourTeam.id, "yourTeam.id is?");
+      // ✅ 🔥 THIS IS THE KEY PART
+      const liveStore = useLiveStore.getState();
+      const liveConfigured = liveStore.liveConfigured;
 
-    //if (liveConfigured) {
-    const teamStore = useTeamStore.getState();
+      console.log(liveConfigured, "liveConfigured is?");
+      console.log(JSON.stringify(liveStore), "liveStore is?");
+      console.log(yourTeam.id, "yourTeam.id is?");
 
-    console.log(
-      JSON.stringify(teamStore.teams),
-      " teamStore.teams is what now?",
-    );
+      //if (liveConfigured) {
+      const teamStore = useTeamStore.getState();
 
-    // Get full team objects
-    console.log(JSON.stringify(yourTeam), "checking yourTeam.id here");
-    const selectedYourTeam = teamStore.teams.find((t) => t.id === yourTeam.id);
+      console.log(
+        JSON.stringify(teamStore.teams),
+        " teamStore.teams is what now?",
+      );
 
-    console.log(
-      JSON.stringify(oppositionTeam),
-      "checking oppositionTeam.id here",
-    );
+      // Get full team objects
+      console.log(JSON.stringify(yourTeam), "checking yourTeam.id here");
+      const selectedYourTeam = teamStore.teams.find(
+        (t) => t.id === yourTeam.id,
+      );
 
-    const selectedOppositionTeam = teamStore.teams.find(
-      (t) => t.id === oppositionTeam.id,
-    );
+      console.log(
+        JSON.stringify(oppositionTeam),
+        "checking oppositionTeam.id here",
+      );
 
-    if (!selectedYourTeam || !selectedOppositionTeam) return;
+      const selectedOppositionTeam = teamStore.teams.find(
+        (t) => t.id === oppositionTeam.id,
+      );
 
-    // Create ONLY the public node for your team
-    await ensurePublicTeamExists(selectedYourTeam);
+      if (!selectedYourTeam || !selectedOppositionTeam) return;
 
-    // Save both teams under your team's public node
-    for (const team of [selectedYourTeam, selectedOppositionTeam]) {
-      await updatePublicTeamData(selectedYourTeam.id, team);
-    }
+      // Create ONLY the public node for your team
+      await ensurePublicTeamExists(selectedYourTeam);
 
-    // Configure live using ONLY your team
-    liveStore.configureLive({
-      teamId: selectedYourTeam.id,
-      teamCode: selectedYourTeam.id, // raw ID
-      playerIds: selectedYourTeam.players.map((p) => p.id),
-    });
+      // Save both teams under your team's public node
+      for (const team of [selectedYourTeam, selectedOppositionTeam]) {
+        await updatePublicTeamData(selectedYourTeam.id, team);
+      }
 
-    //console.log("🔴 Live configured for game:", teamCode);
-    /*} else {
+      await clearLiveEvents(selectedYourTeam.id);
+
+      // Configure live using ONLY your team
+      liveStore.configureLive({
+        teamId: selectedYourTeam.id,
+        teamCode: selectedYourTeam.id, // raw ID
+        playerIds: selectedYourTeam.players.map((p) => p.id),
+      });
+
+      //console.log("🔴 Live configured for game:", teamCode);
+      /*} else {
       console.log("⚪ Live not enabled");
     }*/
 
-    // Add liveTeamID so it can be used as a reference to what team this game nbelongs to
-    useMatchStore.getState().setLiveTeamId(yourTeam.id);
+      // Add liveTeamID so it can be used as a reference to what team this game nbelongs to
+      useMatchStore.getState().setLiveTeamId(yourTeam.id);
 
-    // 2️⃣ Start fixture AFTER config exists
-    useFixtureStore.getState().startFixture();
+      // 2️⃣ Start fixture AFTER config exists
+      useFixtureStore.getState().startFixture();
 
-    // 3 Save last season in store
-    useGameStore.getState().setLastSeason(season);
+      // 3 Save last season in store
+      useGameStore.getState().setLastSeason(season);
 
-    // ✅ ALSO save to Firestore
-    saveSeason(season);
+      // ✅ ALSO save to Firestore
+      saveSeason(season);
 
-    console.log("Game store after start:", useGameStore.getState());
+      console.log("Game store after start:", useGameStore.getState());
 
-    // 4 Mark setup complete (this closes GameSetupModal)
-    setSetupComplete(true);
+      // 4 Mark setup complete (this closes GameSetupModal)
+      setSetupComplete(true);
 
-    // 5 Open settings modal (or whatever modal you want)
-    useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
+      // 5 Open settings modal (or whatever modal you want)
+      useMatchStore.getState().openMatchRulesModal(); // ✅ this triggers your settings modal
+    } catch (error) {
+      console.error("Failed to start game:", error);
+    } finally {
+      setLoading(false); // 🏁 Stop loading spinner
+    }
   };
 
   const handleBack = () => {
@@ -322,17 +339,22 @@ export default function GameSetupModal({ visible, onClose }: Props) {
               />
             </ScrollView>
 
-            {/* Start Game */}
             <Pressable
               style={[
                 styles.startButton,
-                (!yourTeam || !oppositionTeam) && { opacity: 0.5 },
+                (!yourTeam || !oppositionTeam || loading) &&
+                  styles.startButtonDisabled,
               ]}
-              disabled={!yourTeam || !oppositionTeam}
+              disabled={!yourTeam || !oppositionTeam || loading}
               onPress={startGame}
             >
-              <Text style={styles.startButtonText}>Start Game</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.startButtonText}>Start Game</Text>
+              )}
             </Pressable>
+
             <Pressable style={styles.backButton} onPress={handleBack}>
               <Text style={styles.backButtonText}>Cancel</Text>
             </Pressable>
@@ -383,6 +405,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+  },
+  startButtonDisabled: {
+    opacity: 0.5,
+    // Add background color adjustments here if needed, e.g., backgroundColor: '#A0A0A0'
   },
   startButtonText: {
     color: "#fff",

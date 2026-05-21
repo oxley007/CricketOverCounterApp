@@ -20,9 +20,11 @@ import {
   configureRevenueCat,
   getCustomerInfo,
   isRevenueCatAvailable,
+  addCustomerInfoUpdateListener,
 } from "../../services/revenuecat";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
+import { useLiveStore } from "../../state/liveStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 import { useRouter } from "expo-router";
@@ -51,12 +53,18 @@ import TotalDots from "../../components/TotalDots";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import UpgradeProBox from "../../components/iap/UpgradeProBox";
 import LiveScoresCard from "../../components/Live/LiveScoresInfoCard";
-import { saveSubscription } from "../../services/firestoreService";
 import {
-  startLiveGameEventListener,
+  saveSubscription,
+  updatePublicTeamProStatus,
+} from "../../services/firestoreService";
+import {
+  startLiveGameEventListener, // 🚀 Must match perfectly
   stopLiveGameEventListener,
 } from "../../services/liveGameEventListener";
+
 import { useFixtureStore } from "../../state/fixtureStore";
+import ViewerLockedLiveScoresCard from "@/src/components/Live/ViewerLockedLiveScoresCard";
+import RemindSupportersCard from "@/src/components/Live/RemindSupportersCard";
 
 export default function Home() {
   return (
@@ -102,11 +110,18 @@ function HomeContent() {
     (s) => s.currentFixture?.yourTeam?.id,
   );
 
+  const livePro = useLiveStore((s) => s.livePro);
+
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   console.log(
     JSON.stringify(currentFixture),
     "need to ceh current fixture here.",
   );
+
+  const liveProViewer = useLiveStore((state) => state.liveProViewer);
+
+  // 2. Derive the status on every render
+  const isProLiveUnlocked = liveProViewer || livePro;
 
   const { handleExitNoSave } = useExitGame();
   const { triggerTap } = useFeedback();
@@ -153,49 +168,61 @@ function HomeContent() {
   const hasSavedSubRef = useRef(false);
 
   useEffect(() => {
-    const getCustomerInfoWithRetry = async (retries = 3) => {
+    if (!isRevenueCatAvailable()) return;
+
+    // 🚀 Tracks real-time premium switches across the entire app session
+    const listener = addCustomerInfoUpdateListener(async (customerInfo) => {
+      const active = customerInfo?.entitlements.active || {};
+      console.log("🔔 Real-time Entitlement Update Detected:", active);
+
+      const isBallActive = active["pro"]?.isActive ?? false;
+      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+      const isLiveProActive = active["live_pro"]?.isActive ?? false;
+
+      const isSupporterActive = Object.values(active).some((ent: any) =>
+        [
+          "pro_monthly_live_supporter",
+          "pro_season_live_supporter",
+          "4dot6_scorebook_lifetime_upgrade_live_supporter",
+        ].includes(ent.productIdentifier),
+      );
+
+      // 1. Sync memory stores instantly
+      setProUnlocked(isBallActive);
+      useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
+
+      const liveStore = useLiveStore.getState();
+      liveStore.setLivePro(isLiveProActive);
+      liveStore.setLiveProViewer(isSupporterActive);
+
       try {
-        return await getCustomerInfo();
-      } catch (e: any) {
-        if (retries > 0 && e?.message?.includes("ingested")) {
-          await new Promise((r) => setTimeout(r, 1500));
-          return getCustomerInfoWithRetry(retries - 1);
-        }
-        throw e;
-      }
-    };
+        // 2. Sync user profile document
+        await saveSubscription({
+          ballPro: isBallActive,
+          scorebookPro: isScorebookActive,
+          livePro: isLiveProActive,
+          liveProViewer: isSupporterActive,
+        });
 
-    const init = async () => {
-      if (!isRevenueCatAvailable()) return;
-
-      try {
-        configureRevenueCat();
-
-        const customerInfo = await getCustomerInfoWithRetry();
-        const active = customerInfo.entitlements.active || {};
-
-        const isBallActive = active["pro"]?.isActive ?? false;
-        const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
-
-        setProUnlocked(isBallActive);
-        useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
-
-        // 🔥 prevent loop
-        if (!hasSavedSubRef.current) {
-          hasSavedSubRef.current = true;
-
-          await saveSubscription({
-            ballPro: isBallActive,
-            scorebookPro: isScorebookActive,
-          });
+        // 🚀 3. Update the matching live room document in Firestore instantly
+        const activeTeams = liveStore.teams || [];
+        if (activeTeams.length > 0) {
+          await Promise.all(
+            activeTeams.map((liveTeam) =>
+              updatePublicTeamProStatus(liveTeam.teamId, isLiveProActive),
+            ),
+          );
         }
       } catch (e) {
-        console.log("RevenueCat init failed:", e);
+        console.warn("Failed to propagate purchase changes:", e);
       }
-    };
+    });
 
-    init();
-  }, [setProUnlocked]);
+    return () => {
+      if (typeof listener === "function") listener();
+      else if (listener?.remove) listener.remove();
+    };
+  }, [setProUnlocked]); // 👈 Guarded only by mount lifecycle, not 'visible'
 
   useEffect(() => {
     (async () => {
@@ -281,7 +308,9 @@ function HomeContent() {
 
   const overs = useMemo(() => legalBallsBowled / 6, [legalBallsBowled]);
 
-  const showStats = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  //const showStats = overs <= 6 || proUnlocked || proUnlockedScorebook;
+  const showStats =
+    overs <= 6 || proUnlocked || proUnlockedScorebook || isProLiveUnlocked;
   //const ballReminderEnabled = proUnlocked || overs <= 6;
   const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
 
@@ -354,9 +383,29 @@ function HomeContent() {
         {!isLiveViewer && (
           <>
             <EndInningsButton onComplete={handleReset} />
+            {!livePro && (
+              <LiveScoresCard
+                onPress={() => router.push("/live-scoring-info")}
+              />
+            )}
 
-            <LiveScoresCard onPress={() => router.push("/live-scoring-info")} />
+            {livePro && (
+              <RemindSupportersCard
+                onPress={() =>
+                  router.push({
+                    pathname: "/live-scoring-instructions",
+                    params: { modeMessage: "reminder" }, // 🚀 Passing the reminder flag here
+                  })
+                }
+              />
+            )}
           </>
+        )}
+
+        {isLiveViewer && !isProLiveUnlocked && (
+          <ViewerLockedLiveScoresCard
+            onPress={() => setShowSubscriptionModal(true)}
+          />
         )}
 
         <CurrentOverDisplay />

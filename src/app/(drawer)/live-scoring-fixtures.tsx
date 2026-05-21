@@ -70,9 +70,7 @@ export default function LiveScoringFixtures() {
           <View style={styles.sectionPillHeader}>
             <Text style={styles.title}>Live Fixtures</Text>
 
-            <Text style={styles.subtitle}>
-              Keep parents and supporters in the loop!
-            </Text>
+            <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
           </View>
           {Object.entries(fixtures).map(([teamCode, fixture]) => (
             <FixtureCard key={teamCode} fixture={fixture} />

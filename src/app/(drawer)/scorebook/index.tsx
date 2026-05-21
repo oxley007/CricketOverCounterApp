@@ -64,6 +64,8 @@ import TotalDots from "../../../components/TotalDots";
 import { getSeasonPlayerStats } from "../../../state/seasonStatsHelpers";
 import { useStartModalStore } from "../../../state/startModalStore";
 import LiveScoresCard from "../../../components/Live/LiveScoresInfoCard";
+import ViewerLockedLiveScoresCard from "../../../components/Live/ViewerLockedLiveScoresCard";
+import RemindSupportersCard from "../../../components/Live/RemindSupportersCard";
 
 export default function ScorebookIndex() {
   console.log(
@@ -98,10 +100,12 @@ export default function ScorebookIndex() {
   const router = useRouter();
   const isLiveViewer = useIsLiveViewer();
 
+  /*
   const localTeams = useTeamStore((s) => s.teams);
   const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
 
   const teams = isLiveViewer ? liveViewTeams : localTeams;
+  */
 
   const loadTeams = useTeamStore((s) => s.loadTeams);
   const gameConfig = useGameStore((s) => s.gameConfig);
@@ -114,6 +118,8 @@ export default function ScorebookIndex() {
   const selectedMode = useStartModalStore((s) => s.selectedMode);
   //const [isSetupVisible, setIsSetupVisible] = useState(false);
 
+  const livePro = useLiveStore((s) => s.livePro);
+
   console.log("=== SCOREBOOK RENDER ===");
   console.log({
     isSetupComplete,
@@ -121,12 +127,37 @@ export default function ScorebookIndex() {
     hasHydrated,
   });
 
+  const liveProViewer = useLiveStore((state) => state.liveProViewer);
+
+  // 2. Derive the status on every render
+  const isProLiveUnlocked = liveProViewer || livePro;
+
   //const battingTeamId = currentGame?.battingTeamId ?? null;
   //const bowlingTeamId = currentGame?.bowlingTeamId ?? null;
 
   const battingTeamId = useGameStore((s) => s.currentGame?.battingTeamId);
   const bowlingTeamId = useGameStore((s) => s.currentGame?.bowlingTeamId);
   //const currentBowlerId = useGameStore((s) => s.currentGame?.currentBowlerId);
+
+  const localTeams = useTeamStore((s) => s.teams);
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+  const teams = isLiveViewer ? liveViewTeams : localTeams;
+
+  // 2. Add explicit debugging right before the picker to catch the culprit
+  console.log("🔍 [PICKER CHECK]");
+  console.log("Current battingTeamId we want:", battingTeamId);
+  console.log(
+    "Available team IDs in state:",
+    teams.map((t) => t.id),
+  );
+
+  // 3. Robust find that handles potential string case or whitespace issues
+  const resolvedBattingTeam =
+    teams.find(
+      (t) => t.id?.toString().trim() === battingTeamId?.toString().trim(),
+    ) ?? null;
+
+  console.log("🎯 Resolved Batting Team Object:", resolvedBattingTeam);
 
   console.log("render battingTeamId", battingTeamId);
 
@@ -257,7 +288,7 @@ export default function ScorebookIndex() {
 
   const overs = useMemo(() => legalBallsBowled / 6, [legalBallsBowled]);
 
-  const showStats = overs <= 6 || proUnlockedScorebook;
+  const showStats = overs <= 6 || proUnlockedScorebook || isProLiveUnlocked;
   const ballReminderEnabled = overs <= 6 || proUnlocked || proUnlockedScorebook;
   //useBallReminder(ballReminderEnabled);
 
@@ -627,9 +658,31 @@ export default function ScorebookIndex() {
                 setSelectedBowlerId(null);
               }}
             />
-            <LiveScoresCard onPress={() => router.push("/live-scoring-info")} />
+            {!livePro && (
+              <LiveScoresCard
+                onPress={() => router.push("/live-scoring-info")}
+              />
+            )}
+
+            {livePro && (
+              <RemindSupportersCard
+                onPress={() =>
+                  router.push({
+                    pathname: "/live-scoring-instructions",
+                    params: { modeMessage: "reminder" }, // 🚀 Passing the reminder flag here
+                  })
+                }
+              />
+            )}
           </>
         )}
+
+        {isLiveViewer && !isProLiveUnlocked && (
+          <ViewerLockedLiveScoresCard
+            onPress={() => setShowSubscriptionModal(true)}
+          />
+        )}
+
         <CurrentOverDisplay />
 
         <View style={styles.scoreRow}>
@@ -673,7 +726,7 @@ export default function ScorebookIndex() {
         )}
 
         <BattersPicker
-          battingTeam={teams.find((t) => t.id === battingTeamId) ?? null}
+          battingTeam={resolvedBattingTeam}
           selectedBatters={selectedBatters}
           onSelectionChange={setSelectedBatters}
         />

@@ -17,6 +17,7 @@ import {
   StyleSheet,
   useColorScheme,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth } from "../../services/firebaseConfig";
@@ -83,7 +84,8 @@ function DrawerContent() {
     : require("../../../assets/4dot6logo-transparent.png");
     */
 
-  const { handleExitNoSave } = useExitGame();
+  //const { handleExitNoSave } = useExitGame();
+  const { handleExitNoSave, isExiting } = useExitGame();
 
   const hiddenRoutes = [
     "ball-counter",
@@ -94,6 +96,10 @@ function DrawerContent() {
     "scorebook",
     "scorebook/indexScorebook",
     "scorebook/index",
+    "live-scoring-fixtures",
+    "live-scoring-home",
+    "live-scoring-info",
+    "live-scoring-instructions",
   ];
 
   return (
@@ -122,13 +128,23 @@ function DrawerContent() {
         return (
           <DrawerContentScrollView {...props}>
             <DrawerItemList {...props} state={filteredState} />
+
             <DrawerItem
-              label="Exit Game (no save)"
-              labelStyle={{ color: "#ff4444" }} // Red to indicate a destructive action
-              icon={({ size }) => (
-                <Ionicons name="exit-outline" size={size} color="#ff4444" />
-              )}
-              onPress={handleExitNoSave}
+              label={isExiting ? "Exiting..." : "Exit Game (no save)"}
+              labelStyle={{ color: "#ff4444" }}
+              icon={({ size }) =>
+                isExiting ? (
+                  <ActivityIndicator size={size} color="#ff4444" />
+                ) : (
+                  <Ionicons name="exit-outline" size={size} color="#ff4444" />
+                )
+              }
+              // Short-circuit the press handler if already exiting
+              onPress={() => {
+                if (!isExiting) {
+                  handleExitNoSave();
+                }
+              }}
             />
           </DrawerContentScrollView>
         );

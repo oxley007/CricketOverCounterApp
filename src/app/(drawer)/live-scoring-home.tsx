@@ -41,9 +41,7 @@ export default function LiveScoringHome() {
           <View style={styles.sectionPillHeader}>
             <Text style={styles.title}>LittleWicket Live</Text>
 
-            <Text style={styles.subtitle}>
-              Keep parents and supporters in the loop!
-            </Text>
+            <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
           </View>
 
           {/* SECTION 1: COACHES/SCORERS */}
@@ -60,7 +58,7 @@ export default function LiveScoringHome() {
             </Text>
             <Text style={styles.bodyText}>
               Record every ball, run, and wicket. Share the generated Team ID
-              with supporters or parents so they can follow along.
+              with supporters so they can follow along.
             </Text>
             <Pressable style={styles.ctaButton} onPress={() => setupScoring()}>
               <Text style={styles.ctaButtonText}>Setup Live Scoring</Text>
@@ -69,13 +67,11 @@ export default function LiveScoringHome() {
 
           {/* SECTION 2: PARENTS/SUPPORTERS */}
           <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>Supporters/Parents</Text>
+            <Text style={styles.sectionPillText}>Supporters</Text>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.tierTitle}>
-              Enter Team ID (for supporters/Parents)
-            </Text>
+            <Text style={styles.tierTitle}>Enter Team ID (for supporters)</Text>
             <Text style={styles.bodyText}>
               Paste the Team ID shared by your coach below to see live
               scorecards and player stats.

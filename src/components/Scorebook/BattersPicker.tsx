@@ -271,6 +271,13 @@ export default function BattersPicker({
     " checking selectedBatters what this is on for liveViewer",
   );
 
+  console.log(
+    JSON.stringify(useTeamStore().teams),
+    "checking what i have in teams",
+  );
+
+  console.log(JSON.stringify(battingTeam), "battingTeam what i have in teams");
+
   return (
     <>
       {battingTeam && (

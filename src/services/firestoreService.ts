@@ -267,10 +267,12 @@ export async function loadUserSubscription(): Promise<{
   }
 }
 
-type SubscriptionStatus = {
+// 🚀 Update the type definition to accept the new live properties
+export type SubscriptionStatus = {
   ballPro: boolean;
   scorebookPro: boolean;
-  livePro: boolean;
+  livePro?: boolean; // 👈 Added optional fields
+  liveProViewer?: boolean; // 👈 Added optional fields
 };
 
 export async function saveSubscription(subscription: SubscriptionStatus) {
@@ -637,23 +639,27 @@ export async function updatePublicTeamData(parentTeamId: string, team: Team) {
     return;
   }
 
-  // This will successfully point to: publicTeams / [Host Code] / teams / [Opposition Team ID or Host Team ID]
   const ref = doc(db, "publicTeams", teamCode, "teams", team.id);
 
-  await setDoc(
-    ref,
-    {
-      teamId: team.id,
-      teamName: team.name,
-      players: (team.players ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        archived: p.archived ?? false,
-      })),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  // 1. Build the base payload that always syncs
+  const updateData: any = {
+    teamId: team.id,
+    teamName: team.name,
+    updatedAt: serverTimestamp(),
+  };
+
+  // 2. Only include players if the current state actually has them.
+  // This prevents ballcounter mode ([]) from erasing existing DB data.
+  if (team.players && team.players.length > 0) {
+    updateData.players = team.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      archived: p.archived ?? false,
+    }));
+  }
+
+  // 3. Merge safely. If updateData.players is missing, the DB version is untouched.
+  await setDoc(ref, updateData, { merge: true });
 
   console.log(
     "📡 Team synced smoothly:",

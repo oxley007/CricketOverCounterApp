@@ -1,5 +1,5 @@
 // app/(drawer)/live-scoring-instructions.tsx
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -46,6 +46,10 @@ export default function LiveScoringInstructions() {
   const tenantKey = appName.toLowerCase().includes("littlewicket")
     ? "littlewicket"
     : "umpire";
+
+  const { modeMessage } = useLocalSearchParams<{ modeMessage: string }>();
+
+  const isReminderMode = modeMessage === "reminder";
 
   // 1. Core Stores
   const globalTeams = useTeamStore((state) => state.teams);
@@ -190,8 +194,22 @@ export default function LiveScoringInstructions() {
     isLivePro,
   ]);
 
+  const reminderText = useMemo(() => {
+    return `Hi everyone,\n\nJust a reminder you can now follow live scores for our games using the 4dot6 Umpire Ball Counter app 🏏\n\n🎁 Good news! The Live Pro scoring subscription has already been paid for this team, so you can view all live scores completely pre-paid for you!\n\n1. Download the app:\n- iOS: https://apps.apple.com/nz/app/cricket-umpire-ball-counter/id1448840478\n- Android: https://play.google.com/store/apps/details?id=com.cricketovercounterapp\n\n2. Enter the Team ID\n\nTeam ID: ${teamCodeString}\n\nEnjoy the game!`;
+  }, [teamCodeString]);
+
+  /*
   const handleCopy = async () => {
     await Clipboard.setStringAsync(shareText);
+    Alert.alert("Copied", "Setup details copied to clipboard");
+  };
+  */
+
+  const handleCopy = async () => {
+    // Choose reminder text if in reminder mode, otherwise use standard text
+    const textToCopy = isReminderMode ? reminderText : shareText;
+
+    await Clipboard.setStringAsync(textToCopy);
     Alert.alert("Copied", "Setup details copied to clipboard");
   };
 
@@ -280,6 +298,13 @@ export default function LiveScoringInstructions() {
               <View style={styles.sectionPill}>
                 <Text style={styles.sectionPillText}>SELECT PLAYERS</Text>
               </View>
+
+              {isReminderMode && (
+                <Pressable style={styles.reminderButton} onPress={handleCopy}>
+                  <Icon name={"content-copy"} size={20} color="#fff" />
+                  <Text style={styles.copyText}>Send Reminder</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={styles.selectAllButton}
@@ -407,6 +432,15 @@ const styles = StyleSheet.create({
   selectAllText: { color: "#fff", textAlign: "center" },
   copyButton: {
     marginTop: 20,
+    backgroundColor: "#c471ed",
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  reminderButton: {
+    marginBottom: 10,
     backgroundColor: "#c471ed",
     padding: 16,
     borderRadius: 12,

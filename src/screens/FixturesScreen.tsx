@@ -20,6 +20,8 @@ export default function FixturesScreen() {
   const { teams } = useTeamStore();
   const { fixtures } = useFixtureStore();
 
+  const teamCodesSupporter = useLiveStore((s) => s.teamCodesSupporter);
+
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
@@ -65,6 +67,26 @@ export default function FixturesScreen() {
       );
     });
   }, [fixtures]);
+
+  useEffect(() => {
+    const supporterCodes = teamCodesSupporter || [];
+    if (supporterCodes.length === 0) return;
+
+    console.log(
+      `📡 [LIFECYCLE] Initialising live match channels for ${supporterCodes.length} teams.`,
+    );
+
+    const unsubscribes = supporterCodes.map((code) =>
+      listenAndMergeFixture(code),
+    );
+
+    return () => {
+      console.log("🛑 [LIFECYCLE] Disconnecting all live match channels.");
+      unsubscribes.forEach((unsub) => {
+        if (typeof unsub === "function") unsub();
+      });
+    };
+  }, [teamCodesSupporter]);
 
   const openGameModeModal = () => {
     router.replace("/");
@@ -178,6 +200,9 @@ export default function FixturesScreen() {
           </Pressable>
         ))}
       </View>
+
+      <View style={styles.separator} />
+      <Text style={styles.seasonLabel}>Select Season:</Text>
 
       {/* SEASON SELECT */}
       <View style={styles.selectorRow}>
@@ -296,5 +321,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.6)",
     marginVertical: 12,
     borderRadius: 2,
+  },
+  seasonLabel: {
+    color: "#ffffff", // Clean white color
+    fontSize: 20, // Universal medium text size
+    fontWeight: "500", // Medium text weight for premium legibility
+    marginBottom: 8, // Padding space before the selection options
+    paddingHorizontal: 4, // Alignment breathing room
   },
 });

@@ -7,12 +7,10 @@ import { getTeamCode } from "../utils/liveHelpers";
 
 export function listenAndMergeFixture(teamIdOrCode: string) {
   const teamCode = getTeamCode(teamIdOrCode);
-
-  // 1. Point to the entire 'fixtures' subcollection
   const fixturesRef = collection(db, "publicTeams", teamCode, "fixtures");
   const teamRef = doc(db, "publicTeams", teamCode);
 
-  // Keep your existing team name fetcher
+  // Keep your team name fetcher intact...
   (async () => {
     try {
       const snap = await getDoc(teamRef);
@@ -26,20 +24,19 @@ export function listenAndMergeFixture(teamIdOrCode: string) {
     }
   })();
 
-  // 2. Return a listener for the whole collection
+  // 🚀 REAL-TIME BUNDLED SNAPSHOT
   return onSnapshot(fixturesRef, (querySnap) => {
     if (querySnap.empty) {
       console.log(`No fixtures found in /fixtures for ${teamCode}`);
       return;
     }
 
-    querySnap.forEach((docSnap) => {
+    // 1. Map all documents out into an array bundle first
+    const updatedFixturesList = querySnap.docs.map((docSnap) => {
       const data = docSnap.data();
-
-      // Use the document ID or a provided fixtureId field
       const fixtureId = data.fixtureId || docSnap.id;
 
-      const mappedFixture = {
+      return {
         id: fixtureId,
         date: data.date?.toMillis
           ? data.date.toMillis()
@@ -56,9 +53,13 @@ export function listenAndMergeFixture(teamIdOrCode: string) {
         result: data.result || undefined,
         savedAt: data.savedAt?.toMillis ? data.savedAt.toMillis() : Date.now(),
       };
-
-      // Upsert each one into the store
-      useFixtureStore.getState().upsertFixture(mappedFixture);
     });
+
+    console.log(
+      `📡 [MERGE] Received ${updatedFixturesList.length} fixtures from live stream.`,
+    );
+
+    // 2. Fire ONE single bulk action to update your state cleanly
+    useFixtureStore.getState().upsertBulkFixtures(updatedFixturesList);
   });
 }

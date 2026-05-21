@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Modal, Portal, Text } from "react-native-paper";
 import { getCustomerInfo, isRevenueCatAvailable } from "../services/revenuecat";
 import { useMatchStore } from "../state/matchStore";
+import { useLiveStore } from "../state/liveStore";
 import type {
   SeasonPlayerStats,
   SeasonTeamStats,
@@ -57,11 +58,17 @@ export default function PlayerStatsModal({
   const isPlayer = type === "player";
 
   // Get status from store
+  // Get status from store
   const ballProUnlocked = useMatchStore((s) => s.proUnlocked);
   const scorebookProUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
 
-  // Logic: Stats show if Scorebook is active OR if the Ball counter is active (as per your current logic)
-  const proUnlocked = scorebookProUnlocked;
+  // 🚀 Read individual and coach live streaming tiers from the live store
+  const livePro = useLiveStore((s) => s.livePro);
+  const liveProViewer = useLiveStore((s) => s.liveProViewer);
+
+  // 🚀 Logic: Stats reveal if Scorebook Pro is active OR if either live stream tier is true
+  const proUnlocked = scorebookProUnlocked || livePro || liveProViewer;
+
   const showIAPModal = useMatchStore((s) => s.showIAPModal);
 
   if (!stats) return null;

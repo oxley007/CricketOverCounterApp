@@ -1,23 +1,37 @@
+import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useStartModalStore } from "../state/startModalStore";
 import { useGameStore } from "../state/gameStore";
 import { useFixtureStore } from "../state/fixtureStore";
 import { useMatchStore } from "../state/matchStore";
 import { resetGuestIfNeeded } from "../utils/authHelpers";
+import { clearLiveEvents } from "../services/firestoreService";
 
 export const useExitGame = () => {
   const router = useRouter();
+  const [isExiting, setIsExiting] = useState(false); // Add this state
 
-  const handleExitNoSave = () => {
-    // 1. Get store instances
+  const handleExitNoSave = async () => {
+    setIsExiting(true); // Start loading
+
     const startModalStore = useStartModalStore.getState();
     const gameStore = useGameStore.getState();
+    const fixtureStore = useFixtureStore.getState();
 
-    // 2. Perform all standard cleanup
-    // Assuming resetGuestIfNeeded is available in scope or imported
+    const teamId =
+      gameStore.yourTeam?.id || fixtureStore.currentFixture?.yourTeam?.id;
+
+    if (teamId) {
+      try {
+        await clearLiveEvents(teamId);
+      } catch (error) {
+        console.error("Failed to clear live events:", error);
+      }
+    }
+
+    // Perform all standard cleanup
     resetGuestIfNeeded();
-
-    useFixtureStore.getState().saveCurrentInnings();
+    fixtureStore.saveCurrentInnings();
     useFixtureStore.setState({ currentFixture: undefined });
     useMatchStore.getState().resetInnings();
 
@@ -26,15 +40,14 @@ export const useExitGame = () => {
     gameStore.setSetupComplete(false);
     gameStore.triggerSetup();
 
-    // 3. Sequence state before navigating
     startModalStore.reset();
     startModalStore.open();
 
-    // Use a small timeout to ensure Zustand state propagates
     setTimeout(() => {
+      setIsExiting(false); // Reset loading state right before navigation
       router.replace("/");
     }, 0);
   };
 
-  return { handleExitNoSave };
+  return { handleExitNoSave, isExiting }; // Return the boolean here
 };

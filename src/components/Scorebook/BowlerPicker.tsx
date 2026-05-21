@@ -128,7 +128,7 @@ export default function BowlerPicker({
 
   const shouldShowChangeBowler = ballCount % 6 === 0 || ballCount === 0;
 
-  const showLastBowlerUI = lastBowlerStats && !currentBowler;
+  //const showLastBowlerUI = lastBowlerStats && !currentBowler;
 
   const isOverInProgress = ballsInCurrentOver > 0 && ballsInCurrentOver < 6;
 
@@ -145,33 +145,7 @@ export default function BowlerPicker({
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.selectedBowlers}>
-        {showLastBowlerUI ? (
-          <View style={styles.selectedBowlerItem}>
-            <View style={styles.bowlerRow}>
-              <View style={{ flexDirection: "column" }}>
-                <Text style={styles.selectedBowlerText}>
-                  Last bowler: {lastBowlerStats.name}
-                </Text>
-                <Text style={styles.statsText}>
-                  <Text style={{ fontWeight: "700" }}>O:</Text>{" "}
-                  {lastBowlerStats.stats.overs}{" "}
-                  <Text style={{ fontWeight: "700" }}>M:</Text>{" "}
-                  {lastBowlerStats.stats.maidens}{" "}
-                  <Text style={{ fontWeight: "700" }}>R:</Text>{" "}
-                  {lastBowlerStats.stats.runs}{" "}
-                  <Text style={{ fontWeight: "700" }}>W:</Text>{" "}
-                  {lastBowlerStats.stats.wickets}{" "}
-                  <Text style={{ fontWeight: "700" }}>Econ:</Text>{" "}
-                  {lastBowlerStats.stats.economy}{" "}
-                  <Text style={{ fontWeight: "700" }}>WD:</Text>{" "}
-                  {lastBowlerStats.stats.wides}{" "}
-                  <Text style={{ fontWeight: "700" }}>NB:</Text>{" "}
-                  {lastBowlerStats.stats.noBalls}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : currentBowler && stats ? (
+        {currentBowler && stats ? (
           <View style={[styles.selectedBowlerItem, styles.activeBowler]}>
             <View style={styles.bowlerRow}>
               <View style={{ flexDirection: "column" }}>

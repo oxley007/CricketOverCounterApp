@@ -30,7 +30,8 @@ export function startLiveGameEventListener(teamId: string) {
     lastSyncedOverTracker[teamCode] = -1;
 
     const isProLiveUnlocked = () => {
-      return useLiveStore.getState().livePro || remoteProLive;
+      const localViewerPro = useLiveStore.getState().liveProViewer; // 🚀 Read supporter state
+      return localViewerPro || remoteProLive; // Remote match-level pro status or viewer's custom tier pass
     };
 
     // A. Listen to the Root Document to safely read remote proLive status changes live
@@ -147,5 +148,21 @@ export function startLiveGameEventListener(teamId: string) {
       unsubGame();
       unsubEvents();
     };
+  }
+}
+
+export function stopLiveGameEventListener(teamId?: string) {
+  if (teamId) {
+    const teamCode = getTeamCode(teamId);
+    activeListeners[teamCode]?.();
+    delete activeListeners[teamCode];
+    delete lastSyncedOverTracker[teamCode];
+  } else {
+    // Stop all background tracking listeners globally
+    Object.keys(activeListeners).forEach((code) => {
+      activeListeners[code]();
+      delete activeListeners[code];
+      delete lastSyncedOverTracker[code];
+    });
   }
 }

@@ -20,7 +20,7 @@ export default function LiveScoresCard({ onPress }: Props) {
         <View style={{ flex: 1 }}>
           <Text style={styles.liveTitle}>Let fans follow every ball live</Text>
           <Text style={styles.liveSubtitle}>
-            Share your match with parents & supporters
+            Share your match with supporters
           </Text>
         </View>
 

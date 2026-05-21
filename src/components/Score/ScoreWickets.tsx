@@ -70,6 +70,11 @@ export default function ScoreWickets() {
     setDeltaQueue((q) => q.slice(1));
   };
 
+  console.log(
+    useMatchStore.getState().baseRuns,
+    " what is baserun in ScoreWickets?",
+  );
+
   return (
     <View>
       {/* Display total runs / wickets */}

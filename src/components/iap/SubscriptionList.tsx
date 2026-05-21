@@ -27,6 +27,7 @@ import {
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useLiveStore } from "../../state/liveStore";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 
 type Package = {
   identifier: string;
@@ -53,11 +54,14 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
   const [entitlements, setEntitlements] = useState<any>({});
   const selectedMode = useStartModalStore((state) => state.selectedMode);
   const setLivePro = useLiveStore((s) => s.setLivePro);
+  const setLiveProViewer = useLiveStore((s) => s.setLiveProViewer);
 
   const setProUnlocked = useMatchStore((state) => state.setProUnlocked);
   const setProUnlockedScorebook = useMatchStore(
     (state) => state.setProUnlockedScorebook,
   );
+
+  const isLiveViewer = useIsLiveViewer();
 
   const getCustomerInfoWithRetry = async (retries = 3) => {
     try {
@@ -96,12 +100,15 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
 
         let filteredPackages = allPackages;
 
-        // 1. Filter by tier first
-        if (tier === "supporter") {
+        // 🚀 FORCE 'supporter' tier if the custom hook detects a live viewer
+        const actualTier = isLiveViewer ? "supporter" : tier;
+
+        // 1. Filter by tier first using the forced actualTier value
+        if (actualTier === "supporter") {
           filteredPackages = filteredPackages.filter((pkg: any) =>
             PACKAGE_MAP.supporter.includes(pkg.product.identifier),
           );
-        } else if (tier === "coach") {
+        } else if (actualTier === "coach") {
           filteredPackages = filteredPackages.filter((pkg: any) =>
             PACKAGE_MAP.coach.includes(pkg.product.identifier),
           );
@@ -117,7 +124,8 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
           );
         }
 
-        if (tier !== "supporter" && tier !== "coach") {
+        // 🚀 Uses actualTier to prevent leakages
+        if (actualTier !== "supporter" && actualTier !== "coach") {
           filteredPackages = filteredPackages.filter(
             (pkg: any) =>
               !PACKAGE_MAP.supporter.includes(pkg.product.identifier),
@@ -133,7 +141,6 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       // 👇 separate block
       try {
         const customerInfo = await getCustomerInfoWithRetry();
-
         const activeEntitlements = customerInfo?.entitlements.active || {};
 
         setEntitlements(activeEntitlements);
@@ -141,10 +148,22 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
         setProUnlockedScorebook(
           activeEntitlements["scorebook_pro"]?.isActive ?? false,
         );
+
+        // 🚀 Change this line: Set liveProViewer based on supporter product presence
+        const isSupporterActive = Object.values(activeEntitlements).some(
+          (ent: any) =>
+            [
+              "pro_monthly_live_supporter",
+              "pro_season_live_supporter",
+              "4dot6_scorebook_lifetime_upgrade_live_supporter",
+            ].includes(ent.productIdentifier),
+        );
+        setLiveProViewer(isSupporterActive);
+
+        // Keep livePro updated for creator flows
         setLivePro(activeEntitlements["live_pro"]?.isActive ?? false);
       } catch (err) {
         console.warn("Failed to fetch customer info:", err);
-        // ✅ do nothing — keep existing state
       }
     } else {
       setPackages([
@@ -181,7 +200,7 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
     }
 
     fetchOfferings();
-  }, [visible]);
+  }, [visible, isLiveViewer]); // 🚀 Re-fetches clean data if the viewer status updates dynamically
 
   // Only listen while the modal is open — otherwise every RC callback updates
   // matchStore and re-renders any screen using broad useMatchStore() subscriptions.
@@ -193,13 +212,23 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       const active = customerInfo.entitlements.active || {};
       console.log("🔔 Customer info update:", active);
 
-      const isLiveProActive = active["live_pro"]?.isActive ?? false;
       const isBallActive = active["pro"]?.isActive ?? false;
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
+      const isLiveProActive = active["live_pro"]?.isActive ?? false;
+
+      // 🚀 Calculate viewer premium tier
+      const isSupporterActive = Object.values(active).some((ent: any) =>
+        [
+          "pro_monthly_live_supporter",
+          "pro_season_live_supporter",
+          "4dot6_scorebook_lifetime_upgrade_live_supporter",
+        ].includes(ent.productIdentifier),
+      );
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
       setLivePro(isLiveProActive);
+      setLiveProViewer(isSupporterActive); // 🚀 Set the viewer state independently
       setEntitlements(active);
 
       // Inside the useEffect listener (Step 2)
@@ -208,6 +237,7 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
           ballPro: isBallActive,
           scorebookPro: isScorebookActive,
           livePro: isLiveProActive, // 👈 Sync to personal user collection
+          liveProViewer: isSupporterActive,
         });
 
         // 🚀 ALSO UPDATE THE ACTIVE PUBLIC TEAM IF ONE IS ACTIVE
@@ -261,26 +291,34 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
       const isLiveProActive = active["live_pro"]?.isActive ?? false;
 
-      console.log(
-        "🎯 isBallActive:",
-        isBallActive,
-        "isScorebookActive:",
-        isScorebookActive,
+      // 🚀 Calculate viewer premium tier
+      const isSupporterActive = Object.values(active).some((ent: any) =>
+        [
+          "pro_monthly_live_supporter",
+          "pro_season_live_supporter",
+          "4dot6_scorebook_lifetime_upgrade_live_supporter",
+        ].includes(ent.productIdentifier),
       );
 
       setProUnlocked(isBallActive);
       setProUnlockedScorebook(isScorebookActive);
       setLivePro(isLiveProActive);
+      setLiveProViewer(isSupporterActive); // 🚀 Write to the viewer state
       setEntitlements(active);
 
-      // Inside handlePurchase success block (Step 3)
-      if (isBallActive || isScorebookActive || isLiveProActive) {
+      if (
+        isBallActive ||
+        isScorebookActive ||
+        isLiveProActive ||
+        isSupporterActive
+      ) {
         // 👈 Added live pro condition checks
         try {
           await saveSubscription({
             ballPro: isBallActive,
             scorebookPro: isScorebookActive,
             livePro: isLiveProActive,
+            liveProViewer: isSupporterActive,
           });
 
           // 🚀 ALSO UPDATE THE ACTIVE PUBLIC TEAM HERE

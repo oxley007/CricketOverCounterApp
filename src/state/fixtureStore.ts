@@ -113,6 +113,8 @@ interface FixtureState {
 
   upsertFixture: (incoming: Fixture) => void;
 
+  upsertBulkFixtures: (incomingList: Fixture[]) => void;
+
   clearCurrentFixture: () => void;
 
   deleteFixture: (fixtureId: string) => void;
@@ -233,7 +235,9 @@ export const useFixtureStore = create<FixtureState>()(
           battingTeamId: currentGame.battingTeamId,
           bowlingTeamId: currentGame.bowlingTeamId ?? "",
           matchEvents: [...events],
-          battingEntries: [...currentGame.battingEntries],
+          battingEntries: currentGame.battingEntries
+            ? [...currentGame.battingEntries]
+            : [],
           bowlers: [],
           totalRuns,
           totalWickets,
@@ -475,6 +479,23 @@ export const useFixtureStore = create<FixtureState>()(
           }
 
           return { fixtures: [incoming, ...state.fixtures] };
+        });
+      },
+
+      upsertBulkFixtures: (incomingList) => {
+        set((state) => {
+          // 1. Load up existing items into a quick lookup Map configuration
+          const fixtureMap = new Map(state.fixtures.map((f) => [f.id, f]));
+
+          // 2. Overwrite old elements or append new ones instantly
+          incomingList.forEach((incoming) => {
+            fixtureMap.set(incoming.id, incoming);
+          });
+
+          // 3. Return a clean, brand new array reference wrapper
+          return {
+            fixtures: Array.from(fixtureMap.values()),
+          };
         });
       },
 

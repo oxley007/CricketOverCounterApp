@@ -104,6 +104,7 @@ export interface MatchState {
   setMatchEvents: (events: MatchEvent[]) => void;
   getBallCount: () => number;
   reset: () => void;
+  resetInnings: () => void;
 
   // Global / Sync
   setLiveTeamId: (id: string) => void;

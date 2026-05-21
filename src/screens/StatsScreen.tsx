@@ -1,6 +1,6 @@
 // src/screens/StatsScreen.tsx
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import SubscriptionList from "../components/iap/SubscriptionList";
 import PlayerStatsModal from "../components/PlayerStatsModal";
@@ -13,6 +13,7 @@ import {
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore, Team } from "../state/teamStore";
 import { useLiveStore } from "../state/liveStore";
+import { listenAndMergeFixture } from "../services/fixtureSyncService";
 
 export default function StatsScreen() {
   const { teams } = useTeamStore();
@@ -25,6 +26,25 @@ export default function StatsScreen() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const startModal = useStartModalStore();
 
+  useEffect(() => {
+    if (!selectedTeamId) return;
+
+    console.log(
+      `📡 [LIFECYCLE] Initialising live match sync channel for team: ${selectedTeamId}`,
+    );
+
+    // 1. Fire up the snapshot stream
+    const unsubscribe = listenAndMergeFixture(selectedTeamId);
+
+    // 2. Clean up memory and close the connection when they switch teams or leave the page
+    return () => {
+      if (typeof unsubscribe === "function") {
+        console.log("🛑 [LIFECYCLE] Closing live sync channel.");
+        unsubscribe();
+      }
+    };
+  }, [selectedTeamId]);
+
   const openGameModeModal = () => {
     router.replace("/");
     setTimeout(() => startModal.reset(), 100);
@@ -35,30 +55,50 @@ export default function StatsScreen() {
 
   /* ========================= 1. DERIVED TEAMS (MERGED) ========================= */
   const supporterTeamNames = useLiveStore((s) => s.supporterTeamNames);
+  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
 
   const yourTeams = useMemo(() => {
     const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
     const uniqueTeams = new Map();
 
-    // Add your managed teams
+    // 1. Add all your managed local teams
     teams.forEach((t) => {
       uniqueTeams.set(normalize(t.id), { ...t, isSupporter: false });
     });
 
-    // Merge in supporter teams
+    // 2. Merge in all data from liveViewTeams directly
+    const safeLiveTeams = liveViewTeams || [];
+    safeLiveTeams.forEach((lt) => {
+      const normalizedId = normalize(lt.id);
+      const existing = uniqueTeams.get(normalizedId);
+
+      uniqueTeams.set(normalizedId, {
+        ...existing,
+        ...lt,
+        isSupporter: existing?.isSupporter ?? true,
+        // 🚀 FORCE PLAYER IDs TO LOWERCASE: Map over incoming live players
+        players: (lt.players ?? []).map((p) => ({
+          ...p,
+          id: (p.id || "").toLowerCase(),
+        })),
+      });
+    });
+
+    // 3. Fallback check for supporter codes not yet fully loaded in liveViewTeams
     supporterCodes.forEach((code) => {
       const normalizedId = normalize(code);
       if (!uniqueTeams.has(normalizedId)) {
         uniqueTeams.set(normalizedId, {
-          id: code, // Keep original casing for lookups
+          id: code,
           name: supporterTeamNames[code] || code,
           isSupporter: true,
+          players: [],
         });
       }
     });
 
     return Array.from(uniqueTeams.values());
-  }, [teams, supporterTeamNames]);
+  }, [teams, supporterTeamNames, liveViewTeams]);
 
   /* ========================= 2. DERIVED SEASONS ========================= */
   const seasons = useMemo(() => {
@@ -89,14 +129,24 @@ export default function StatsScreen() {
 
     // Scan all matching downloaded fixtures to piece together a collection of players
     const extractedPlayersMap = new Map();
+    // Look for this section inside your selectedTeam useMemo hook:
     fixtures
-      .filter(
-        (f) => normalize(f.yourTeam?.id || f.yourTeamId || "") === targetId,
-      )
+      .filter((f) => normalize(f.yourTeam?.id || "") === targetId)
       .forEach((f) => {
-        // Fall back to scanning any inner innings records if parent references are slim
-        (f.innings || []).forEach((inn) => {
-          (inn.battingEntries || []).forEach((b) => {
+        // 🚀 CRITICAL RESILIENCY FIX: Handle Object-dictionary vs Array variations safely
+        const safeInningsArray = Array.isArray(f.innings)
+          ? f.innings
+          : f.innings
+            ? Object.values(f.innings) // Fallback if Firebase saved it as a map map key layout
+            : [];
+
+        safeInningsArray.forEach((inn: any) => {
+          // 🚀 Added safety check for battingEntries as well
+          const safeBattingEntries = Array.isArray(inn?.battingEntries)
+            ? inn.battingEntries
+            : [];
+
+          safeBattingEntries.forEach((b: any) => {
             if (b.playerId && b.playerName) {
               extractedPlayersMap.set(b.playerId, {
                 id: b.playerId,
@@ -115,7 +165,7 @@ export default function StatsScreen() {
   }, [selectedTeamId, teams, yourTeams, fixtures]);
 
   /* ========================= SELECT LIVE SELECTION STATES ========================= */
-  const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
+  //const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
 
   // Check if the currently active selected team is a supporter profile card
   const isCurrentTeamSupporter = useMemo(() => {
@@ -202,6 +252,26 @@ export default function StatsScreen() {
       playerId: selectedPlayerId,
     });
   }, [fixtures, selectedPlayerId, selectedTeamId, selectedSeason]);
+
+  console.log(
+    JSON.stringify(useLiveStore.getState().playerCodesSupporter),
+    "check playerCodesSupporter",
+  );
+
+  console.log(
+    JSON.stringify(yourTeams),
+    "yourTeams need to check if it has player IDs.",
+  );
+
+  console.log(
+    JSON.stringify(useLiveStore.getState().liveViewTeams),
+    "liveViewTeams need to check if it has player IDs.",
+  );
+
+  console.log(
+    JSON.stringify(useFixtureStore.getState().fixtures),
+    "fixtures need to check if it has player IDs.",
+  );
 
   return (
     <View style={styles.container}>

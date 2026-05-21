@@ -260,8 +260,13 @@ export const useGameStore = create<GameState>()(
 
       startGame: (battingTeamId, bowlingTeamId, openingBatters = []) =>
         set((state) => {
-          // 🔴 GUARD: do not overwrite persisted game
           if (state.currentGame) {
+            // 🔴 GUARD: do not overwrite persisted game
+            console.log(
+              JSON.stringify(state.currentGame),
+              " check JSON.stringifystate.currentGame from me",
+            );
+
             console.log("⚠️ startGame skipped — game already exists");
             return state;
           }

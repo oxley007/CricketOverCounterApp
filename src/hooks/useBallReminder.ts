@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Vibration } from "react-native";
 import { useMatchStore } from "../state/matchStore";
+import { useIsLiveViewer } from "../hooks/useIsLiveViewer";
 
 export function useBallReminder(enabled: boolean = true) {
+  const isLiveViewer = useIsLiveViewer();
+
   const events = useMatchStore((state) => state.events);
   const proUnlocked = useMatchStore((state) => state.proUnlocked);
   const proUnlockedScorebook = useMatchStore((s) => s.proUnlockedScorebook);
@@ -141,7 +144,10 @@ export function useBallReminder(enabled: boolean = true) {
 
         console.log("Vibration check:", { proUnlocked, isFreeTrialPeriod });
 
-        if (proUnlocked || proUnlockedScorebook || isFreeTrialPeriod) {
+        if (
+          !isLiveViewer &&
+          (proUnlocked || proUnlockedScorebook || isFreeTrialPeriod)
+        ) {
           console.log("Vibrating now!");
 
           if (Platform.OS === "ios") {

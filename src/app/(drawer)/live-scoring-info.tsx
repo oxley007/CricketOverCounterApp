@@ -1,8 +1,16 @@
 // app/(drawer)/live-scoring-info.tsx
 
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { isRevenueCatAvailable, getOfferings } from "@/src/services/revenuecat";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import { useTeamStore } from "../../state/teamStore";
 import { useMatchStore } from "../../state/matchStore";
@@ -26,6 +34,9 @@ export default function LiveScoringInfo() {
   const router = useRouter();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [packages, setPackages] = useState<any[]>([]);
+  const [fetchingPrices, setFetchingPrices] = useState(true);
 
   const { requireAuth, authVisible, setAuthVisible } = useRequireAuth({
     allowGuest: true, // or false if you want to force login here later
@@ -53,6 +64,25 @@ export default function LiveScoringInfo() {
       2,
     ),
   );
+
+  useEffect(() => {
+    async function loadPrices() {
+      if (isRevenueCatAvailable()) {
+        try {
+          const offerings = await getOfferings();
+          const currentOffering = offerings?.current;
+          setPackages(currentOffering?.availablePackages || []);
+        } catch (err) {
+          console.error("Failed to fetch prices for info screen:", err);
+        } finally {
+          setFetchingPrices(false);
+        }
+      } else {
+        setFetchingPrices(false);
+      }
+    }
+    loadPrices();
+  }, []);
 
   const handleConfigureLive = async () => {
     if (loading) return;
@@ -160,6 +190,18 @@ export default function LiveScoringInfo() {
     });
   };
 
+  // FIND DYNAMIC PACKAGES FOR DISPLAYS
+  const coachMonthlyPkg = packages.find(
+    (pkg) => pkg.product.identifier === "pro_monthly_live",
+  );
+  const coachPrice = coachMonthlyPkg?.product.priceString || "$24.99/month";
+
+  const supporterMonthlyPkg = packages.find(
+    (pkg) => pkg.product.identifier === "pro_monthly_live_supporter",
+  );
+  const supporterPrice =
+    supporterMonthlyPkg?.product.priceString || "$4.99/month";
+
   return (
     <>
       <View style={styles.container}>
@@ -173,9 +215,7 @@ export default function LiveScoringInfo() {
           <View style={styles.sectionPillHeader}>
             <Text style={styles.title}>LittleWicket Live</Text>
 
-            <Text style={styles.subtitle}>
-              Keep parents and supporters in the loop!
-            </Text>
+            <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
           </View>
 
           {/* Main Card */}
@@ -231,10 +271,10 @@ export default function LiveScoringInfo() {
               <View style={styles.cardContent}>
                 <Text style={styles.tierTitle}>Coach / Manager Pays</Text>
                 <Text style={styles.bodyText}>
-                  A $24.99/month subscription covers the entire team.
+                  A {coachPrice} subscription covers the entire team.
                 </Text>
                 <Text style={styles.bodyText}>
-                  All parents get Pro access for free.
+                  All supporters get Pro access for free.
                 </Text>
               </View>
             </View>
@@ -256,8 +296,8 @@ export default function LiveScoringInfo() {
                   Free / Parent / Supporter Pays
                 </Text>
                 <Text style={styles.bodyText}>
-                  Each individual can use the Free Teir, or pay $4.99/month for
-                  their own Pro access.
+                  Each individual can use the Free Teir, or pay {supporterPrice}{" "}
+                  for their own Pro access.
                 </Text>
               </View>
             </View>
@@ -271,11 +311,15 @@ export default function LiveScoringInfo() {
 
           {/* CTA */}
           <Pressable
-            style={styles.ctaButton}
+            style={[styles.ctaButton, loading && styles.ctaButtonDisabled]}
             onPress={handleConfigureLive}
             disabled={loading}
           >
-            <Text style={styles.ctaText}>Configure Live Scores</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.ctaText}>Configure Live Scores</Text>
+            )}
           </Pressable>
         </ScrollView>
       </View>
@@ -366,6 +410,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
+  },
+  ctaButtonDisabled: {
+    backgroundColor: "#A0A0A0", // Greyed out colour
+    opacity: 0.7,
   },
   ctaText: {
     color: "#fff",

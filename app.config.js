@@ -64,7 +64,8 @@ export default ({ config }) => {
         "expo-splash-screen",
         {
           image: tenant.splash,
-          resizeMode: "cover",
+          resizeMode: "contain",
+          imageWidth: 250,
           backgroundColor: tenant.splashColor,
           dark: {
             backgroundColor: tenant.splashColor,
