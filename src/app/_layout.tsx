@@ -5,13 +5,17 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ActivityIndicator } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { onAuthStateChanged } from "firebase/auth";
-import { configureRevenueCat } from "../services/revenuecat";
+import {
+  configureRevenueCat,
+  isRevenueCatAvailable,
+} from "../services/revenuecat";
 import { syncUserData } from "../services/syncUserData";
 import { useAuthStore } from "../state/authStore";
 import { auth } from "./../services/firebaseConfig";
@@ -23,20 +27,29 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  const [isSdkReady, setIsSdkReady] = useState(false);
+
   useEffect(() => {
-    configureRevenueCat();
+    const initApp = async () => {
+      if (isRevenueCatAvailable()) {
+        try {
+          await configureRevenueCat(); // Make sure your helper wraps this as an async process or wait a tick
+        } catch (e) {
+          console.warn("RC Config error", e);
+        }
+      }
+      // Give the native bridge a tiny moment to settle before rendering billing items
+      setTimeout(() => setIsSdkReady(true), 600);
+    };
+
+    initApp();
 
     let hasSynced = false;
-
-    // Subscribe to Firebase auth changes
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         console.log("✅ Firebase session restored:", user.uid);
-
-        // ✅ Persist guest state
         useAuthStore.getState().setGuest(false);
 
-        // ✅ Only sync user data once per session
         if (!hasSynced) {
           hasSynced = true;
           try {
@@ -47,17 +60,23 @@ export default function RootLayout() {
         }
       } else {
         console.log("👤 No logged in user");
-
-        // ✅ Mark as guest
         useAuthStore.getState().setGuest(true);
-
-        // Reset sync flag so next login triggers sync
         hasSynced = false;
       }
     });
 
     return unsubscribe;
   }, []);
+
+  // 🚀 CRITICAL UI LOCK: Do not allow modal renders while the bridge is initializing
+  if (!isSdkReady) {
+    return (
+      <ActivityIndicator
+        size="large"
+        style={{ flex: 1, justifyContent: "center" }}
+      />
+    );
+  }
 
   return (
     <PaperProvider>

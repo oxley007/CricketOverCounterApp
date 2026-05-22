@@ -81,6 +81,25 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
     if (isRevenueCatAvailable()) {
       try {
         const offerings: any = await getOfferings();
+
+        // 🔍 ADD THESE FOUR RAW LOGS HERE
+        console.log(
+          "=== 🔴 RAW OFFERINGS ROOT OBJECT ===",
+          JSON.stringify(offerings, null, 2),
+        );
+        console.log(
+          "=== 🔴 ALL AVAILABLE OFFERINGS ===",
+          Object.keys(offerings?.all || {}),
+        );
+        console.log(
+          "=== 🔴 CURRENT OFFERING NAME ===",
+          offerings?.current?.identifier,
+        );
+        console.log(
+          "=== 🔴 RAW UNFILTERED PACKAGES COUNT ===",
+          offerings?.current?.availablePackages?.length || 0,
+        );
+
         const currentOffering = offerings?.current;
         const allPackages = currentOffering?.availablePackages || [];
 
@@ -234,6 +253,7 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
     setLoading(false);
   };
 
+  /*
   useEffect(() => {
     if (!visible) return;
 
@@ -243,6 +263,16 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
 
     fetchOfferings();
   }, [visible, isLiveViewer]); // 🚀 Re-fetches clean data if the viewer status updates dynamically
+  */
+
+  useEffect(() => {
+    if (!visible) return;
+
+    // 1. Completely remove configureRevenueCat() from here
+
+    // 2. Fetch fresh offerings safely
+    fetchOfferings();
+  }, [visible, isLiveViewer]);
 
   // Only listen while the modal is open — otherwise every RC callback updates
   // matchStore and re-renders any screen using broad useMatchStore() subscriptions.

@@ -14,7 +14,7 @@ export default ({ config }) => {
     ...config,
     name: tenant.name,
     slug: "cricket-umpire-ball-counter",
-    version: "5.3.2",
+    version: "5.3.3",
     icon: tenant.icon,
     orientation: "portrait",
     userInterfaceStyle: "automatic",
@@ -28,7 +28,7 @@ export default ({ config }) => {
       bundleIdentifier: tenant.bundleId,
       googleServicesFile: tenant.googleIos,
       supportsTablet: false,
-      buildNumber: "5.3.2",
+      buildNumber: "5.3.3",
       icon: tenant.iosIcon,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,

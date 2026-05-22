@@ -142,40 +142,39 @@ export default function LiveScoringInfo() {
       let success = false;
 
       try {
-        let fixtures = useFixtureStore.getState().fixtures;
+        // 1. Target the active current fixture directly
         const currentFixture = useFixtureStore.getState().currentFixture;
 
-        if (!fixtures.length && currentFixture) {
-          fixtures = [currentFixture];
-        }
-
-        console.log(JSON.stringify(fixtures), "fixtures is what?");
-
-        if (!fixtures.length) {
-          alert("No fixtures found. Please start a game first.");
-          return;
-        }
-
-        const rawTeamsFromFixtures = fixtures
-          .map((f) => f.yourTeam)
-          .filter((team) => !!team);
-
-        const uniqueTeamIds = [
-          ...new Set(rawTeamsFromFixtures.map((t) => t.id)),
-        ];
-
-        const { teams: globalTeams } = useTeamStore.getState();
-        const activeTeams = uniqueTeamIds
-          .map((id) => globalTeams.find((t) => t.id === id))
-          .filter((team): team is Team => !!team);
-
-        if (!activeTeams.length) {
+        if (!currentFixture || !currentFixture.yourTeam) {
           alert(
-            "No active teams found in your team store matching these fixtures.",
+            "No active fixture or team selected. Please start a game first.",
           );
           return;
         }
 
+        // 2. Prepare the fixtures array for backward compatibility with your creation services
+        const fixtures = [currentFixture];
+
+        // 3. Dynamically extract the single true ID you need to look up
+        const targetTeamId = currentFixture.yourTeam.id;
+        console.log(
+          "🎯 Targeting Active Team ID from Current Fixture:",
+          targetTeamId,
+        );
+
+        // 4. Find this specific team inside your global store
+        const { teams: globalTeams } = useTeamStore.getState();
+        const activeTeam = globalTeams.find(
+          (t) => String(t.id) === String(targetTeamId),
+        );
+        console.log("🏪 Matching Team Found in Store:", activeTeam);
+
+        // 5. Fallback cleanly to the fixture's own team object structure if missing from store
+        const activeTeams = activeTeam
+          ? [activeTeam]
+          : [currentFixture.yourTeam];
+
+        // 6. Gather remaining global store data for sync mutations
         const liveEvents = useMatchStore.getState().events;
         const liveTeams: LiveTeam[] = [];
         const { selectedMode } = useStartModalStore.getState();
@@ -225,8 +224,6 @@ export default function LiveScoringInfo() {
           success = true;
         }
 
-        // 3. Since the coach payment check was handled at the root,
-        // any successful run inside here safely routes to instructions
         if (success) {
           router.push("/live-scoring-instructions");
         }

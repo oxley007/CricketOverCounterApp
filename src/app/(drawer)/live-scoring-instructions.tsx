@@ -347,16 +347,6 @@ export default function LiveScoringInstructions() {
             <Icon name="content-copy" size={20} color="#fff" />
             <Text style={styles.copyText}>Copy Instructions</Text>
           </Pressable>
-
-          <Pressable style={styles.shareButton} onPress={handleWhatsApp}>
-            <Icon name="whatsapp" size={20} color="#fff" />
-            <Text style={styles.copyText}>Share via WhatsApp</Text>
-          </Pressable>
-
-          <Pressable style={styles.shareButtonAlt} onPress={handleSMS}>
-            <Icon name="message-text" size={20} color="#fff" />
-            <Text style={styles.copyText}>Share via SMS</Text>
-          </Pressable>
         </ScrollView>
       </View>
       <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
@@ -468,3 +458,15 @@ const styles = StyleSheet.create({
   },
   copyText: { color: "#fff", fontWeight: "700" },
 });
+
+/*
+<Pressable style={styles.shareButton} onPress={handleWhatsApp}>
+            <Icon name="whatsapp" size={20} color="#fff" />
+            <Text style={styles.copyText}>Share via WhatsApp</Text>
+          </Pressable>
+
+          <Pressable style={styles.shareButtonAlt} onPress={handleSMS}>
+            <Icon name="message-text" size={20} color="#fff" />
+            <Text style={styles.copyText}>Share via SMS</Text>
+          </Pressable>
+          */
