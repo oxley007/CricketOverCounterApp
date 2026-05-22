@@ -30,7 +30,10 @@
       }
     },
     "base-prod": {
-      "extends": "production"
+      "extends": "production",
+      "env": {
+        "APP_VARIANT": "umpire"
+      }
     },
     "development": {
       "developmentClient": true,
