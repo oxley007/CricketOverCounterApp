@@ -81,55 +81,97 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
     if (isRevenueCatAvailable()) {
       try {
         const offerings: any = await getOfferings();
-
         const currentOffering = offerings?.current;
         const allPackages = currentOffering?.availablePackages || [];
 
-        const PACKAGE_MAP = {
-          coach: [
-            "pro_monthly_live",
-            "pro_season_live",
-            "4dot6_scorebook_lifetime_upgrade_live",
-          ],
-          supporter: [
-            "pro_monthly_live_supporter",
-            "pro_season_live_supporter",
-            "4dot6_scorebook_lifetime_upgrade_live_supporter",
-          ],
-        };
+        // 1. Platform Map Definition
+        const PACKAGE_MAP = Platform.select({
+          ios: {
+            coach: ["rc_monthly_live", "rc_season_live", "rc_lifetime_live"],
+            supporter: [
+              "rc_monthly_live_supporter",
+              "rc_season_live_supporter",
+              "rc_lifetime_live_supporter",
+            ],
+          },
+          android: {
+            coach: ["rc_monthly_live", "rc_season_live", "rc_lifetime_live"],
+            supporter: [
+              "rc_monthly_live_supporter",
+              "rc_season_live_supporter",
+              "rc_lifetime_live_supporter",
+            ],
+          },
+          default: { coach: [], supporter: [] },
+        });
+
+        // 🔍 DEEP STRUCTURAL DIAGNOSTIC LOG
+        console.log(
+          "================ REVENUECAT DEEP IOS LOG ================",
+        );
+        allPackages.forEach((pkg: any, idx: number) => {
+          console.log(`📦 [Package #${idx + 1}]`);
+          console.log(`   -> Root pkg.identifier (RC Name):`, pkg.identifier);
+          console.log(`   -> Root pkg.packageType:`, pkg.packageType);
+          console.log(`   -> pkg.product object available?:`, !!pkg.product);
+          if (pkg.product) {
+            console.log(
+              `   -> pkg.product.identifier (Apple ID):`,
+              pkg.product.identifier,
+            );
+            console.log(
+              `   -> pkg.product.productId (Alternative):`,
+              pkg.product.productId,
+            );
+          }
+        });
+        console.log(
+          "=========================================================",
+        );
 
         let filteredPackages = allPackages;
-
-        // 🚀 FORCE 'supporter' tier if the custom hook detects a live viewer
         const actualTier = isLiveViewer ? "supporter" : tier;
 
-        // 1. Filter by tier first using the forced actualTier value
+        // 2. Clear Matching Evaluator
+        const isPackageMatch = (pkg: any, targetArray: string[]) => {
+          const rcPackageId = pkg.identifier;
+          const storeProductId = pkg.product?.identifier;
+
+          return (
+            targetArray.includes(rcPackageId) ||
+            (storeProductId && targetArray.includes(storeProductId))
+          );
+        };
+
+        // 3. Filter by tier first
         if (actualTier === "supporter") {
           filteredPackages = filteredPackages.filter((pkg: any) =>
-            PACKAGE_MAP.supporter.includes(pkg.product.identifier),
+            isPackageMatch(pkg, PACKAGE_MAP.supporter),
           );
-        } else if (actualTier === "coach") {
+        } else {
+          // Default fallback to coach options if tier state hasn't resolved explicitly yet
           filteredPackages = filteredPackages.filter((pkg: any) =>
-            PACKAGE_MAP.coach.includes(pkg.product.identifier),
+            isPackageMatch(pkg, PACKAGE_MAP.coach),
           );
         }
 
-        // 2. Then apply mode filter on TOP
-        if (selectedMode === "scorebook") {
-          filteredPackages = filteredPackages.filter(
-            (pkg: any) =>
-              pkg.product.identifier.includes("scorebook") ||
-              pkg.product.identifier === "4DOT6BYCPRO" ||
-              pkg.product.identifier === "4dot6bycplayerstats_android",
-          );
-        }
+        // 4. Cleaned Mode Filter: Explicitly ignore this block if we are filtering for Live items
+        const isLivePackageScreen = filteredPackages.some((pkg) =>
+          pkg.identifier?.includes("live"),
+        );
 
-        // 🚀 Uses actualTier to prevent leakages
-        if (actualTier !== "supporter" && actualTier !== "coach") {
-          filteredPackages = filteredPackages.filter(
-            (pkg: any) =>
-              !PACKAGE_MAP.supporter.includes(pkg.product.identifier),
-          );
+        if (selectedMode === "scorebook" && !isLivePackageScreen) {
+          filteredPackages = filteredPackages.filter((pkg: any) => {
+            const id =
+              pkg.product?.identifier ||
+              pkg.product?.productId ||
+              pkg.identifier;
+            return (
+              id.includes("scorebook") ||
+              id === "4DOT6BYCPRO" ||
+              pkg.product?.productId === "4dot6bycplayerstats_android"
+            );
+          });
         }
 
         setPackages(filteredPackages);
@@ -416,6 +458,17 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
                     </Text>
                   </View>
                 )}
+
+                <View>
+                  <Text style={styles.promoSubHeading}>Pro Live Scores</Text>
+                  <Text style={styles.promoText}>
+                    • Stream live match commentary to any device{"\n"}• Cover
+                    the full live setup for your entire team{"\n"}• All parents
+                    and supporters get Pro access for free{"\n"}• Live
+                    partnership runs, dots, and strike rotation %{"\n"}• Instant
+                    sync across player profiles and public rooms
+                  </Text>
+                </View>
               </View>
 
               {/* Legal links */}

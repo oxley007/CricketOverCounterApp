@@ -168,26 +168,56 @@ function HomeContent() {
   const hasSavedSubRef = useRef(false);
 
   useEffect(() => {
-    if (!isRevenueCatAvailable()) return;
+    if (!isRevenueCatAvailable()) {
+      console.log("ℹ️ RevenueCat skipped in useEffect: Module unavailable");
+      return;
+    }
 
-    // 🚀 Tracks real-time premium switches across the entire app session
     const listener = addCustomerInfoUpdateListener(async (customerInfo) => {
+      console.log(
+        "📊 Raw CustomerInfo Entitlements:",
+        JSON.stringify(customerInfo?.entitlements),
+      );
+      console.log(
+        "📦 Raw Active Product IDs:",
+        customerInfo?.activeSubscriptions,
+      );
+
       const active = customerInfo?.entitlements.active || {};
       console.log("🔔 Real-time Entitlement Update Detected:", active);
 
-      const isBallActive = active["pro"]?.isActive ?? false;
-      const isScorebookActive = active["scorebook_pro"]?.isActive ?? false;
-      const isLiveProActive = active["live_pro"]?.isActive ?? false;
+      // 1. Check if the specific premium tier ENTITLEMTS are globally unlocked
+      // (Matches the abstract entitlement identifiers configured in your dashboard)
+      const isBallActive = active["standard"]?.isActive ?? false;
+      const isScorebookActive = active["scorebook"]?.isActive ?? false;
+      const isLiveProActive = active["live"]?.isActive ?? false;
 
+      // 2. Identify if the current active purchase is specifically a supporter package
+      // by inspecting the underlying store product IDs active on this account profile
       const isSupporterActive = Object.values(active).some((ent: any) =>
         [
+          // Android Store Products
           "pro_monthly_live_supporter",
           "pro_season_live_supporter",
           "4dot6_scorebook_lifetime_upgrade_live_supporter",
+          // Base Plan / Suffix fallback inclusions
+          "pro_monthly_live_supporter:promonthlylivesupporterbaseplan",
+          "pro_season_live_supporter:proseasonlivesupporter",
+          "4dot6_scorebook_lifetime_upgrade_live_supporter",
+          // iOS Store Product Equivelants (If applicable)
+          "pro_monthly_live_supporter_ios",
+          "pro_season_live_supporter_ios",
         ].includes(ent.productIdentifier),
       );
 
-      // 1. Sync memory stores instantly
+      console.log("⚖️ Evaluated States:", {
+        isBallActive,
+        isScorebookActive,
+        isLiveProActive,
+        isSupporterActive,
+      });
+
+      // Update memory stores instantly
       setProUnlocked(isBallActive);
       useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
 
@@ -196,17 +226,20 @@ function HomeContent() {
       liveStore.setLiveProViewer(isSupporterActive);
 
       try {
-        // 2. Sync user profile document
+        console.log("💾 Attempting to sync subscription to backend...");
         await saveSubscription({
           ballPro: isBallActive,
           scorebookPro: isScorebookActive,
           livePro: isLiveProActive,
           liveProViewer: isSupporterActive,
         });
+        console.log("✅ Backend subscription sync complete.");
 
-        // 🚀 3. Update the matching live room document in Firestore instantly
         const activeTeams = liveStore.teams || [];
         if (activeTeams.length > 0) {
+          console.log(
+            `🔄 Syncing pro status for ${activeTeams.length} public teams...`,
+          );
           await Promise.all(
             activeTeams.map((liveTeam) =>
               updatePublicTeamProStatus(liveTeam.teamId, isLiveProActive),
@@ -214,7 +247,7 @@ function HomeContent() {
           );
         }
       } catch (e) {
-        console.warn("Failed to propagate purchase changes:", e);
+        console.warn("❌ Failed to propagate purchase changes:", e);
       }
     });
 
@@ -222,7 +255,7 @@ function HomeContent() {
       if (typeof listener === "function") listener();
       else if (listener?.remove) listener.remove();
     };
-  }, [setProUnlocked]); // 👈 Guarded only by mount lifecycle, not 'visible'
+  }, [setProUnlocked]);
 
   useEffect(() => {
     (async () => {

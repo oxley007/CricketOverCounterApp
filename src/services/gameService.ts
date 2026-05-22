@@ -88,12 +88,15 @@ export async function resumeLiveGame(teamId: string) {
       season: gameData.season || fixtureData.season || "",
     });
 
-    const liveTeams = await loadLiveViewTeams(teamId);
+    // Added safety fallback (|| []) to prevent undefined crashes
+    const liveTeams = (await loadLiveViewTeams(teamId)) || [];
+
     const normalizedTeams = liveTeams.map((team) => ({
-      id: team.teamId,
-      name: team.teamName,
-      players: team.players ?? [],
+      id: team?.teamId || "",
+      name: team?.teamName || "Unknown Team",
+      players: team?.players ?? [],
     }));
+
     useLiveStore.getState().setLiveViewTeams(normalizedTeams);
     console.log(JSON.stringify(normalizedTeams), "loaded live teams");
 

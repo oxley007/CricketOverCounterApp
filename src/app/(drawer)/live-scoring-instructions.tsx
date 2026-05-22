@@ -184,7 +184,7 @@ export default function LiveScoringInstructions() {
       ? `\nPlayer ID(s):\n${formattedPlayers}`
       : "";
 
-    return `Hi everyone,\n\nYou can now follow live scores for our games using the ${appName} app 🏏\n${proSubscriptionMessage}\n1. Download the app:\n- iOS: ${appStoreUrl}\n- Android: ${playStoreUrl}\n\n2. Enter the Team ID${playerInstructionHeader}\n\nTeam ID: ${teamCodeString}${playerIdsBlock}`;
+    return `Hi everyone,\n\nYou can now follow live scores for our games using the ${appName} app 🏏\n${proSubscriptionMessage}\n1. Download the app:\n- iOS: ${appStoreUrl}\n- Android: ${playStoreUrl}\n\n2. Tap Live Scores button\n\n3.Enter the Team ID${playerInstructionHeader}\n\nTeam ID: ${teamCodeString}${playerIdsBlock}`;
   }, [
     selectedTeam,
     selectedPlayerIds,
@@ -195,7 +195,7 @@ export default function LiveScoringInstructions() {
   ]);
 
   const reminderText = useMemo(() => {
-    return `Hi everyone,\n\nJust a reminder you can now follow live scores for our games using the 4dot6 Umpire Ball Counter app 🏏\n\n🎁 Good news! The Live Pro scoring subscription has already been paid for this team, so you can view all live scores completely pre-paid for you!\n\n1. Download the app:\n- iOS: https://apps.apple.com/nz/app/cricket-umpire-ball-counter/id1448840478\n- Android: https://play.google.com/store/apps/details?id=com.cricketovercounterapp\n\n2. Enter the Team ID\n\nTeam ID: ${teamCodeString}\n\nEnjoy the game!`;
+    return `Hi everyone,\n\nJust a reminder you can now follow live scores for our games using the 4dot6 Umpire Ball Counter app 🏏\n\n🎁 Good news! The Live Pro scoring subscription has already been paid for this team, so you can view all live scores completely pre-paid for you!\n\n1. Download the app:\n- iOS: https://apps.apple.com/nz/app/cricket-umpire-ball-counter/id1448840478\n- Android: https://play.google.com/store/apps/details?id=com.cricketovercounterapp\n\n2. Tap Live Scores button\n\n2.Enter the Team ID\n\nTeam ID: ${teamCodeString}\n\nEnjoy the game!`;
   }, [teamCodeString]);
 
   /*

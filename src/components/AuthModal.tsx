@@ -29,9 +29,19 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  title?: string;
+  subtitle?: string;
+  hideGuest?: boolean;
 };
 
-export default function AuthModal({ visible, onClose, onSuccess }: Props) {
+export default function AuthModal({
+  visible,
+  onClose,
+  onSuccess,
+  title = "Login or Sign Up",
+  subtitle = "Login or signup for free to allow your data/stats to be saved to the cloud",
+  hideGuest = false,
+}: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,30 +53,17 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
 
   // ================= GOOGLE SETUP (ANDROID) =================
   const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId:
-      "491833064477-2jflr5mn6m4msjkqsabev3nvka5jr526.apps.googleusercontent.com",
+    iosClientId: "://googleusercontent.com",
     androidClientId: isLittleWicket
-      ? "491833064477-cjbgf1cng2mo227lh3cfopfgqgov1d57.apps.googleusercontent.com"
-      : "491833064477-tg0evoem6vrkhiuv3isv378i0k1d6bo6.apps.googleusercontent.com",
-    webClientId:
-      "491833064477-5asu4eg1dj1mnshu7f6pfuisp6s5vh1n.apps.googleusercontent.com",
-    //redirectUri: AuthSession.makeRedirectUri({
-    // scheme: "cricketumpireballcounter",
-    //path: "oauthredirect",
-    //}),
-    //"491833064477-5asu4eg1dj1mnshu7f6pfuisp6s5vh1n.apps.googleusercontent.com",
-    // expoClientId: optional if using Expo Go
-    /*redirectUri: makeRedirectUri({
-      scheme: "cricketumpireballcounter", // Matches your android.package
-      path: "oauth2redirect",
-    }),*/
+      ? "://googleusercontent.com"
+      : "://googleusercontent.com",
+    webClientId: "://googleusercontent.com",
   });
 
   useEffect(() => {
     console.log("Auth Response Type:", response?.type);
 
     if (response?.type === "success" && response.authentication) {
-      // 1. Use idToken (camelCase)
       const { idToken } = response.authentication;
 
       if (idToken) {
@@ -106,14 +103,12 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
       if (e.code !== "ERR_REQUEST_CANCELED") {
         Alert.alert("Apple Login Failed", e.message || JSON.stringify(e));
       }
-      setLoading(false); // 👈 important (only reset on error/cancel)
+      setLoading(false);
     }
   };
 
-  // Create a helper to handle the "Success" flow
   const handleFinalizeLogin = async () => {
     setGuest(false);
-    //await syncUserData();
     onClose();
     onSuccess?.();
   };
@@ -136,11 +131,11 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
           await handleFinalizeLogin();
         } catch (signupErr: any) {
           Alert.alert("Signup Error", signupErr.message);
-          setLoading(false); // ✅ only reset on error
+          setLoading(false);
         }
       } else {
         Alert.alert("Login Error", err.message);
-        setLoading(false); // ✅ only reset on error
+        setLoading(false);
       }
     }
   };
@@ -163,17 +158,15 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
       } else {
         Alert.alert("Login Failed", err.message);
       }
-
-      setLoading(false); // ✅ only here
+      setLoading(false);
     }
   };
 
-  // ================= AUTO CLOSE WHEN ALREADY LOGGED IN =================
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setGuest(false);
-        onClose(); // ✅ still auto closes modal
+        onClose();
       }
     });
 
@@ -187,11 +180,8 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
         onDismiss={onClose}
         contentContainerStyle={styles.container}
       >
-        <Text style={styles.headerTitle}>Login or Sign Up</Text>
-        <Text style={styles.headerSubtitle}>
-          Login or signup for free to allow your data/stats to be saved to the
-          cloud
-        </Text>
+        <Text style={styles.headerTitle}>{title}</Text>
+        <Text style={styles.headerSubtitle}>{subtitle}</Text>
 
         {/* APPLE - iOS only */}
         {Platform.OS === "ios" && (
@@ -207,9 +197,9 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
               width: "100%",
               height: 44,
               marginBottom: 12,
-              opacity: loading ? 0.5 : 1, // 👈 visual feedback
+              opacity: loading ? 0.5 : 1,
             }}
-            onPress={loading ? undefined : handleAppleLogin} // 👈 prevents taps
+            onPress={loading ? undefined : handleAppleLogin}
           />
         )}
 
@@ -261,44 +251,47 @@ export default function AuthModal({ visible, onClose, onSuccess }: Props) {
           Continue with Email
         </Button>
 
-        {/* HORIZONTAL SEPARATOR */}
-        <View style={styles.separatorContainer}>
-          <View style={styles.line} />
-          <Text style={styles.orText}>OR</Text>
-          <View style={styles.line} />
-        </View>
+        {/* Continue as Guest (Conditionally Hidden) */}
+        {!hideGuest && (
+          <>
+            <View style={styles.separatorContainer}>
+              <View style={styles.line} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.line} />
+            </View>
 
-        {/* Continue as Guest */}
-        <Button
-          mode="outlined"
-          buttonColor="#ff7043"
-          onPress={() => {
-            Alert.alert(
-              "Continue as Guest",
-              "⚠️ Warning: Continuing as guest does NOT save your data or stats to the cloud.",
-              [
-                {
-                  text: "Cancel",
-                  style: "cancel",
-                },
-                {
-                  text: "Continue",
-                  onPress: () => {
-                    setGuest(true);
-                    onClose();
-                  },
-                },
-              ],
-            );
-          }}
-        >
-          Continue as Guest
-        </Button>
-        <Text style={styles.headerSubtitle}>
-          ⚠️ Warning: Continuing as Guest does NOT save your data or stats to
-          the cloud and they can be lost on app updates. It is strongly
-          recommended to signup above to save to cloud.
-        </Text>
+            <Button
+              mode="outlined"
+              buttonColor="#ff7043"
+              onPress={() => {
+                Alert.alert(
+                  "Continue as Guest",
+                  "⚠️ Warning: Continuing as guest does NOT save your data or stats to the cloud.",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Continue",
+                      onPress: () => {
+                        setGuest(true);
+                        onClose();
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              Continue as Guest
+            </Button>
+            <Text style={styles.headerSubtitle}>
+              ⚠️ Warning: Continuing as Guest does NOT save your data or stats
+              to the cloud and they can be lost on app updates. It is strongly
+              recommended to signup above to save to cloud.
+            </Text>
+          </>
+        )}
 
         <Button onPress={onClose} style={{ marginTop: 10 }}>
           Cancel
@@ -324,12 +317,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#555",
     marginBottom: 16,
-  },
-  emailSubtitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    textAlign: "center",
   },
   input: {
     borderWidth: 1,

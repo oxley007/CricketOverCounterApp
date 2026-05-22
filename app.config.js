@@ -65,7 +65,7 @@ export default ({ config }) => {
         {
           image: tenant.splash,
           resizeMode: "contain",
-          imageWidth: 250,
+          imageWidth: 288,
           backgroundColor: tenant.splashColor,
           dark: {
             backgroundColor: tenant.splashColor,

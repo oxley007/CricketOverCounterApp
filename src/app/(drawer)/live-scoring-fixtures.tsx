@@ -88,7 +88,12 @@ export default function LiveScoringFixtures() {
           </View>
         </ScrollView>
       </View>
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+      <AuthModal
+        visible={authVisible}
+        onClose={() => setAuthVisible(false)}
+        subtitle="Login or signup for free to allow your live scores to be saved to the cloud"
+        hideGuest={true}
+      />
     </>
   );
 }

@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import SubscriptionList from "../../components/iap/SubscriptionList";
-import { useTeamStore } from "../../state/teamStore";
+import { useTeamStore, type Team } from "../../state/teamStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useGameStore } from "../../state/gameStore";
 import { useStartModalStore } from "../../state/startModalStore";
@@ -23,8 +23,6 @@ import {
   updateLiveData,
   updatePublicTeamData,
 } from "../../services/firestoreService";
-//import { useLiveStore } from "../../state/liveStore";
-import { getActiveTeams } from "../../utils/getActiveTeams";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useLiveStore, type LiveTeam } from "../../state/liveStore";
 import { useRequireAuth } from "../../hooks/useRequireAuth";
@@ -35,17 +33,19 @@ export default function LiveScoringInfo() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const livePro = useLiveStore((state) => state.livePro);
+
   const [packages, setPackages] = useState<any[]>([]);
   const [fetchingPrices, setFetchingPrices] = useState(true);
 
+  // Enforce authentication by disabling guest fallback
   const { requireAuth, authVisible, setAuthVisible } = useRequireAuth({
-    allowGuest: true, // or false if you want to force login here later
+    allowGuest: false,
   });
 
   const [selectedTier, setSelectedTier] = useState<"coach" | "supporter">(
     "coach",
   );
-  //const setLiveConfigured = useLiveStore((s) => s.setLiveConfigured);
 
   const state = useLiveStore.getState();
 
@@ -69,15 +69,54 @@ export default function LiveScoringInfo() {
     async function loadPrices() {
       if (isRevenueCatAvailable()) {
         try {
+          console.log("🏁 UI hook: Requesting offerings from RevenueCat...");
           const offerings = await getOfferings();
-          const currentOffering = offerings?.current;
-          setPackages(currentOffering?.availablePackages || []);
+
+          if (!offerings) {
+            console.warn(
+              "⚠️ UI hook: offerings came back as null. Check SDK configuration logs.",
+            );
+            setPackages([]);
+            return;
+          }
+
+          console.log(
+            "📦 UI hook: Offerings object structure found:",
+            Object.keys(offerings.all),
+          );
+
+          const currentOffering = offerings.current;
+          if (!currentOffering) {
+            console.error(
+              "❌ UI hook: 'current' offering configuration is null. " +
+                "Ensure you have set a Current Offering in the RevenueCat Dashboard under Entitlements > Offerings.",
+            );
+            setPackages([]);
+            return;
+          }
+
+          const available = currentOffering.availablePackages || [];
+          console.log(
+            `✅ UI hook: Found ${available.length} packages within the current offering.`,
+          );
+
+          if (available.length === 0) {
+            console.warn(
+              "⚠️ UI hook: Current offering exists, but contains zero packages.",
+            );
+          }
+
+          setPackages(available);
         } catch (err) {
-          console.error("Failed to fetch prices for info screen:", err);
+          console.error(
+            "❌ UI hook: Failed to fetch prices for info screen:",
+            err,
+          );
         } finally {
           setFetchingPrices(false);
         }
       } else {
+        console.log("ℹ️ UI hook: RevenueCat is unavailable on this platform.");
         setFetchingPrices(false);
       }
     }
@@ -85,15 +124,31 @@ export default function LiveScoringInfo() {
   }, []);
 
   const handleConfigureLive = async () => {
+    console.log(
+      JSON.stringify(useFixtureStore.getState().currentFixture),
+      "check in currentFixture in live info",
+    );
     if (loading) return;
 
+    // 1. Guard check: If Coach selected but not Pro, open payment modal immediately and stop execution
+    if (selectedTier === "coach" && !livePro) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    // 2. Otherwise proceed with standard authentication and database configuration
     await requireAuth(async () => {
       setLoading(true);
-      // 1. Declare success at the function root level so 'finally' can see it
       let success = false;
 
       try {
-        const fixtures = useFixtureStore.getState().fixtures;
+        let fixtures = useFixtureStore.getState().fixtures;
+        const currentFixture = useFixtureStore.getState().currentFixture;
+
+        if (!fixtures.length && currentFixture) {
+          fixtures = [currentFixture];
+        }
+
         console.log(JSON.stringify(fixtures), "fixtures is what?");
 
         if (!fixtures.length) {
@@ -101,17 +156,14 @@ export default function LiveScoringInfo() {
           return;
         }
 
-        // 1. Extract raw yourTeam references from all fixtures
         const rawTeamsFromFixtures = fixtures
           .map((f) => f.yourTeam)
           .filter((team) => !!team);
 
-        // 2. Filter out duplicate IDs
         const uniqueTeamIds = [
           ...new Set(rawTeamsFromFixtures.map((t) => t.id)),
         ];
 
-        // 3. Look up the FULL Team structures from your global useTeamStore state
         const { teams: globalTeams } = useTeamStore.getState();
         const activeTeams = uniqueTeamIds
           .map((id) => globalTeams.find((t) => t.id === id))
@@ -133,7 +185,6 @@ export default function LiveScoringInfo() {
         const store = useLiveStore.getState();
         store.setLiveConfigured(true);
 
-        // 4. Loop through the verified, complete team objects
         for (const team of activeTeams) {
           const teamCode = await createPublicTeam(team, fixtures, liveEvents);
           if (!teamCode) continue;
@@ -165,7 +216,6 @@ export default function LiveScoringInfo() {
           const store = useLiveStore.getState();
           store.setTeams(liveTeams);
 
-          // ✅ Pass as an object matching the store's destructive parameter signature
           store.configureLive({
             teamId: liveTeams[0].teamId,
             teamCode: liveTeams[0].teamCode,
@@ -175,13 +225,12 @@ export default function LiveScoringInfo() {
           success = true;
         }
 
-        if (selectedTier === "coach") {
-          setShowSubscriptionModal(true);
-        } else {
+        // 3. Since the coach payment check was handled at the root,
+        // any successful run inside here safely routes to instructions
+        if (success) {
           router.push("/live-scoring-instructions");
         }
       } finally {
-        // ✅ This block can now read the success variable clearly
         if (!success) {
           useLiveStore.getState().setLiveConfigured(false);
         }
@@ -190,17 +239,28 @@ export default function LiveScoringInfo() {
     });
   };
 
-  // FIND DYNAMIC PACKAGES FOR DISPLAYS
   const coachMonthlyPkg = packages.find(
-    (pkg) => pkg.product.identifier === "pro_monthly_live",
+    (pkg) => pkg.identifier === "rc_monthly_live",
   );
   const coachPrice = coachMonthlyPkg?.product.priceString || "$24.99/month";
 
   const supporterMonthlyPkg = packages.find(
-    (pkg) => pkg.product.identifier === "pro_monthly_live_supporter",
+    (pkg) => pkg.identifier === "rc_monthly_live_supporter",
   );
   const supporterPrice =
     supporterMonthlyPkg?.product.priceString || "$4.99/month";
+
+  console.log(coachPrice, "coachPrice is wha?");
+
+  const getButtonText = () => {
+    if (livePro) {
+      return "Configure Live Scores";
+    }
+    if (selectedTier === "coach") {
+      return "Choose your subscription";
+    }
+    return "Configure Live Scores";
+  };
 
   return (
     <>
@@ -214,7 +274,6 @@ export default function LiveScoringInfo() {
           {/* Title */}
           <View style={styles.sectionPillHeader}>
             <Text style={styles.title}>LittleWicket Live</Text>
-
             <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
           </View>
 
@@ -224,90 +283,102 @@ export default function LiveScoringInfo() {
               Tap <Text style={styles.bold}>Configure Live Scores</Text> below
               to sync this account to the cloud.
             </Text>
-
             <Text style={styles.bodyText}>
               You’ll then get a unique Team ID and Player IDs to share with your
               team group chat.
             </Text>
           </View>
 
-          {/* How it works */}
-          <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>HOW IT WORKS</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.tierTitle}>FREE Tier</Text>
-            <Text style={styles.bodyText}>
-              Supporters see live scores and overs (updated every 2 overs, or
-              instantly at innings end).
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.tierTitle}>PRO Tier</Text>
-            <Text style={styles.bodyText}>
-              Real-time, ball-by-ball updates.
-            </Text>
-            <Text style={styles.bodyText}>
-              Includes full scorecards, run rates, batter/bowler stats, and
-              individual player performance.
-            </Text>
-          </View>
-
-          {/* Pricing */}
-          <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>Choose who pays for PRO:</Text>
-          </View>
-
-          <Pressable
-            style={styles.card}
-            onPress={() => setSelectedTier("coach")}
-          >
-            <View style={styles.cardRow}>
-              <View style={styles.radioOuter}>
-                {selectedTier === "coach" && <View style={styles.radioInner} />}
+          {!livePro ? (
+            <>
+              {/* How it works */}
+              <View style={styles.sectionPill}>
+                <Text style={styles.sectionPillText}>HOW IT WORKS</Text>
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.tierTitle}>Coach / Manager Pays</Text>
+              <View style={styles.card}>
+                <Text style={styles.tierTitle}>FREE Tier</Text>
                 <Text style={styles.bodyText}>
-                  A {coachPrice} subscription covers the entire team.
-                </Text>
-                <Text style={styles.bodyText}>
-                  All supporters get Pro access for free.
+                  Supporters see live scores and overs (updated every 2 overs,
+                  or instantly at innings end).
                 </Text>
               </View>
+              <View style={styles.card}>
+                <Text style={styles.tierTitle}>PRO Tier</Text>
+                <Text style={styles.bodyText}>
+                  Real-time, ball-by-ball updates.
+                </Text>
+                <Text style={styles.bodyText}>
+                  Includes full scorecards, run rates, batter/bowler stats, and
+                  individual player performance.
+                </Text>
+              </View>
+
+              {/* Pricing */}
+              <View style={styles.sectionPill}>
+                <Text style={styles.sectionPillText}>
+                  Choose who pays for PRO:
+                </Text>
+              </View>
+
+              <Pressable
+                style={styles.card}
+                onPress={() => setSelectedTier("coach")}
+              >
+                <View style={styles.cardRow}>
+                  <View style={styles.radioOuter}>
+                    {selectedTier === "coach" && (
+                      <View style={styles.radioInner} />
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.tierTitle}>Coach / Manager Pays</Text>
+                    <Text style={styles.bodyText}>
+                      A {coachPrice} subscription covers the entire team.
+                    </Text>
+                    <Text style={styles.bodyText}>
+                      All supporters get Pro access for free.
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Parent Card */}
+              <Pressable
+                style={styles.card}
+                onPress={() => setSelectedTier("supporter")}
+              >
+                <View style={styles.cardRow}>
+                  <View style={styles.radioOuter}>
+                    {selectedTier === "supporter" && (
+                      <View style={styles.radioInner} />
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.tierTitle}>Free / Supporter Pays</Text>
+                    <Text style={styles.bodyText}>
+                      Each individual can use the Free Teir*, or pay{" "}
+                      {supporterPrice} for their own Pro access.
+                    </Text>
+                    <Text style={styles.bodyTextSmall}>
+                      *Free Teir updates every 2 overs
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Note */}
+              <Text style={styles.note}>
+                Note: Each Player ID can be linked by up to 3 supporters (e.g.,
+                two parents and a grandparent).
+              </Text>
+            </>
+          ) : (
+            <View style={styles.proAlertBanner}>
+              <Text style={styles.proAlertText}>
+                Pro Live purchased, you can now configure your live scoring
+              </Text>
             </View>
-          </Pressable>
-
-          {/* Parent Card */}
-          <Pressable
-            style={styles.card}
-            onPress={() => setSelectedTier("supporter")}
-          >
-            <View style={styles.cardRow}>
-              <View style={styles.radioOuter}>
-                {selectedTier === "supporter" && (
-                  <View style={styles.radioInner} />
-                )}
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.tierTitle}>
-                  Free / Parent / Supporter Pays
-                </Text>
-                <Text style={styles.bodyText}>
-                  Each individual can use the Free Teir, or pay {supporterPrice}{" "}
-                  for their own Pro access.
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-
-          {/* Note */}
-          <Text style={styles.note}>
-            Note: Each Player ID can be linked by up to 3 supporters (e.g., two
-            parents and a grandparent).
-          </Text>
+          )}
 
           {/* CTA */}
           <Pressable
@@ -318,7 +389,7 @@ export default function LiveScoringInfo() {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.ctaText}>Configure Live Scores</Text>
+              <Text style={styles.ctaText}>{getButtonText()}</Text>
             )}
           </Pressable>
         </ScrollView>
@@ -328,7 +399,12 @@ export default function LiveScoringInfo() {
         onClose={() => setShowSubscriptionModal(false)}
         tier={selectedTier}
       />
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+      <AuthModal
+        visible={authVisible}
+        onClose={() => setAuthVisible(false)}
+        subtitle="Login or signup for free to allow your live scores to be saved to the cloud"
+        hideGuest={true}
+      />
     </>
   );
 }
@@ -340,10 +416,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   backButton: {
-    //marginTop: 40,
     marginBottom: 10,
     alignSelf: "flex-start",
     paddingVertical: 8,
@@ -360,9 +435,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
     fontWeight: "800",
-    //letterSpacing: 1,
   },
-
   subtitle: {
     fontSize: 16,
     color: "#fff",
@@ -395,6 +468,11 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 6,
   },
+  bodyTextSmall: {
+    fontSize: 10,
+    color: "#999",
+    marginBottom: 6,
+  },
   bold: {
     fontWeight: "700",
   },
@@ -403,16 +481,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 10,
     opacity: 0.85,
+    marginBottom: 15,
+  },
+  proAlertBanner: {
+    backgroundColor: "#2e7d32",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 15,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  proAlertText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 20,
   },
   ctaButton: {
-    marginTop: 30,
+    marginTop: 15,
     backgroundColor: "#c471ed",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
   ctaButtonDisabled: {
-    backgroundColor: "#A0A0A0", // Greyed out colour
+    backgroundColor: "#A0A0A0",
     opacity: 0.7,
   },
   ctaText: {
@@ -437,11 +531,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginTop: 20,
     marginBottom: 10,
-
-    alignItems: "center", // 👈 THIS is key
+    alignItems: "center",
     justifyContent: "center",
   },
-
   sectionPillText: {
     fontSize: 16,
     fontWeight: "800",
@@ -457,11 +549,11 @@ const styles = StyleSheet.create({
     width: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: "#c471ed", // Matches your CTA button color
+    borderColor: "#c471ed",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
-    marginTop: 2, // Aligns with the first line of text
+    marginTop: 2,
   },
   radioInner: {
     height: 10,

@@ -72,6 +72,7 @@ export default function StartModeModal() {
   */
 
   const handleStart = (type) => {
+    /*
     if (!hasSeenPrompt && features.showJuniorPrompt) {
       setPendingAction(type);
 
@@ -96,6 +97,7 @@ export default function StartModeModal() {
 
       return;
     }
+      */
 
     if (type === "ball") onBallCounter();
     if (type === "score") onScorebook();

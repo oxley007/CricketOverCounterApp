@@ -1,18 +1,43 @@
 // app/(drawer)/live-scoring-home.tsx
 
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import SubscriptionList from "../../components/iap/SubscriptionList";
 import AuthModal from "../../components/AuthModal";
+import { useLiveStore } from "@/src/state/liveStore";
 import { useRequireAuth } from "../../hooks/useRequireAuth";
 import { useStartModalStore } from "../../state/startModalStore";
 import ConnectToLiveTeam from "../../components/Live/ConnectToLiveTeam";
+import { listenAndMergeFixture } from "@/src/services/fixtureSyncService";
 
 export default function LiveScoringHome() {
   const router = useRouter();
 
   const openStartModal = useStartModalStore((s) => s.open);
+  const teamIds = useLiveStore((state) => state.teamCodesSupporter);
+
+  useEffect(() => {
+    // ✅ Correctly reading from the Zustand store
+    if (!teamIds || teamIds.length === 0) return;
+
+    console.log(
+      `📡 [LIFECYCLE] Initialising live match sync channels for teams: ${teamIds.join(", ")}`,
+    );
+
+    const unsubscribers = teamIds.map((teamId) => {
+      return listenAndMergeFixture(teamId);
+    });
+
+    return () => {
+      console.log("🛑 [LIFECYCLE] Closing all live sync channels.");
+      unsubscribers.forEach((unsubscribe) => {
+        if (typeof unsubscribe === "function") {
+          unsubscribe();
+        }
+      });
+    };
+  }, [teamIds]); // ✅ Dependency is now the extracted teamIds array
 
   const { requireAuth, authVisible, setAuthVisible } = useRequireAuth({
     allowGuest: false, // force login for this flow
@@ -88,7 +113,12 @@ export default function LiveScoringHome() {
           </View>
         </ScrollView>
       </View>
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+      <AuthModal
+        visible={authVisible}
+        onClose={() => setAuthVisible(false)}
+        subtitle="Login or signup for free to allow your live scores to be saved to the cloud"
+        hideGuest={true}
+      />
     </>
   );
 }
@@ -100,7 +130,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 380,
   },
   backButton: {
     //marginTop: 40,
