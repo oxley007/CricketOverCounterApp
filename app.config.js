@@ -42,7 +42,7 @@ export default ({ config }) => {
     android: {
       package: tenant.package,
       googleServicesFile: tenant.googleAndroid,
-      versionCode: 54,
+      versionCode: 55,
       adaptiveIcon: {
         backgroundColor: tenant.color,
         foregroundImage: tenant.iosIcon,
