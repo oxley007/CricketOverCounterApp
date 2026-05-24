@@ -72,7 +72,7 @@ module.exports = {
     color: "#2E7D32",
     splashColor: "#ffffff",
     icon: "./assets/images/icon-littlewicket.png",
-    iosIcon: "./assets/images/ios-icon-littlewicket.png",
+    iosIcon: "./assets/ios-icon-littlewicket.png",
     splash: "./assets/images/splash-littlewicket.png",
     googleIos: "./config/littlewicket/GoogleService-Info.plist",
     googleAndroid: "./config/littlewicket/google-services.json",

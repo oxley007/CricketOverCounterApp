@@ -248,6 +248,9 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
       setEntitlements({});
       setProUnlocked(false);
       setProUnlockedScorebook(false);
+
+      setLivePro(false);
+      setLiveProViewer(false);
     }
 
     setLoading(false);

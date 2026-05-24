@@ -178,6 +178,8 @@ export default function FixturesScreen() {
     );
   }, [fixtures, selectedTeamId, selectedSeason]);
 
+  //console.log(JSON.stringify(fixtures[0]), "fixtures have a loo in here [0]?");
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Fixtures</Text>

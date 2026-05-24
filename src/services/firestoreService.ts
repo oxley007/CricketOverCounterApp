@@ -57,6 +57,9 @@ async function writeLiveData(
     return;
   }
 
+  // 🔐 Prevent logged-out users from writing live state
+  if (!auth.currentUser?.uid) return;
+
   if (!data || typeof data !== "object") {
     console.warn("❌ writeLiveData expects an object, got:", data);
     return;
@@ -420,6 +423,13 @@ export async function clearLiveEvents(teamCodeRaw: string) {
     );
     return;
   }
+
+  // 🔐 Prevent logged-out users from making Firebase calls
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    console.log("ℹ️ Local play: clearLiveEvents skipped (no user).");
+    return;
+  }
   //const teamCode = `TEAM-${teamCodeRaw.toUpperCase()}`;
   const teamCode = getTeamCode(teamCodeRaw);
 
@@ -503,14 +513,13 @@ export async function deletePublicFixture(teamId: string, fixtureId: string) {
 }
 
 export async function ensurePublicTeamExists(team: Team) {
-  if (!isLiveConfigured()) {
-    console.log(
-      `⚠️ Sync skipped for ensurePublicTeamExists: liveConfigured is false.`,
-    );
-    return;
-  }
+  if (!isLiveConfigured()) return;
+
   const userId = auth.currentUser?.uid;
-  if (!userId) return null;
+  if (!userId) {
+    console.log("ℹ️ Local play: ensurePublicTeamExists skipped (no user).");
+    return null;
+  }
 
   const teamCode = `TEAM-${team.id.toUpperCase()}`;
   const teamRef = doc(db, "publicTeams", teamCode);
@@ -543,6 +552,10 @@ export async function addLiveEvent(teamId: string, event: any) {
     console.log(`⚠️ Sync skipped for addLiveEvent: liveConfigured is false.`);
     return;
   }
+
+  // 🔐 Prevent logged-out users from syncing balls/events
+  if (!auth.currentUser?.uid) return;
+
   const teamCode = getTeamCode(teamId);
 
   const ref = doc(db, "publicTeams", teamCode, "live", event.id);
@@ -629,6 +642,13 @@ export async function updatePublicTeamData(parentTeamId: string, team: Team) {
     );
     return;
   }
+
+  // 🔐 1. Prevent logged-out users from making Firebase calls
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    console.log("ℹ️ Local play: updatePublicTeamData skipped (no user).");
+    return;
+  }
   const teamCode = getTeamCode(parentTeamId);
 
   if (!teamCode) {
@@ -674,6 +694,10 @@ export async function syncLiveGame(teamId: string, game: any) {
     console.log(`⚠️ Sync skipped for syncLiveGame: liveConfigured is false.`);
     return;
   }
+
+  // 🔐 Prevent logged-out users from live syncing game updates
+  if (!auth.currentUser?.uid) return;
+
   const teamCode = getTeamCode(teamId);
 
   const gameData = cleanForFirestore(stripVolatileFields(game));
@@ -783,6 +807,9 @@ export async function updateSyncControl(
   events: any[],
   isGameComplete: boolean = false,
 ) {
+  // 🔐 Prevent logged-out users from hitting Firebase
+  if (!auth.currentUser?.uid) return;
+
   try {
     const teamCode = getTeamCode(teamId);
     const ref = doc(db, "publicTeams", teamCode, "liveData", "syncControl");

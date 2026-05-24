@@ -283,7 +283,7 @@ export default function EndInningsButton({
         pathname: "/match-summary",
         params: {
           //fixtureId: currentFixture?.id,
-          fixtureId: fixtureSnapshot.id,
+          fixtureId: completedFixture.id,
           prevMode: modeAtTimeOfReset,
         },
       });
