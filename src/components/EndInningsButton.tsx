@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -44,6 +45,33 @@ export default function EndInningsButton({
   onComplete,
 }: EndInningsButtonProps) {
   const router = useRouter();
+  const isFocused = useIsFocused();
+  const isFocusedRef = useRef(isFocused);
+
+  useEffect(() => {
+    isFocusedRef.current = isFocused;
+  }, [isFocused]);
+
+  const navigateToMatchSummaryIfFocused = (params: {
+    fixtureId: string;
+    prevMode?: string | null;
+  }) => {
+    if (!isFocusedRef.current) {
+      console.log(
+        "Skipping match-summary navigation: user navigated away during save",
+      );
+      return;
+    }
+
+    router.replace({
+      pathname: "/match-summary",
+      params: {
+        fixtureId: params.fixtureId,
+        prevMode: params.prevMode ?? undefined,
+      },
+    });
+  };
+
   const [visible, setVisible] = useState(false);
 
   // Live store resets
@@ -60,6 +88,7 @@ export default function EndInningsButton({
 
   const saving = useUIStore((s) => s.saving);
   const setSaving = useUIStore((s) => s.setSaving);
+  const isSaving = useStartModalStore((state) => state.isSaving);
 
   const currentFixture = useFixtureStore((s) => s.currentFixture);
 
@@ -151,6 +180,7 @@ export default function EndInningsButton({
   /* ======================== END GAME (SAVE) ======================== */
   const handleEndGame = async () => {
     setSaving(true);
+    useStartModalStore.getState().setIsSaving(true);
 
     try {
       const fixtureStore = useFixtureStore.getState();
@@ -184,76 +214,88 @@ export default function EndInningsButton({
 
       // 5️⃣ SAVE TO FIRESTORE + update local store safely
       try {
-        await saveFixture(completedFixture);
+        const isGuestUser = useAuthStore.getState().isGuest;
 
-        // Replace or append this fixture in local fixtures[]
-        useFixtureStore.setState((state) => ({
-          fixtures: [
-            ...state.fixtures.filter((f) => f.id !== completedFixture.id),
-            completedFixture,
-          ],
-          currentFixture: completedFixture,
-        }));
+        if (isGuestUser) {
+          console.log(
+            "👤 Guest mode detected: Skipping remote Firestore sync, writing locally only.",
+          );
 
-        console.log(
-          "💾 Fixture saved and merged locally:",
-          completedFixture.id,
-        );
+          useFixtureStore.setState((state) => ({
+            fixtures: [
+              ...state.fixtures.filter((f) => f.id !== completedFixture.id),
+              completedFixture,
+            ],
+            currentFixture: completedFixture,
+          }));
+        } else {
+          // Normal authenticated user flow
+          await saveFixture(completedFixture);
 
-        // 5b Save teams and players used in this fixture (best-effort)
-        const teams = useTeamStore.getState().teams;
-        const yourTeam = completedFixture.yourTeam?.id
-          ? teams.find((t) => t.id === completedFixture.yourTeam!.id)
-          : null;
-        const oppositionTeam = completedFixture.oppositionTeam?.id
-          ? teams.find((t) => t.id === completedFixture.oppositionTeam!.id)
-          : null;
-        for (const team of [yourTeam, oppositionTeam]) {
-          if (team) {
-            try {
-              await saveTeamWithPlayers(team);
-              console.log("💾 Team saved:", team.name);
-            } catch (e) {
-              console.warn("⚠️ Failed to save team:", team.name, e);
+          useFixtureStore.setState((state) => ({
+            fixtures: [
+              ...state.fixtures.filter((f) => f.id !== completedFixture.id),
+              completedFixture,
+            ],
+            currentFixture: completedFixture,
+          }));
+
+          console.log(
+            "💾 Fixture saved and merged locally:",
+            completedFixture.id,
+          );
+
+          // 5b Save teams and players used in this fixture (best-effort)
+          const teams = useTeamStore.getState().teams;
+          const yourTeam = completedFixture.yourTeam?.id
+            ? teams.find((t) => t.id === completedFixture.yourTeam!.id)
+            : null;
+          const oppositionTeam = completedFixture.oppositionTeam?.id
+            ? teams.find((t) => t.id === completedFixture.oppositionTeam!.id)
+            : null;
+          for (const team of [yourTeam, oppositionTeam]) {
+            if (team) {
+              try {
+                await saveTeamWithPlayers(team);
+                console.log("💾 Team saved:", team.name);
+              } catch (e) {
+                console.warn("⚠️ Failed to save team:", team.name, e);
+              }
             }
           }
-        }
 
-        // 5c Sync IAP/subscription status to Firestore (best-effort)
-        try {
-          await saveSubscription(useMatchStore.getState().proUnlocked ?? false);
-        } catch (e) {
-          console.warn("⚠️ Failed to save subscription status:", e);
-        }
-
-        // ✅ Clear live Firebase events (match is finished)
-        const liveStore = useLiveStore.getState();
-
-        /*
-        const liveTeam = liveStore.teams.find(
-          (t) => t.teamId === completedFixture.yourTeam?.id,
-        );
-        */
-
-        if (liveStore.teamCode) {
+          // 5c Sync IAP/subscription status to Firestore (best-effort)
           try {
-            await clearLiveEvents(liveStore.teamCode);
+            await saveSubscription(
+              useMatchStore.getState().proUnlocked ?? false,
+            );
           } catch (e) {
-            console.warn("⚠️ Failed to clear live events:", e);
+            console.warn("⚠️ Failed to save subscription status:", e);
           }
-        }
 
-        if (liveStore.teamCode) {
-          try {
-            await saveLiveFixture(liveStore.teamCode, completedFixture);
-          } catch (e) {
-            console.warn("⚠️ Failed to save public fixture:", e);
+          // ✅ Clear live Firebase events (match is finished)
+          const liveStore = useLiveStore.getState();
+
+          if (liveStore.teamCode) {
+            try {
+              await clearLiveEvents(liveStore.teamCode);
+            } catch (e) {
+              console.warn("⚠️ Failed to clear live events:", e);
+            }
           }
-        }
+
+          if (liveStore.teamCode) {
+            try {
+              await saveLiveFixture(liveStore.teamCode, completedFixture);
+            } catch (e) {
+              console.warn("⚠️ Failed to save public fixture:", e);
+            }
+          }
+        } // End of authenticate check branch block
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
         Alert.alert("Error", "Failed to save fixture. Try again.");
-        throw err; // rethrow so outer finally runs finally
+        throw err;
       }
 
       // Ensure the options modal is closed before navigating
@@ -267,7 +309,7 @@ export default function EndInningsButton({
       useGameStore.getState().resetGame();
 
       // 8️⃣ Reset start modal and navigate to summary
-      useStartModalStore.getState().reset();
+      //useStartModalStore.getState().reset();
 
       // 🔑 reset game setup modal state
       useGameStore.getState().setSetupComplete(true);
@@ -279,13 +321,31 @@ export default function EndInningsButton({
 
       onComplete?.();
 
-      router.replace({
-        pathname: "/match-summary",
-        params: {
-          //fixtureId: currentFixture?.id,
-          fixtureId: completedFixture.id,
-          prevMode: modeAtTimeOfReset,
-        },
+      setSaving(false);
+      useStartModalStore.getState().setIsSaving(false);
+
+      // 🚀 THE FINAL FIX: Keep it in memory using an explicit object replacement state!
+      // This wipes currentFixture to break the parent loop, but temporarily provides
+      // completedFixture back to memory so match-summary can find it even if database persistence lags.
+      useFixtureStore.setState({
+        currentFixture: undefined,
+        fixtures: [
+          ...useFixtureStore
+            .getState()
+            .fixtures.filter((f) => f.id !== completedFixture.id),
+          completedFixture,
+        ],
+      });
+
+      // 🚀 If we are staying on this view layout (ball counter), turn off spinners
+      if (modeAtTimeOfReset === "ballCounter" || !modeAtTimeOfReset) {
+        setSaving(false);
+        useStartModalStore.getState().setIsSaving(false);
+      }
+
+      navigateToMatchSummaryIfFocused({
+        fixtureId: completedFixture.id,
+        prevMode: modeAtTimeOfReset,
       });
 
       console.log(
@@ -295,12 +355,14 @@ export default function EndInningsButton({
     } catch (err) {
       console.error("❌ Error in handleEndGame:", err);
       setSaving(false);
+      useStartModalStore.getState().setIsSaving(false);
     }
   };
 
   /* ======================== ABANDON MATCH ======================== */
   const handleAbandonMatch = async () => {
-    setSaving(true);
+    //setSaving(true);
+    useStartModalStore.getState().setIsSaving(true);
 
     try {
       const fixtureStore = useFixtureStore.getState();
@@ -424,11 +486,23 @@ export default function EndInningsButton({
       // 🔑 reset game setup modal state
       useGameStore.getState().setSetupComplete(true);
 
+      // ... Everything else above in handleAbandonMatch remains untouched ...
+
       onComplete?.();
 
-      router.replace({
-        pathname: "/match-summary",
-        params: { fixtureId: abandonedFixture.id },
+      // 🚀 THE FIX: Shut down spinners here too before resetting the stores
+      setSaving(false);
+      useStartModalStore.getState().setIsSaving(false);
+
+      // 🚀 Move your store resets down here
+      useMatchStore.getState().resetInnings();
+      useGameStore.getState().resetBatters();
+      useGameStore.getState().resetGame();
+      useStartModalStore.getState().reset();
+      useGameStore.getState().setSetupComplete(true);
+
+      navigateToMatchSummaryIfFocused({
+        fixtureId: abandonedFixture.id,
       });
 
       console.log(
@@ -437,7 +511,7 @@ export default function EndInningsButton({
       );
     } catch (err) {
       console.error("❌ Error in handleAbandonMatch:", err);
-      setSaving(false);
+      useStartModalStore.getState().setIsSaving(false);
     }
   };
 
@@ -526,13 +600,9 @@ export default function EndInningsButton({
 
     onComplete?.();
 
-    router.replace({
-      pathname: "/match-summary",
-      params: {
-        //fixtureId: currentFixture?.id,
-        fixtureId: fixtureSnapshot.id,
-        prevMode: modeAtTimeOfReset,
-      },
+    navigateToMatchSummaryIfFocused({
+      fixtureId: fixtureSnapshot.id,
+      prevMode: modeAtTimeOfReset,
     });
   };
 
@@ -572,38 +642,53 @@ export default function EndInningsButton({
               <Button
                 mode="contained"
                 buttonColor="#c471ed"
-                disabled={saving}
+                disabled={isSaving}
+                loading={isSaving}
                 onPress={async () => {
+                  // 1️⃣ Lock down UI states immediately
                   setSaving(true);
+                  useStartModalStore.getState().setIsSaving(true);
+
                   try {
+                    // 🚀 THE FIX: Put requireAuth back! It handles showing the login modal.
                     await requireAuth(async () => {
                       await handleEndGame();
                     });
-                  } finally {
+                  } catch (e) {
+                    // 🚀 Clean fallback: Unlock the spinners if login is cancelled or an error occurs
+                    console.error("❌ End game or auth failed:", e);
                     setSaving(false);
+                    useStartModalStore.getState().setIsSaving(false);
                   }
                 }}
                 style={styles.primaryAction}
-                labelStyle={{ color: "#fff" }} // make sure text renders
+                labelStyle={{ color: "#fff" }}
               >
                 {selectedMode === "scorebook"
                   ? "End Game (Save, with result)"
                   : "Reset Ball Counter"}
               </Button>
+
               {selectedMode === "scorebook" && (
                 <>
                   <Button
                     mode="contained"
                     buttonColor="#f97316"
-                    disabled={saving}
+                    disabled={isSaving}
+                    loading={isSaving}
                     onPress={async () => {
                       setSaving(true);
+                      useStartModalStore.getState().setIsSaving(true);
+
                       try {
+                        // 🚀 Put requireAuth back here too
                         await requireAuth(async () => {
                           await handleAbandonMatch();
                         });
-                      } finally {
+                      } catch (e) {
+                        console.error("❌ Abandon match or auth failed:", e);
                         setSaving(false);
+                        useStartModalStore.getState().setIsSaving(false);
                       }
                     }}
                   >
