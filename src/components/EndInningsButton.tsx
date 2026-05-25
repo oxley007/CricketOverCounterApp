@@ -13,7 +13,7 @@ import { Button, Modal, Portal } from "react-native-paper";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 
 import { useRouter } from "expo-router";
-//import { auth } from "../services/firebaseConfig";
+import { auth } from "../services/firebaseConfig";
 import {
   saveFixture,
   saveSubscription,
@@ -73,6 +73,7 @@ export default function EndInningsButton({
   };
 
   const [visible, setVisible] = useState(false);
+  const endGameInProgressRef = useRef(false);
 
   // Live store resets
   const resetInnings = useMatchStore((s) => s.resetInnings);
@@ -184,6 +185,9 @@ export default function EndInningsButton({
 
   /* ======================== END GAME (SAVE) ======================== */
   const handleEndGame = async () => {
+    if (endGameInProgressRef.current) return;
+
+    endGameInProgressRef.current = true;
     setSaving(true);
     useStartModalStore.getState().setIsSaving(true);
     const wasGuest = useAuthStore.getState().isGuest;
@@ -191,10 +195,11 @@ export default function EndInningsButton({
     try {
       const fixtureStore = useFixtureStore.getState();
 
-      // 1️⃣ Increment guest matches if needed (before any guest flag is cleared)
-      if (wasGuest) useAuthStore.getState().incrementGuestMatches();
+      if (!fixtureStore.currentFixture && useGameStore.getState().gameConfig) {
+        await fixtureStore.startFixture();
+      }
 
-      // 2️⃣ Save current innings snapshot (updates store)
+      // Save current innings snapshot (updates store)
       fixtureStore.saveCurrentInnings();
 
       const completedFixture = JSON.parse(
@@ -340,6 +345,10 @@ export default function EndInningsButton({
 
       resetGuestIfNeeded();
 
+      if (wasGuest) {
+        useAuthStore.getState().incrementGuestMatches();
+      }
+
       navigateToMatchSummaryIfFocused({
         fixtureId: completedFixture.id,
         prevMode: modeAtTimeOfReset,
@@ -352,6 +361,7 @@ export default function EndInningsButton({
     } catch (err) {
       console.error("❌ Error in handleEndGame:", err);
     } finally {
+      endGameInProgressRef.current = false;
       clearSavingState();
     }
   };
@@ -729,8 +739,11 @@ export default function EndInningsButton({
       <AuthModal
         visible={authVisible}
         onClose={() => {
-          dismissAuthGate();
-          clearSavingState();
+          // Only treat as cancel — guest/login success resumes via useRequireAuth
+          if (!auth.currentUser && !useAuthStore.getState().isGuest) {
+            dismissAuthGate();
+            clearSavingState();
+          }
         }}
       />
     </View>

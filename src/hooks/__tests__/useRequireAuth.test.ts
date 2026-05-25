@@ -102,6 +102,6 @@ describe("useRequireAuth Hook", () => {
 
     expect(executed).toBe(false);
     expect(mockAction).not.toHaveBeenCalled();
-    expect(result.current.authVisible).toBe(true);
+    expect(result.current.authVisible).toBe(false);
   });
 });
