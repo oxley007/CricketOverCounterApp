@@ -98,9 +98,14 @@ export default function EndInningsButton({
   const selectedMode = useStartModalStore((s) => s.selectedMode);
   //const isScorebook = selectedMode === "scorebook";
 
-  const { requireAuth, authVisible, setAuthVisible } = useRequireAuth({
+  const { requireAuth, authVisible, dismissAuthGate } = useRequireAuth({
     enforceGuestLimit: true,
   });
+
+  const clearSavingState = () => {
+    setSaving(false);
+    useStartModalStore.getState().setIsSaving(false);
+  };
 
   /*
   const requireAuth = async (action: () => Promise<void>) => {
@@ -181,18 +186,15 @@ export default function EndInningsButton({
   const handleEndGame = async () => {
     setSaving(true);
     useStartModalStore.getState().setIsSaving(true);
+    const wasGuest = useAuthStore.getState().isGuest;
 
     try {
       const fixtureStore = useFixtureStore.getState();
-      const isGuest = useAuthStore.getState().isGuest;
 
-      // 1️⃣ Increment guest matches if needed
-      if (isGuest) useAuthStore.getState().incrementGuestMatches();
+      // 1️⃣ Increment guest matches if needed (before any guest flag is cleared)
+      if (wasGuest) useAuthStore.getState().incrementGuestMatches();
 
-      // 2️⃣ Reset guest if needed
-      resetGuestIfNeeded();
-
-      // 3️⃣ Save current innings snapshot (updates store)
+      // 2️⃣ Save current innings snapshot (updates store)
       fixtureStore.saveCurrentInnings();
 
       const completedFixture = JSON.parse(
@@ -200,6 +202,10 @@ export default function EndInningsButton({
       ) as Fixture;
       if (!completedFixture) {
         console.warn("⚠️ No current fixture to end");
+        Alert.alert(
+          "Nothing to save",
+          "No match data was found. Finish game setup and try again.",
+        );
         return;
       }
 
@@ -214,9 +220,7 @@ export default function EndInningsButton({
 
       // 5️⃣ SAVE TO FIRESTORE + update local store safely
       try {
-        const isGuestUser = useAuthStore.getState().isGuest;
-
-        if (isGuestUser) {
+        if (wasGuest) {
           console.log(
             "👤 Guest mode detected: Skipping remote Firestore sync, writing locally only.",
           );
@@ -321,9 +325,6 @@ export default function EndInningsButton({
 
       onComplete?.();
 
-      setSaving(false);
-      useStartModalStore.getState().setIsSaving(false);
-
       // 🚀 THE FINAL FIX: Keep it in memory using an explicit object replacement state!
       // This wipes currentFixture to break the parent loop, but temporarily provides
       // completedFixture back to memory so match-summary can find it even if database persistence lags.
@@ -337,11 +338,7 @@ export default function EndInningsButton({
         ],
       });
 
-      // 🚀 If we are staying on this view layout (ball counter), turn off spinners
-      if (modeAtTimeOfReset === "ballCounter" || !modeAtTimeOfReset) {
-        setSaving(false);
-        useStartModalStore.getState().setIsSaving(false);
-      }
+      resetGuestIfNeeded();
 
       navigateToMatchSummaryIfFocused({
         fixtureId: completedFixture.id,
@@ -354,8 +351,8 @@ export default function EndInningsButton({
       );
     } catch (err) {
       console.error("❌ Error in handleEndGame:", err);
-      setSaving(false);
-      useStartModalStore.getState().setIsSaving(false);
+    } finally {
+      clearSavingState();
     }
   };
 
@@ -645,20 +642,17 @@ export default function EndInningsButton({
                 disabled={isSaving}
                 loading={isSaving}
                 onPress={async () => {
-                  // 1️⃣ Lock down UI states immediately
                   setSaving(true);
                   useStartModalStore.getState().setIsSaving(true);
 
                   try {
-                    // 🚀 THE FIX: Put requireAuth back! It handles showing the login modal.
-                    await requireAuth(async () => {
+                    const executed = await requireAuth(async () => {
                       await handleEndGame();
                     });
+                    if (!executed) clearSavingState();
                   } catch (e) {
-                    // 🚀 Clean fallback: Unlock the spinners if login is cancelled or an error occurs
                     console.error("❌ End game or auth failed:", e);
-                    setSaving(false);
-                    useStartModalStore.getState().setIsSaving(false);
+                    clearSavingState();
                   }
                 }}
                 style={styles.primaryAction}
@@ -681,14 +675,13 @@ export default function EndInningsButton({
                       useStartModalStore.getState().setIsSaving(true);
 
                       try {
-                        // 🚀 Put requireAuth back here too
-                        await requireAuth(async () => {
+                        const executed = await requireAuth(async () => {
                           await handleAbandonMatch();
                         });
+                        if (!executed) clearSavingState();
                       } catch (e) {
                         console.error("❌ Abandon match or auth failed:", e);
-                        setSaving(false);
-                        useStartModalStore.getState().setIsSaving(false);
+                        clearSavingState();
                       }
                     }}
                   >
@@ -733,7 +726,13 @@ export default function EndInningsButton({
         </Modal>
       </Portal>
 
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+      <AuthModal
+        visible={authVisible}
+        onClose={() => {
+          dismissAuthGate();
+          clearSavingState();
+        }}
+      />
     </View>
   );
 }

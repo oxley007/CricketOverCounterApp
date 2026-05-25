@@ -38,10 +38,12 @@ describe("useRequireAuth Hook", () => {
 
     const { result } = renderHook(() => useRequireAuth());
 
+    let executed = false;
     await act(async () => {
-      await result.current.requireAuth(mockAction);
+      executed = await result.current.requireAuth(mockAction);
     });
 
+    expect(executed).toBe(true);
     expect(mockAction).toHaveBeenCalledTimes(1);
     expect(result.current.authVisible).toBe(false);
   });
@@ -55,11 +57,13 @@ describe("useRequireAuth Hook", () => {
     const { result } = renderHook(() => useRequireAuth({ allowGuest: false }));
 
     // Act: Attempt to run the action
+    let executed = true;
     await act(async () => {
-      await result.current.requireAuth(mockAction);
+      executed = await result.current.requireAuth(mockAction);
     });
 
     // Assert: Action is queued up silently, and modal is visible
+    expect(executed).toBe(false);
     expect(mockAction).not.toHaveBeenCalled();
     expect(result.current.authVisible).toBe(true);
 
@@ -91,10 +95,12 @@ describe("useRequireAuth Hook", () => {
       useRequireAuth({ enforceGuestLimit: true }),
     );
 
+    let executed = true;
     await act(async () => {
-      await result.current.requireAuth(mockAction);
+      executed = await result.current.requireAuth(mockAction);
     });
 
+    expect(executed).toBe(false);
     expect(mockAction).not.toHaveBeenCalled();
     expect(result.current.authVisible).toBe(true);
   });

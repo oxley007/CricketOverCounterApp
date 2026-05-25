@@ -34,28 +34,32 @@ export function useRequireAuth(options?: Options) {
     };
   }, [authVisible, pendingAction]);
 
+  const dismissAuthGate = useCallback(() => {
+    setPendingAction(null);
+    setAuthVisible(false);
+  }, []);
+
   const requireAuth = useCallback(
-    async (action: () => Promise<void>) => {
+    async (action: () => Promise<void>): Promise<boolean> => {
       const { allowGuest = true, enforceGuestLimit = false } = options || {};
       const { isGuest, guestMatchesPlayed } = useAuthStore.getState();
 
       if (!auth.currentUser && (!isGuest || !allowGuest)) {
-        // ✅ Change this line inside your requireAuth function:
         setPendingAction(() => () => action());
-
         setAuthVisible(true);
-        return;
+        return false;
       }
 
       if (enforceGuestLimit && isGuest && guestMatchesPlayed >= 1) {
         setAuthVisible(true);
-        return;
+        return false;
       }
 
       await action();
+      return true;
     },
     [options],
   );
 
-  return { requireAuth, authVisible, setAuthVisible };
+  return { requireAuth, authVisible, setAuthVisible, dismissAuthGate };
 }
