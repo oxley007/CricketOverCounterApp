@@ -1,10 +1,10 @@
 import { Alert } from "react-native";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
-import { useFixtureStore } from "../state/fixtureStore";
+//import { useFixtureStore } from "../state/fixtureStore";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 import { useFeedback } from "../hooks/useFeedback";
-import { syncLiveGame } from "../services/firestoreService";
+//import { syncLiveGame } from "../services/firestoreService";
 
 export function useDotBallAction(isScorebook: boolean) {
   const triggerTap = useFeedback().triggerTap;

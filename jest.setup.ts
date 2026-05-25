@@ -48,3 +48,14 @@ jest.mock("@firebase/auth", () => ({
   getAuth: jest.fn(() => ({})),
   initializeAuth: jest.fn(() => ({})),
 }));
+
+jest.mock("react-native/Libraries/Vibration/Vibration", () => ({
+  vibrate: jest.fn(),
+}));
+
+// jest.setup.ts
+
+// ✅ ADD THIS: Intercepts native React Native alerts
+jest.mock("react-native/Libraries/Alert/Alert", () => ({
+  alert: jest.fn(),
+}));

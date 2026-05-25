@@ -379,9 +379,17 @@ export default function SelectPlayersModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <SafeAreaView style={styles.safe}>
-          <View style={styles.container}>
+          <View
+            style={styles.container}
+            onTouchStart={() =>
+              console.log(
+                `[Container Touch] Layout container intercepted a touch at: ${Date.now()}`,
+              )
+            }
+          >
             <FlatList
-              style={styles.scroll}
+              style={[styles.scroll, { flex: 1, minHeight: 200 }]} // Force it to fill available room cleanly
+              contentContainerStyle={{ flexGrow: 1 }}
               keyboardShouldPersistTaps="handled"
               data={enrichedPlayers}
               keyExtractor={(player) => player.id}

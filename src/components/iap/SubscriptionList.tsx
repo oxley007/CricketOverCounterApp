@@ -39,13 +39,19 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   tier?: Tier; // undefined = show all
+  isFromLiveConfig?: boolean;
 };
 
 //type Props = { visible: boolean; onClose: () => void };
 
 // ...imports remain the same
 
-export default function SubscriptionModal({ visible, onClose, tier }: Props) {
+export default function SubscriptionModal({
+  visible,
+  onClose,
+  tier,
+  isFromLiveConfig,
+}: Props) {
   const Wrapper = Platform.OS === "android" ? SafeAreaView : View;
 
   const [packages, setPackages] = useState<Package[]>([]);
@@ -77,6 +83,8 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
 
   const fetchOfferings = async () => {
     setLoading(true);
+
+    console.log("=== 🟢 CURRENT STATE MODE IS ===", `"${selectedMode}"`);
 
     if (isRevenueCatAvailable()) {
       try {
@@ -148,57 +156,72 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
           "=========================================================",
         );
 
-        let filteredPackages = allPackages;
-        const actualTier = isLiveViewer ? "supporter" : tier;
-
-        // 2. Clear Matching Evaluator
+        // Helper match function placed safely inside try block
         const isPackageMatch = (pkg: any, targetArray: string[]) => {
           const rcPackageId = pkg.identifier;
           const storeProductId = pkg.product?.identifier;
-
           return (
             targetArray.includes(rcPackageId) ||
             (storeProductId && targetArray.includes(storeProductId))
           );
         };
 
-        // 3. Filter by tier first
-        if (actualTier === "supporter") {
-          filteredPackages = filteredPackages.filter((pkg: any) =>
-            isPackageMatch(pkg, PACKAGE_MAP.supporter),
-          );
-        } else {
-          // Default fallback to coach options if tier state hasn't resolved explicitly yet
-          filteredPackages = filteredPackages.filter((pkg: any) =>
-            isPackageMatch(pkg, PACKAGE_MAP.coach),
-          );
-        }
+        const actualTier = isLiveViewer ? "supporter" : tier;
 
-        // 4. Cleaned Mode Filter: Explicitly ignore this block if we are filtering for Live items
-        const isLivePackageScreen = filteredPackages.some((pkg) =>
-          pkg.identifier?.includes("live"),
-        );
+        let filteredPackages = allPackages.filter((pkg: any) => {
+          const id = (
+            pkg.product?.identifier ||
+            pkg.product?.productId ||
+            pkg.identifier ||
+            ""
+          ).toLowerCase();
 
-        if (selectedMode === "scorebook" && !isLivePackageScreen) {
-          filteredPackages = filteredPackages.filter((pkg: any) => {
-            const id =
-              pkg.product?.identifier ||
-              pkg.product?.productId ||
-              pkg.identifier;
-            return (
+          // 1. SCENARIO A: User is viewing a live stream as a spectator
+          if (isLiveViewer) {
+            return isPackageMatch(pkg, PACKAGE_MAP.supporter);
+          }
+
+          // 2. SCENARIO B: Explicitly opened from the live config page
+          // 🎯 This isolates live-only packages beautifully and stops execution early
+          if (isFromLiveConfig) {
+            return isPackageMatch(pkg, PACKAGE_MAP.coach);
+          }
+
+          // 3. SCENARIO C: Fallback standard scoring (6-over limit cap)
+          // Shows the matching contextual scoring options PLUS the live creator upgrades together
+          const isLiveOption = isPackageMatch(pkg, PACKAGE_MAP.coach);
+          let isContextOption = false;
+
+          if (selectedMode === "scorebook") {
+            isContextOption =
               id.includes("scorebook") ||
-              id === "4DOT6BYCPRO" ||
-              pkg.product?.productId === "4dot6bycplayerstats_android"
-            );
-          });
-        }
+              id === "4dot6bycpro" ||
+              id === "4dot6bycplayerstats_android";
+          } else {
+            // Ball counter mode options
+            isContextOption =
+              id.includes("ball") ||
+              id.includes("pro_monthly") ||
+              id.includes("pro_season") ||
+              id.includes("lifetime") || // 🎯 FIX 1: Catches 'rc_lifetime_scorebook'
+              id.includes("upgrade") || // 🎯 FIX 2: Catches '4dot6_scorebook_lifetime_upgrade'
+              (!id.includes("scorebook") && !id.includes("live"));
+          }
+
+          // 🛑 FORCE EXCLUSION: Prevent supporter live packages leaking onto scoring screens
+          const isSupporterPackage = isPackageMatch(pkg, PACKAGE_MAP.supporter);
+          if (isSupporterPackage) {
+            return false;
+          }
+
+          return isLiveOption || isContextOption;
+        });
 
         setPackages(filteredPackages);
       } catch (err) {
         console.error("Failed to fetch offerings:", err);
         setPackages([]);
       }
-
       // 👇 separate block
       try {
         const customerInfo = await getCustomerInfoWithRetry();
@@ -459,47 +482,56 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
               <View style={styles.promoBox}>
                 <Text style={styles.promoTitle}>What you unlock</Text>
 
-                {selectedMode === "scorebook" && (
-                  <Text style={styles.promoText}>
-                    • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
-                    from all previous fixtures{"\n"}• Cloud storage of your
-                    stats
-                    {"\n"}• Live partnership runs and dots{"\n"}• Average &
-                    highest partnerships{"\n"}• Total innings dots{"\n"}• Strike
-                    rotation %{"\n"}• Ball reminder
-                  </Text>
-                )}
-
+                {/* 🟢 BALL COUNTER / STANDARD PRO SECTION */}
                 {selectedMode !== "scorebook" && (
-                  <View>
-                    <Text style={styles.promoSubHeading}>Pro Standard</Text>
+                  <View
+                    style={[styles.promoFeatureCard, styles.borderStandard]}
+                  >
+                    <Text style={[styles.promoSubHeading, styles.textStandard]}>
+                      Pro Standard
+                    </Text>
                     <Text style={styles.promoText}>
-                      • Live partnership runs and dots{"\n"}•Previous innings
+                      • Live partnership runs and dots{"\n"}• Previous innings
                       over compare{"\n"}• Average & highest partnerships{"\n"}•
                       Total innings dots{"\n"}• Strike rotation %{"\n"}• Ball
                       reminder
                     </Text>
-
-                    <Text style={[styles.promoSubHeading, { marginTop: 10 }]}>
-                      Pro Scorebook
-                    </Text>
-                    <Text style={styles.promoText}>
-                      • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}
-                      • All Team Stats{"\n"}• Scorecards from all previous
-                      fixtures
-                      {"\n"}• Cloud storage of your data
-                    </Text>
                   </View>
                 )}
 
-                <View>
-                  <Text style={styles.promoSubHeading}>Pro Live Scores</Text>
+                {/* 🔵 SCOREBOOK PRO SECTION */}
+                <View style={[styles.promoFeatureCard, styles.borderScorebook]}>
+                  <Text style={[styles.promoSubHeading, styles.textScorebook]}>
+                    Pro Scorebook
+                  </Text>
+                  {selectedMode === "scorebook" ? (
+                    <Text style={styles.promoText}>
+                      • All Player Stats{"\n"}• All Team Stats{"\n"}• Scorecards
+                      from all previous fixtures{"\n"}• Cloud storage of your
+                      stats{"\n"}• Live partnership runs and dots{"\n"}• Average
+                      & highest partnerships{"\n"}• Total innings dots{"\n"}•
+                      Strike rotation %{"\n"}• Ball reminder
+                    </Text>
+                  ) : (
+                    <Text style={styles.promoText}>
+                      • Everything in Pro Standard{"\n"}• All Player Stats{"\n"}
+                      • All Team Stats{"\n"}• Scorecards from all previous
+                      fixtures{"\n"}• Cloud storage of your data
+                    </Text>
+                  )}
+                </View>
+
+                {/* 🟣 LIVE SCORES SECTION */}
+                <View style={[styles.promoFeatureCard, styles.borderLive]}>
+                  <Text style={[styles.promoSubHeading, styles.textLive]}>
+                    Pro Live Scores
+                  </Text>
                   <Text style={styles.promoText}>
-                    • Stream live match commentary to any device{"\n"}• Cover
-                    the full live setup for your entire team{"\n"}• All parents
-                    and supporters get Pro access for free{"\n"}• Live
-                    partnership runs, dots, and strike rotation %{"\n"}• Instant
-                    sync across player profiles and public rooms
+                    • Everything in Pro Scorebook{"\n"}• Stream ball-by-ball
+                    live scores to any device{"\n"}• All supporters get Pro
+                    access for free to view live scores{"\n"}• Live partnership
+                    runs, dots, and strike rotation %{"\n"}• Instant sync across
+                    player and team stats for supporters to view
                   </Text>
                 </View>
               </View>
@@ -571,8 +603,33 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
                   ) : (
                     packages.map((pkg) => {
                       const isRecommended = pkg.identifier === RECOMMENDED_ID;
+                      const id = (
+                        pkg.product?.identifier ||
+                        pkg.product?.productId ||
+                        pkg.identifier ||
+                        ""
+                      ).toLowerCase();
 
-                      // 🔹 NEW: check subscription dynamically against entitlements
+                      // Determine Tier Type for colouring
+                      const isLivePkg = id.includes("live");
+                      const isScorebookPkg =
+                        id.includes("scorebook") ||
+                        id === "4dot6bycpro" ||
+                        id === "4dot6bycplayerstats_android";
+
+                      // Assign matching styles based on type
+                      const tierPackageStyle = isLivePkg
+                        ? styles.packageLive
+                        : isScorebookPkg
+                          ? styles.packageScorebook
+                          : styles.packageStandard;
+
+                      const tierButtonStyle = isLivePkg
+                        ? styles.buttonLive
+                        : isScorebookPkg
+                          ? styles.buttonScorebook
+                          : styles.buttonStandard;
+
                       const isSubscribed = Object.values(entitlements).some(
                         (ent: any) => {
                           if (!ent.isActive) return false;
@@ -585,11 +642,20 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
                           key={pkg.identifier}
                           style={[
                             styles.package,
+                            tierPackageStyle, // 👈 Adds tier specific border colour
                             isRecommended && styles.recommendedPackage,
                           ]}
                         >
                           {isRecommended && (
-                            <View style={styles.recommendedBadge}>
+                            <View
+                              style={[
+                                styles.recommendedBadge,
+                                isLivePkg && { backgroundColor: "#8e24aa" },
+                                isScorebookPkg && {
+                                  backgroundColor: "#4f7cff",
+                                },
+                              ]}
+                            >
                               <Text style={styles.recommendedText}>
                                 RECOMMENDED
                               </Text>
@@ -612,9 +678,11 @@ export default function SubscriptionModal({ visible, onClose, tier }: Props) {
                           <Pressable
                             style={[
                               styles.subscribeButton,
-                              isRecommended && styles.recommendedButton,
+                              tierButtonStyle, // 👈 Colours the action button to match the theme
+                              isSubscribed && styles.disabledButton,
                             ]}
                             onPress={() => handlePurchase(pkg)}
+                            disabled={isSubscribed}
                           >
                             <Text style={styles.subscribeText}>
                               {isSubscribed ? "Subscribed" : "Subscribe"}
@@ -833,4 +901,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 6,
   },
+  // Feature Cards Layout
+  promoFeatureCard: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    borderLeftWidth: 4, // Bold left side line
+  },
+
+  // Colour Themes for Text & Borders
+  borderStandard: { borderLeftColor: "#2e7d32" },
+  textStandard: { color: "#2e7d32" },
+  packageStandard: { borderColor: "#2e7d32", borderWidth: 1.5 },
+  buttonStandard: { backgroundColor: "#2e7d32" },
+
+  borderScorebook: { borderLeftColor: "#4f7cff" },
+  textScorebook: { color: "#4f7cff" },
+  packageScorebook: { borderColor: "#4f7cff", borderWidth: 1.5 },
+  buttonScorebook: { backgroundColor: "#4f7cff" },
+
+  borderLive: { borderLeftColor: "#8e24aa" },
+  textLive: { color: "#8e24aa" },
+  packageLive: { borderColor: "#8e24aa", borderWidth: 1.5 },
+  buttonLive: { backgroundColor: "#8e24aa" },
 });

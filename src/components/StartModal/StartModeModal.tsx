@@ -14,6 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { Button, Card } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { shallow } from "zustand/shallow";
 import AuthModal from "../../components/AuthModal";
@@ -228,80 +230,93 @@ export default function StartModeModal() {
                 </View>
 
                 {/* Modes */}
-                {sortedModes.map((mode) => {
+                {sortedModes.map((mode, index) => {
                   const cardLogo =
                     APP_LOGOS[mode.logo as keyof typeof APP_LOGOS];
-
                   const bg = theme[`${mode.id}Bg`] ?? theme.cardBg;
-
                   const border =
                     theme[`${mode.id}BorderColor`] ?? theme.cardBorderColor;
-
                   const text =
                     theme[`${mode.id}Text`] ??
                     theme[`${mode.id}TextColor`] ??
                     theme.cardTextColor;
 
                   return (
-                    <Pressable
+                    <Animated.View
                       key={mode.id}
-                      style={[
-                        styles.card,
-                        {
-                          backgroundColor: bg,
-                          borderColor: border,
-                          borderWidth: theme.cardBorderWidth ?? 2,
-                        },
-                      ]}
-                      onPress={() => handleStart(mode.id)}
+                      entering={FadeInDown.duration(400).delay(index * 100)}
                     >
-                      <Image
-                        source={cardLogo}
-                        style={styles.cardLogo}
-                        resizeMode="contain"
-                      />
-                      <Text style={[styles.cardText, { color: text }]}>
-                        {mode.label}
-                      </Text>
-                    </Pressable>
+                      <Card
+                        mode="contained"
+                        style={[
+                          styles.paperCard,
+                          {
+                            backgroundColor: bg,
+                            borderColor: border,
+                            borderWidth: theme.cardBorderWidth ?? 2,
+                          },
+                        ]}
+                        onPress={() => handleStart(mode.id)}
+                      >
+                        <Card.Content style={styles.cardContent}>
+                          <Image
+                            source={cardLogo}
+                            style={styles.cardLogo}
+                            resizeMode="contain"
+                          />
+                          <Text style={[styles.cardText, { color: text }]}>
+                            {mode.label}
+                          </Text>
+                        </Card.Content>
+                      </Card>
+                    </Animated.View>
                   );
                 })}
 
                 {/* Stats */}
                 {fixtures.length > 0 && (
-                  <Pressable
+                  <Button
+                    mode="contained"
+                    rippleColor="rgba(255, 255, 255, 0.4)"
+                    icon="chart-bar" // Perfect material icon for statistics
                     style={styles.statsButton}
+                    labelStyle={styles.statsButtonText}
                     onPress={() => {
                       closeStartModal();
                       router.push("/stats");
                     }}
                   >
-                    <Text style={styles.statsButtonText}>View Stats</Text>
-                  </Pressable>
+                    View Stats
+                  </Button>
                 )}
 
                 {/* Fixtures */}
                 {fixtures.length > 0 && (
-                  <Pressable
+                  <Button
+                    mode="contained"
+                    rippleColor="rgba(255, 255, 255, 0.4)"
+                    icon="calendar-text" // Standard material icon for schedules/fixtures
                     style={styles.statsButton}
+                    labelStyle={styles.statsButtonText}
                     onPress={() => {
                       closeStartModal();
                       router.push("/fixtureList");
                     }}
                   >
-                    <Text style={styles.statsButtonText}>
-                      View Fixtures Results
-                    </Text>
-                  </Pressable>
+                    View Fixtures Results
+                  </Button>
                 )}
 
                 {/* Login */}
-                <Pressable
+                <Button
+                  mode="contained"
+                  icon="login"
                   style={styles.loginButton}
+                  labelStyle={styles.loginButtonText}
                   onPress={() => setAuthVisible(true)}
                 >
-                  <Text style={styles.loginButtonText}>Login / Sign Up</Text>
-                </Pressable>
+                  Login / Sign Up
+                </Button>
               </ScrollView>
             </ImageBackground>
           </SafeAreaView>
@@ -325,7 +340,7 @@ const styles = StyleSheet.create({
   header: {
     width: "100%",
     backgroundColor: "#000",
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
   },
   headerLogo: {
@@ -375,35 +390,35 @@ const styles = StyleSheet.create({
   },
   statsButton: {
     marginTop: 10,
-    paddingVertical: 18,
-    borderRadius: 16,
-    backgroundColor: "#0a84ff",
-    alignItems: "center",
-    width: "80%",
+    borderRadius: 12,
+    backgroundColor: "#af52de",
+    width: "100%",
     alignSelf: "center",
+    // Remove paddingVertical: 18 from here
   },
 
   statsButtonText: {
     color: "#fff",
     fontSize: 22,
     fontWeight: "700",
+    paddingVertical: 6, // Controls the inner height beautifully
   },
+
   loginButton: {
     marginTop: 14,
-    paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: "#000",
     borderWidth: 1,
     borderColor: "#fff",
-    alignItems: "center",
-    width: "80%",
+    width: "100%",
     alignSelf: "center",
+    // Remove paddingVertical: 14 from here!
   },
-
   loginButtonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+    paddingVertical: 4, // Control your height via the text padding instead
   },
   scrollContainer: {
     flexGrow: 1,
@@ -428,7 +443,7 @@ const styles = StyleSheet.create({
   card: {
     width: "100%", // full width of container
     paddingVertical: 30,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
     marginVertical: 12,
     shadowColor: "#000",
@@ -449,7 +464,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     margin: 24,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 12,
   },
 
   promptTitle: {
@@ -490,6 +505,16 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
+  },
+  paperCard: {
+    width: "100%",
+    marginVertical: 12,
+    borderRadius: 12,
+    overflow: "hidden", // Ensures the ripple effect stays inside the rounded corners
+  },
+  cardContent: {
+    alignItems: "center",
+    paddingVertical: 20,
   },
 });
 

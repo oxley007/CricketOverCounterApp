@@ -395,6 +395,7 @@ export default function LiveScoringInfo() {
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
         tier={selectedTier}
+        isFromLiveConfig={true}
       />
       <AuthModal
         visible={authVisible}

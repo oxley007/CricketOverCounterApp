@@ -9,7 +9,6 @@ import {
   deleteLiveEvent,
   addLiveEvent,
   syncLiveGame,
-  updateCurrentGameData,
   updateSyncControl,
 } from "../services/firestoreService";
 import { useCounterStore } from "./counterStore";
@@ -31,47 +30,49 @@ const secureStore = {
    Store
 ========================= */
 
-export type MatchEvent =
-  | {
-      id: string;
-      timestamp: number;
-      ballNumber: number;
-      type: "ball";
-      batterId?: string;
-      batterInningId?: string;
-      bowlerId?: string;
-      runs: number;
-      runBreakdown: {
-        bat: number;
-        extras: number;
-      };
-      countsAsBall: boolean;
-      isExtra?: boolean;
-      extraType?: "wide" | "noBall" | "bye" | "legBye";
-      prevBatterId?: string;
-      wicketPenaltyAdditionBatter?: number;
-      wicketPenaltyAdditionBowler?: number;
-      wicketPenaltyWicketType?: string;
-    }
-  | {
-      id: string;
-      timestamp: number;
-      ballNumber: number;
-      type: "wicket";
-      batterId?: string;
-      bowlerId?: string;
-      kind?: string;
-      runs: number;
-      runBreakdown: {
-        bat: number;
-        extras: number;
-      };
-      countsAsBall: boolean;
-      prevBatterId?: string;
-      wicketPenaltyAdditionBatter?: number;
-      wicketPenaltyAdditionBowler?: number;
-      wicketPenaltyWicketType?: string;
-    };
+export interface BallEvent {
+  id: string;
+  timestamp: number;
+  ballNumber: number;
+  type: "ball";
+  batterId?: string;
+  batterInningId?: string;
+  bowlerId?: string;
+  runs: number;
+  runBreakdown: {
+    bat: number;
+    extras: number;
+  };
+  countsAsBall: boolean;
+  isExtra?: boolean;
+  extraType?: "wide" | "noBall" | "bye" | "legBye";
+  prevBatterId?: string;
+  wicketPenaltyAdditionBatter?: number;
+  wicketPenaltyAdditionBowler?: number;
+  wicketPenaltyWicketType?: string;
+}
+
+export interface WicketEvent {
+  id: string;
+  timestamp: number;
+  ballNumber: number;
+  type: "wicket";
+  batterId?: string;
+  bowlerId?: string;
+  kind?: string;
+  runs: number;
+  runBreakdown: {
+    bat: number;
+    extras: number;
+  };
+  countsAsBall: boolean;
+  prevBatterId?: string;
+  wicketPenaltyAdditionBatter?: number;
+  wicketPenaltyAdditionBowler?: number;
+  wicketPenaltyWicketType?: string;
+}
+
+export type MatchEvent = BallEvent | WicketEvent;
 
 export interface MatchState {
   // -------------------------
