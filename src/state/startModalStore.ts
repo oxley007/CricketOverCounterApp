@@ -6,6 +6,7 @@ interface StartModalState {
   isOpen: boolean; // tracks if modal is open
   selectedMode: "ballCounter" | "scorebook" | null;
   hasHydrated: boolean;
+  isSaving: boolean;
 
   open: () => void;
   close: () => void;
@@ -13,6 +14,7 @@ interface StartModalState {
   selectScorebook: () => void;
   reset: () => void; // clears selectedMode and opens modal
   setHasHydrated: (v: boolean) => void;
+  setIsSaving: (v: boolean) => void;
 }
 
 export const useStartModalStore = create<StartModalState>()(
@@ -21,8 +23,10 @@ export const useStartModalStore = create<StartModalState>()(
       isOpen: true,
       selectedMode: null,
       hasHydrated: false,
+      isSaving: false,
 
       setHasHydrated: (v) => set({ hasHydrated: v }),
+      setIsSaving: (v) => set({ isSaving: v }),
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
@@ -34,6 +38,7 @@ export const useStartModalStore = create<StartModalState>()(
         set({
           selectedMode: null,
           isOpen: true,
+          isSaving: false,
         }),
     }),
     {

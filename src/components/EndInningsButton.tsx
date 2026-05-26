@@ -620,8 +620,12 @@ export default function EndInningsButton({
         mode="contained"
         onPress={() => setVisible(true)}
         style={styles.button}
-        icon={() => <Icon name="flag-checkered" size={20} color="#c471ed" />}
         labelStyle={styles.buttonLabel}
+        // Paper handles icon names directly if wrapped in your provider,
+        // or you can pass a cleaner function definition like this:
+        icon={({ size, color }) => (
+          <Icon name="flag-checkered" size={20} color="#c471ed" />
+        )}
       >
         End Innings
       </Button>
@@ -752,15 +756,18 @@ export default function EndInningsButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 0,
-    marginBottom: 10,
-    marginTop: 10,
+    backgroundColor: "#ffffff",
+    marginVertical: 12, // Combines top and bottom margins uniformly
+    marginHorizontal: 4, // Matches the side alignment of your cards
+    borderRadius: 8, // Matches the exact corner radius of the Paper Cards
+    elevation: 2, // Adds a subtle Material elevation shadow to pop off the screen
   },
   buttonLabel: {
-    color: "#c471ed",
+    color: "#c471ed", // Rich purple text to match your icon color
     fontSize: 16,
+    fontWeight: "bold",
+    paddingVertical: 4, // Clean vertical breathing room handled safely on the text layer
+    textTransform: "uppercase", // Gives it a clean, official sports UI feel
   },
   modalContainer: {
     backgroundColor: "#fff",

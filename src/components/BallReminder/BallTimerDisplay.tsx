@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Card, Text } from "react-native-paper"; // Imported Card and Text
 import { useBallReminder } from "../../hooks/useBallReminder";
 import { useMatchStore } from "../../state/matchStore";
 import { useLiveStore } from "../../state/liveStore";
@@ -15,21 +16,19 @@ export default function BallTimerDisplay() {
   const livePro = useLiveStore((s) => s.livePro);
   const liveProViewer = useLiveStore((state) => state.liveProViewer);
 
-  // 2. Derive the status on every render
   const isProLiveUnlocked = liveProViewer || livePro;
-
   const isLiveViewer = useIsLiveViewer();
 
   const legalBalls = events.filter((e) => e.countsAsBall).length;
   const overs = legalBalls / 6;
 
-  // This is your "enabled" logic
-  //const showTimer = overs <= 6 || proUnlocked || proUnlockedScorebook;
-  // Show the timer if it's pro/early overs OR if they are just a live viewer
   const showTimer =
-    overs <= 6 || proUnlocked || proUnlockedScorebook || isLiveViewer;
+    overs <= 6 ||
+    proUnlocked ||
+    proUnlockedScorebook ||
+    isProLiveUnlocked ||
+    isLiveViewer;
 
-  // Pass 'showTimer' to the hook so the internal setInterval only runs when needed
   const {
     formattedTime,
     flashOn,
@@ -42,28 +41,28 @@ export default function BallTimerDisplay() {
 
   const hasExceeded = timeSinceLastBall > avgBallPlusThreshold;
 
+  // The upgrade banner styled as a soft notice card
   if (!showTimer) {
     return (
-      <View style={styles.upgradeContainer}>
+      <Card style={styles.upgradeCard} mode="elevated">
         <Text style={styles.upgradeText}>
           Unlock Pro to continue seeing Ball Timer after 6 overs
         </Text>
-      </View>
+      </Card>
     );
   }
 
   return (
-    <View>
+    <Card style={styles.card} mode="elevated">
       <View style={styles.container}>
         <Text style={styles.leftText}>
           Time Since Last Ball:{" "}
           <Text
             style={[
               styles.timerText,
-              // Add !isLiveViewer here to ensure flashing ONLY happens for scorers
               !isLiveViewer &&
                 hasExceeded && {
-                  color: flashOn ? "red" : "#555",
+                  color: flashOn ? "#ff4d4d" : "#e0f7fa", // High visibility red vs light cyan
                 },
             ]}
           >
@@ -85,66 +84,83 @@ export default function BallTimerDisplay() {
           Avg: {Math.round(averageBallTime)} sec
         </Text>
       </View>
+
       {/* New Flashing Alert Text */}
       {!isLiveViewer && hasExceeded && (
         <View
           style={[
             styles.alertContainer,
-            { backgroundColor: flashOn ? "#FFEBEB" : "transparent" },
+            {
+              // 15% opacity tint of Amber Yellow when flashing
+              backgroundColor: flashOn
+                ? "rgba(255, 213, 79, 0.15)"
+                : "transparent",
+            },
           ]}
         >
           <Text
             style={[
               styles.alertText,
-              { color: flashOn ? "red" : "transparent" },
+              {
+                // Sharp amber text color when flashing
+                color: flashOn ? "#ffd54f" : "transparent",
+              },
             ]}
           >
             FORGOTTEN TO SCORE A BALL?
           </Text>
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    marginVertical: 0,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matching dark cyan theme
+    padding: 12,
+    height: "auto",
+    alignSelf: "stretch",
+  },
   container: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    marginVertical: 0,
+    backgroundColor: "transparent", // Transparent to let card backdrop show
   },
   timerText: {
     fontSize: 12,
-    color: "#555",
+    color: "#e0f7fa", // Soft cyan text for layout harmony
+    fontWeight: "bold",
   },
   thresholdText: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#000",
+    fontWeight: "700",
+    color: "#ffffff", // Crisp white text
   },
   leftText: {
     fontSize: 12,
-    color: "#000",
+    color: "#ffffff", // Crisp white text
     flexShrink: 1,
   },
   pausedText: {
     fontSize: 11,
-    color: "#777",
+    color: "#b2ebf2", // Darker text tint for subtext elements
   },
-  upgradeContainer: {
+  upgradeCard: {
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#fff3cd", // Keeps warning yellow skin
     padding: 12,
-    backgroundColor: "#fff3cd",
-    borderRadius: 8,
-    marginVertical: 6,
+    alignSelf: "stretch",
   },
   upgradeText: {
     color: "#856404",
     fontSize: 12,
     textAlign: "center",
+    fontWeight: "600",
   },
   alertContainer: {
     marginTop: 8,
@@ -152,12 +168,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "red", // Keeps a subtle "warning" outline even when text blinks off
+    // Amber border line instead of harsh red
+    borderColor: "#ffd54f",
     alignItems: "center",
     justifyContent: "center",
   },
   alertText: {
-    fontSize: 16, // 20 is quite large, 16 is punchy but fits most screens
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.5,
     textAlign: "center",

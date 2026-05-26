@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper"; // Using Paper typography variants
 import { useFixtureStore } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
@@ -22,16 +23,6 @@ export default function PreviousInningsComparison() {
      Should we show
   ========================= */
   const { canShow, previousInnings } = useMemo(() => {
-    console.log(currentFixture, " currentFixture in here comparrison is what?");
-    console.log(
-      currentGame?.battingTeamId,
-      " currentGame?.battingTeamId in here comparrison is what?",
-    );
-    console.log(
-      currentFixture?.battingTeamId,
-      " currentFixture?.battingTeamId in here comparrison is what?",
-    );
-
     if (!currentGame || !currentGame?.battingTeamId) {
       return { canShow: false, previousInnings: null };
     }
@@ -39,13 +30,8 @@ export default function PreviousInningsComparison() {
     let battingTeamId = "";
 
     if (isLiveViewer && currentFixture) {
-      console.log("shiouldnt hit if live game");
-      // If battingTeamId is undefined, fall back to ""
       battingTeamId = currentFixture.battingTeamId ?? "";
     } else {
-      console.log("shiould hit if live game");
-
-      // currentGame is also optional, so use safe chaining and fallback
       battingTeamId = currentGame?.battingTeamId ?? "";
     }
 
@@ -70,7 +56,7 @@ export default function PreviousInningsComparison() {
       canShow: oppositionInnings.length > battingTeamInnings,
       previousInnings: oppositionInnings[oppositionInnings.length - 1] || null,
     };
-  }, [currentFixture, currentGame]);
+  }, [currentFixture, currentGame, isLiveViewer]);
 
   /* =========================
      Current over + runs
@@ -106,7 +92,7 @@ export default function PreviousInningsComparison() {
     return {
       currentOverNumber: Math.floor(totalLegalBalls / 6) + 1,
       currentRuns: runs,
-      totalLegalBalls, // Return this to check if first over is done
+      totalLegalBalls,
     };
   }, [events, wideIsExtraBall, baseRuns, wideExtraBallThreshold]);
 
@@ -159,12 +145,8 @@ export default function PreviousInningsComparison() {
     }
 
     return map;
-  }, [previousInnings, wideIsExtraBall, wideExtraBallThreshold]);
+  }, [previousInnings, wideIsExtraBall, wideExtraBallThreshold, baseRuns]);
 
-  // Logic: Hide if conditions aren't met OR if we are still in the first over
-  console.log(canShow, "canShow is what?");
-  console.log(snapshots, "snapshots is what?");
-  console.log(totalLegalBalls, "totalLegalBalls is what?");
   if (!canShow || !snapshots || totalLegalBalls < 6) return null;
 
   const current = snapshots[currentOverNumber];
@@ -172,16 +154,9 @@ export default function PreviousInningsComparison() {
 
   let activeBattingId = "";
 
-  console.log(isLiveViewer, " isLiveViewer comparrision.");
-
   if (isLiveViewer) {
-    console.log("shiouldnt hit if live game inningTeamName!");
-    // If battingTeamId is undefined, fall back to ""
     activeBattingId = currentFixture?.battingTeamId ?? "";
   } else {
-    console.log("shiould hit if live game inningTeamName!");
-
-    // currentGame is also optional, so use safe chaining and fallback
     activeBattingId = currentGame?.battingTeamId ?? "";
   }
 
@@ -200,70 +175,91 @@ export default function PreviousInningsComparison() {
     return {
       text:
         diff === 0 ? "Level" : diff > 0 ? `+${diff} ahead` : `${diff} behind`,
-      color: diff > 0 ? "#2e7d32" : diff < 0 ? "#c62828" : "#666",
+      // #66bb6a = Vibrant emerald green (ahead)
+      // #ff8a80 = Bright light coral/salmon (behind) - High Contrast!
+      // #b2ebf2 = Soft light cyan (level)
+      color: diff > 0 ? "#66bb6a" : diff < 0 ? "#ffd54f" : "#b2ebf2",
     };
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.textHeader}>Previous Innings Compare:</Text>
+    <View style={styles.card}>
+      <View style={styles.cardContent}>
+        <Text variant="titleMedium" style={styles.textHeader}>
+          Previous Innings Compare
+        </Text>
 
-      <View style={styles.row}>
-        {/* Left Box: Shows the comparison (+/-) */}
-        {current && (
-          <View style={styles.info}>
-            <Text style={styles.textDesc}>
-              After over {currentOverNumber - 1}, {bowlingTeamName} were:{" "}
-              {current.runs}/{current.wickets}
-            </Text>
-            <Text
-              style={[
-                styles.deltaText,
-                { color: getDelta(current.runs).color },
-              ]}
-            >
-              {battingTeamName} are {getDelta(current.runs).text}
-            </Text>
-          </View>
-        )}
+        <View style={styles.row}>
+          {/* Left Inner Split Block */}
+          {current && (
+            <View style={styles.infoBox}>
+              <Text style={styles.textDesc}>
+                After over {currentOverNumber - 1}, {bowlingTeamName} were:{" "}
+                <Text style={styles.boldText}>
+                  {current.runs}/{current.wickets}
+                </Text>
+              </Text>
+              <Text
+                style={[
+                  styles.deltaText,
+                  { color: getDelta(current.runs).color },
+                ]}
+              >
+                {battingTeamName} are {getDelta(current.runs).text}
+              </Text>
+            </View>
+          )}
 
-        {/* Right Box: Only shows the previous innings stats for the next over */}
-        {next && (
-          <View style={styles.info}>
-            <Text style={[styles.textDesc, { marginTop: 6 }]}>
-              After over {currentOverNumber}, {bowlingTeamName} were:{" "}
-              {next.runs}/{next.wickets}
-            </Text>
-            {/* getOverDiff removed from here */}
-            <Text
-              style={[styles.deltaText, { color: getDelta(next.runs).color }]}
-            >
-              {getDelta(next.runs).text}
-            </Text>
-          </View>
-        )}
+          {/* Right Inner Split Block */}
+          {next && (
+            <View style={styles.infoBox}>
+              <Text style={styles.textDesc}>
+                After over {currentOverNumber}, {bowlingTeamName} were:{" "}
+                <Text style={styles.boldText}>
+                  {next.runs}/{next.wickets}
+                </Text>
+              </Text>
+              <Text
+                style={[styles.deltaText, { color: getDelta(next.runs).color }]}
+              >
+                {getDelta(next.runs).text}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 10,
+  card: {
     marginVertical: 10,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard colors
+    borderRadius: 12,
     width: "100%",
+
+    // Core layout alignment shadows
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  cardContent: {
+    padding: 16,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  info: {
+  infoBox: {
     flex: 1,
-    minHeight: 80,
+    minHeight: 85,
     padding: 10,
-    backgroundColor: "#e8e8e8",
+    // Modern semi-transparent white backdrop layers perfectly over the dark cyan card
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderRadius: 6,
     marginHorizontal: 4,
     justifyContent: "center",
@@ -271,19 +267,24 @@ const styles = StyleSheet.create({
   },
   textHeader: {
     fontSize: 18,
+    lineHeight: 20, // Tight layout tracking rule applied uniformly
     fontWeight: "bold",
     marginBottom: 8,
-    color: "#333",
+    color: "#ffffff", // Primary label swapped to pure white
   },
   textDesc: {
-    fontSize: 16,
-    color: "#c471ed",
+    fontSize: 14, // Adjusted slightly to fit inner split columns better
+    color: "#e0f7fa", // High-contrast soft cyan text replacing the old purple
     textAlign: "center",
+  },
+  boldText: {
+    fontWeight: "bold",
+    color: "#ffffff",
   },
   deltaText: {
     fontSize: 14,
-    fontWeight: "600",
-    marginTop: 2,
+    fontWeight: "800", // Bumped weight up slightly to clear the backdrop texture cleanly
+    marginTop: 6,
     textAlign: "center",
   },
 });

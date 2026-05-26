@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Modal, Portal, Text } from "react-native-paper";
 import { getCustomerInfo, isRevenueCatAvailable } from "../services/revenuecat";
@@ -10,6 +10,8 @@ import type {
   SeasonPlayerStats,
   SeasonTeamStats,
 } from "../state/seasonStatsHelpers";
+import UpgradeProBox from "./iap/UpgradeProBox";
+import SubscriptionModal from "./iap/SubscriptionList";
 
 type StatsModalProps = {
   visible: boolean;
@@ -28,6 +30,8 @@ export default function PlayerStatsModal({
   type = "player",
   onUpgrade,
 }: StatsModalProps) {
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
   useEffect(() => {
     (async () => {
       if (!visible || !isRevenueCatAvailable()) return;
@@ -160,19 +164,9 @@ export default function PlayerStatsModal({
         <ScrollView>
           {/* ================= CUSTOM PRO BOX ================= */}
           {!proUnlocked && (
-            <View style={styles.customProBox}>
-              <Text style={styles.customProTitle}>Unlock Pro Stats</Text>
-              <Text style={styles.customProDesc}>
-                Tap "Upgrade" to view pro options and see advanced stats like
-                Average, Strike Rate & Dot Ball % and more!
-              </Text>
-              <Pressable style={styles.customProButton} onPress={onUpgrade}>
-                <Text style={styles.customProButtonText}>Upgrade</Text>
-              </Pressable>
-            </View>
+            <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />
           )}
 
-          <Text style={styles.title}>{title}</Text>
           <Divider style={styles.divider} />
 
           <Text style={styles.section}>Batting</Text>
@@ -188,6 +182,11 @@ export default function PlayerStatsModal({
           Close
         </Button>
       </Modal>
+      <SubscriptionModal
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        tier="coach"
+      />
     </Portal>
   );
 }

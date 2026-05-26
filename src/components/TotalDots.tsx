@@ -1,11 +1,13 @@
 import React, { useMemo } from "react";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet } from "react-native"; // Swapped out container components
+import { Text } from "react-native-paper"; // Using Paper typography variants
 import { useMatchStore } from "../state/matchStore";
 
 export default function TotalDots() {
-  // Separate selectors
   const events = useMatchStore((state) => state.events);
-  const wicketsAsNegativeRuns = useMatchStore((state) => state.wicketsAsNegativeRuns);
+  const wicketsAsNegativeRuns = useMatchStore(
+    (state) => state.wicketsAsNegativeRuns,
+  );
   const wicketPenaltyRuns = useMatchStore((state) => state.wicketPenaltyRuns);
   const wideIsExtraBall = useMatchStore((state) => state.wideIsExtraBall);
 
@@ -14,17 +16,23 @@ export default function TotalDots() {
     let balls = 0;
 
     events.forEach((event) => {
-      // Determine if this counts as a legal ball
       const countsAsBall =
         event.countsAsBall &&
-        !(event.isExtra && (event.extraType === "wide" || event.extraType === "noBall") && !wideIsExtraBall);
+        !(
+          event.isExtra &&
+          (event.extraType === "wide" || event.extraType === "noBall") &&
+          !wideIsExtraBall
+        );
 
       if (countsAsBall) {
         balls++;
 
-        // Determine runs for dot calculation
         let eventRuns = event.runs || 0;
-        if (wicketsAsNegativeRuns && event.type === "wicket" && eventRuns === 0) {
+        if (
+          wicketsAsNegativeRuns &&
+          event.type === "wicket" &&
+          eventRuns === 0
+        ) {
           eventRuns = -wicketPenaltyRuns;
         }
 
@@ -38,10 +46,12 @@ export default function TotalDots() {
   }, [events, wicketsAsNegativeRuns, wicketPenaltyRuns, wideIsExtraBall]);
 
   return (
-    <View style={[styles.container, { flex: 1 }]}>
-      <View style={styles.info}>
-        <Text style={styles.textHeader}>Total Innings Dots:</Text>
-        <Text style={styles.textDesc}>
+    <View style={styles.card}>
+      <View style={styles.cardContent}>
+        <Text variant="titleMedium" style={styles.textHeader}>
+          Total Innings Dots
+        </Text>
+        <Text variant="bodyLarge" style={styles.textDesc}>
           {totalDots} dots | Dot %: {dotPercentage.toFixed(1)}%
         </Text>
       </View>
@@ -50,26 +60,31 @@ export default function TotalDots() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    padding: 10,
-    marginVertical: 10,
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-  },
-  info: {
+  card: {
     flex: 1,
+    marginVertical: 0,
+    backgroundColor: "#0e9cb9", // Matches dark cyan theme
+    borderRadius: 12,
+
+    // Identical shadow configuration
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  cardContent: {
+    padding: 16,
+    flex: 1, // Expands the interior context uniformly
   },
   textHeader: {
     fontSize: 18,
-    fontWeight: "bold",
+    lineHeight: 20, // Tight layout spacing
     marginBottom: 4,
-    color: "#333",
+    color: "#ffffff", // Crisp white primary labels
   },
   textDesc: {
-    fontSize: 16,
-    color: "#c471ed",
+    color: "#b2ebf2", // Rich secondary teal accent tint
+    marginTop: "auto", // Locks this metric row horizontally when grid-aligned
   },
 });

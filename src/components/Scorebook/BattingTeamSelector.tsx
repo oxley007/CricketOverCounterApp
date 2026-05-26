@@ -10,6 +10,7 @@ import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import type { Team } from "../../state/teamStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
+import { useExitGame } from "../../hooks/useExitGame";
 
 interface BattingTeamSelectorProps {
   allTeams: Team[];
@@ -32,8 +33,14 @@ export default function BattingTeamSelector({
   const { selectedMode, close, selectBallCounter, selectScorebook } =
     useStartModalStore();
 
+  const { handleExitNoSave, isExiting } = useExitGame();
+
   if (!allTeams || allTeams.length === 0) {
     const handleSetup = () => {
+      console.log("hitting me here?");
+      handleExitNoSave();
+
+      /*
       const startModalStore = useStartModalStore.getState();
       const gameStore = useGameStore.getState();
 
@@ -56,6 +63,7 @@ export default function BattingTeamSelector({
       setTimeout(() => {
         router.replace("/");
       }, 0);
+      */
     };
 
     return (
@@ -118,57 +126,60 @@ export default function BattingTeamSelector({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    flex: 1,
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard theme
+    borderRadius: 12,
     paddingVertical: 18,
     paddingHorizontal: 20,
-    marginVertical: 12,
+    elevation: 1,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     borderLeftWidth: 5,
-    borderLeftColor: "#12c2e9",
+    borderLeftColor: "#ffd54f", // Accent line shifted to amber yellow for dark backdrop punch
   },
 
   title: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#ffffff", // Primary label swapped to pure white
     marginBottom: 12,
   },
 
   primaryButton: {
     marginBottom: 12,
     paddingVertical: 10,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#ffffff", // Crisp white background action button
     borderRadius: 8,
     alignItems: "center",
+    elevation: 2,
   },
 
   primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#0e9cb9", // Text matches card background color for clean style
+    fontWeight: "700",
     fontSize: 16,
   },
   primaryButtonTextTwo: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#0e9cb9",
+    fontWeight: "700",
     fontSize: 16,
     padding: 10,
   },
 
   changeButton: {
     paddingVertical: 10,
-    backgroundColor: "#e0f7ff",
+    backgroundColor: "rgba(255, 255, 255, 0.15)", // Clean white glassmorphism layer
     borderRadius: 8,
     alignItems: "center",
     marginTop: 10,
   },
 
   changeButtonText: {
-    color: "#12c2e9",
+    color: "#ffffff", // Pure white for text visibility on secondary layers
     fontWeight: "600",
     fontSize: 15,
   },
@@ -185,10 +196,10 @@ const styles = StyleSheet.create({
   },
 
   iconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 14,
-    backgroundColor: "#16a34a", // stronger green
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#66bb6a", // Premium emerald green
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -197,11 +208,11 @@ const styles = StyleSheet.create({
   selectedText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#0f172a",
+    color: "#ffffff", // Pure white status description
   },
 
   changeInline: {
-    color: "#12c2e9",
+    color: "#b2ebf2", // Soft secondary tint color link line
     fontWeight: "600",
     fontSize: 14,
   },

@@ -29,6 +29,7 @@ import { useStartModalStore } from "../../state/startModalStore";
 import { useTeamStore } from "../../state/teamStore";
 import { useRouter } from "expo-router";
 import { useFeedback } from "../../hooks/useFeedback";
+import { Card } from "react-native-paper";
 
 import ActionTabs from "../../components/ActionTabs";
 import AveragePartnership from "../../components/AveragePartnership";
@@ -111,6 +112,7 @@ function HomeContent() {
   );
 
   const livePro = useLiveStore((s) => s.livePro);
+  const isSaving = useStartModalStore((state) => state.isSaving);
 
   const currentFixture = useFixtureStore((s) => s.currentFixture);
   console.log(
@@ -386,7 +388,7 @@ function HomeContent() {
   return (
     <View style={styles.screen}>
       <StartModeModal />
-      {isSetupVisible && selectedMode !== null && (
+      {isSetupVisible && selectedMode !== null && !isSaving && (
         <GameSetupModal
           visible={isSetupVisible}
           onClose={() => setIsSetupVisible(false)}
@@ -442,21 +444,21 @@ function HomeContent() {
         )}
 
         <CurrentOverDisplay />
-        <View style={styles.divider} />
 
-        <View style={styles.scoreRow}>
-          <ScoreWickets />
-        </View>
+        <Card style={styles.card} mode="elevated">
+          <View style={styles.scoreRow}>
+            <ScoreWickets />
+          </View>
 
-        <View style={styles.scoreRow}>
-          <OversCounter />
-        </View>
+          <View style={styles.scoreRow}>
+            <OversCounter />
+          </View>
 
-        <View style={styles.scoreRow}>
-          <CurrentBattingDisplay />
-        </View>
+          <View style={styles.scoreRow}>
+            <CurrentBattingDisplay />
+          </View>
+        </Card>
 
-        <View style={styles.divider} />
         {!isLiveViewer && (
           <BattingTeamSelector
             allTeams={playingTeams}
@@ -490,8 +492,6 @@ function HomeContent() {
               </View>
             </View>
 
-            <View style={styles.divider} />
-
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <AveragePartnership />
@@ -500,8 +500,6 @@ function HomeContent() {
                 <HighestPartnership />
               </View>
             </View>
-
-            <View style={styles.divider} />
 
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
@@ -579,6 +577,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "stretch",
+    marginVertical: 10,
   },
   divider: {
     height: 1,
@@ -655,5 +654,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 26,
     fontWeight: "600",
+  },
+  card: {
+    marginTop: 14,
+    marginBottom: 0,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matching dark cyan theme
+    padding: 12, // Standard inner padding for card content
+    height: "auto", // Prevents unwanted vertical stretching
+    alignSelf: "stretch", // Spans the full usable width
   },
 });

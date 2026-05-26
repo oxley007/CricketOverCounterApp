@@ -152,6 +152,8 @@ export default function StartModeModal() {
       game.triggerSetup();
     }
 
+    router.replace(route);
+
     setTimeout(() => {
       router.replace(route);
     }, 100);

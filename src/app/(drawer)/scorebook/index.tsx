@@ -10,6 +10,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/shallow";
@@ -29,6 +31,7 @@ import { useIsLiveViewer } from "../../../hooks/useIsLiveViewer";
 
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useExitGame } from "../../../hooks/useExitGame";
+import { Card } from "react-native-paper";
 
 import {
   startLiveGameEventListener,
@@ -66,6 +69,7 @@ import { useStartModalStore } from "../../../state/startModalStore";
 import LiveScoresCard from "../../../components/Live/LiveScoresInfoCard";
 import ViewerLockedLiveScoresCard from "../../../components/Live/ViewerLockedLiveScoresCard";
 import RemindSupportersCard from "../../../components/Live/RemindSupportersCard";
+import CurrentBattingDisplay from "@/src/components/Scorebook/CurrentBattingDisplay";
 
 export default function ScorebookIndex() {
   console.log(
@@ -96,6 +100,8 @@ export default function ScorebookIndex() {
   // Action Selectors (Functions)
   const openMatchRulesModal = useMatchStore((s) => s.openMatchRulesModal);
   const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
+
+  const isSaving = useStartModalStore((state) => state.isSaving);
 
   const router = useRouter();
   const isLiveViewer = useIsLiveViewer();
@@ -622,6 +628,32 @@ export default function ScorebookIndex() {
 
   return (
     <View style={styles.screen}>
+      {isSaving && (
+        <Modal visible={isSaving} transparent={false} animationType="fade">
+          <View
+            style={[
+              styles.screen,
+              {
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "#FFFFFF",
+              },
+            ]}
+          >
+            <ActivityIndicator size="large" color="#12c2e9" />
+            <Text
+              style={{
+                marginTop: 15,
+                fontSize: 16,
+                fontWeight: "600",
+                color: "#333",
+              }}
+            >
+              Saving and finalizing match...
+            </Text>
+          </View>
+        </Modal>
+      )}
       {/* 1. Only render the component if setup is NOT complete */}
       {isSetupVisible && selectedMode !== null && (
         <GameSetupModal
@@ -684,14 +716,19 @@ export default function ScorebookIndex() {
         )}
 
         <CurrentOverDisplay />
+        <Card style={styles.card} mode="elevated">
+          <View style={styles.scoreRow}>
+            <ScoreWickets />
+          </View>
 
-        <View style={styles.scoreRow}>
-          <ScoreWickets />
-        </View>
+          <View style={styles.scoreRow}>
+            <OversCounter />
+          </View>
 
-        <View style={styles.scoreRow}>
-          <OversCounter />
-        </View>
+          <View style={styles.scoreRow}>
+            <CurrentBattingDisplay />
+          </View>
+        </Card>
 
         <View style={styles.divider} />
 
@@ -907,5 +944,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 26,
     fontWeight: "600",
+  },
+  card: {
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matching dark cyan theme
+    padding: 12, // Standard inner padding for card content
+    height: "auto", // Prevents unwanted vertical stretching
+    alignSelf: "stretch", // Spans the full usable width
   },
 });

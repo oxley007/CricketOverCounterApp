@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  FlatList,
 } from "react-native";
 
 import type { Fixture, InningsSnapshot } from "../state/fixtureStore";
@@ -98,15 +99,22 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
       </ScrollView>
 
       {/* Scorecards */}
-      <ScrollView style={{ marginTop: 12 }}>
-        <Scorecard
-          events={events}
-          inningsSnapshot={
-            snapshot?.battingEntries?.length ? snapshot : undefined
-          }
-        />
-        <BowlerScorecard events={events} inningsSnapshot={snapshot} />
-      </ScrollView>
+      <FlatList
+        data={[]} // Keep empty since we are using header/footer for the layout
+        renderItem={null}
+        style={{ marginTop: 12 }}
+        ListHeaderComponent={
+          <>
+            <Scorecard
+              events={events}
+              inningsSnapshot={
+                snapshot?.battingEntries?.length ? snapshot : undefined
+              }
+            />
+            <BowlerScorecard events={events} inningsSnapshot={snapshot} />
+          </>
+        }
+      />
     </View>
   );
 }

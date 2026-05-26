@@ -393,8 +393,10 @@ export default function NewInningsButton({ onComplete }: Props) {
         mode="contained"
         buttonColor="#12c2e9"
         disabled={saving}
+        loading={saving}
         onPress={async () => {
           setSaving(true);
+          useStartModalStore.getState().setIsSaving(true);
           try {
             if (!isScorebook) {
               await handleTestSetup();
@@ -404,7 +406,13 @@ export default function NewInningsButton({ onComplete }: Props) {
           } catch (err) {
             console.error("❌ Add innings failed:", err);
           } finally {
-            setSaving(false);
+            // 🚀 The Fix: Use a small macro-task delay before unlocking the UI overlay.
+            // This gives the parent component enough layout rendering cycles to safely
+            // absorb the brand new innings structural data without flashing old setup modals.
+            setTimeout(() => {
+              setSaving(false);
+              useStartModalStore.getState().setIsSaving(false);
+            }, 100);
           }
         }}
         style={styles.addInningsButton}
@@ -413,6 +421,7 @@ export default function NewInningsButton({ onComplete }: Props) {
       >
         Add New Innings
       </Button>
+
       {log ? <Text style={{ marginTop: 12 }}>{log}</Text> : null}
       <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
     </View>

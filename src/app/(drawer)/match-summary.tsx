@@ -17,20 +17,27 @@ export default function MatchSummaryScreen() {
   }>();
   const setSaving = useUIStore((s) => s.setSaving);
   const fixtureIdStr = Array.isArray(fixtureId) ? fixtureId[0] : fixtureId;
+
+  // 🚀 THE FIX: Make the fixture resolver strict so a brand new match cannot pass here!
   const fixture = useFixtureStore((s) => {
-    // Prefer currentFixture when it matches the requested fixtureId (or when no id was passed)
-    if (s.currentFixture) {
-      if (!fixtureIdStr || s.currentFixture.id === fixtureIdStr) {
+    // 1. If an ID was explicitly passed via the URL route param, search for it
+    if (fixtureIdStr) {
+      if (s.currentFixture && s.currentFixture.id === fixtureIdStr) {
         return s.currentFixture;
       }
-    }
-
-    if (fixtureIdStr) {
       const found = s.fixtures.find((f) => f.id === fixtureIdStr);
       if (found) return found;
+
+      return null; // Don't fall back to an unrelated currentFixture if ID doesn't match
     }
 
-    return s.currentFixture;
+    // 2. If NO ID was passed via route parameters, check if the current active fixture is completed
+    if (s.currentFixture && s.currentFixture.completed) {
+      return s.currentFixture;
+    }
+
+    // 3. Otherwise, explicitly return null to force the page to safe-exit
+    return null;
   });
 
   // This ensures isResetView is only true if we EXPLICITLY pass
@@ -137,13 +144,22 @@ export default function MatchSummaryScreen() {
           <Button
             mode="contained"
             onPress={() => {
+              // 1. Wipe match memory
               useFixtureStore.setState({ currentFixture: undefined });
 
+              // 2. Reset the mode configuration setup values
               const startModal = useStartModalStore.getState();
               startModal.reset();
               startModal.open();
 
-              router.replace("/");
+              // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
+              router.replace({
+                pathname: "/",
+                params: {
+                  fixtureId: undefined,
+                  prevMode: undefined,
+                },
+              });
             }}
             style={styles.continueButton}
           >
