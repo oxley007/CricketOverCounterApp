@@ -730,8 +730,6 @@ export default function ScorebookIndex() {
           </View>
         </Card>
 
-        <View style={styles.divider} />
-
         {/*
         <BattingTeamSelector
           allTeams={playingTeams}
@@ -811,8 +809,6 @@ export default function ScorebookIndex() {
               </View>
             </View>
 
-            <View style={styles.divider} />
-
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <AveragePartnership />
@@ -821,8 +817,6 @@ export default function ScorebookIndex() {
                 <HighestPartnership />
               </View>
             </View>
-
-            <View style={styles.divider} />
 
             <View style={styles.statsRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
@@ -911,7 +905,6 @@ const styles = StyleSheet.create({
     gap: 0,
     marginBottom: 0,
   },
-  statsRow: { flexDirection: "row", alignItems: "stretch" },
   divider: { height: 1, backgroundColor: "#f5f5f5", marginVertical: 10 },
   fullScorecardLink: {
     textDecorationLine: "underline",
@@ -952,5 +945,10 @@ const styles = StyleSheet.create({
     padding: 12, // Standard inner padding for card content
     height: "auto", // Prevents unwanted vertical stretching
     alignSelf: "stretch", // Spans the full usable width
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginVertical: 10,
   },
 });

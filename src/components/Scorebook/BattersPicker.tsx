@@ -377,74 +377,78 @@ export default function BattersPicker({
 
 const styles = StyleSheet.create({
   addBatters: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    flex: 1,
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard theme
+    borderRadius: 12,
     paddingVertical: 18,
     paddingHorizontal: 20,
-    marginVertical: 12,
+    elevation: 1,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     borderLeftWidth: 5,
-    borderLeftColor: "#12c2e9",
+    borderLeftColor: "#ffd54f", // Accent line matches selection border yellow
   },
   addBattersTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#ffffff", // Primary title to pure white
     marginBottom: 4,
   },
   selectedBattersContainer: {
-    backgroundColor: "#fff",
-    //borderRadius: 14,
-    //padding: 16,
-    //marginVertical: 8,
-    //shadowColor: "#000",
-    //shadowOpacity: 0.08,
-    //shadowRadius: 6,
-    //shadowOffset: { width: 0, height: 3 },
-    //elevation: 3,
-    //borderLeftWidth: 5,
-    //borderLeftColor: "#12c2e9",
+    backgroundColor: "transparent", // Transparent to sit cleanly on card base
   },
   selectedBatterItem: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "rgba(255, 255, 255, 0.15)", // Soft divider line
+    marginVertical: 2,
   },
   selectedBatterText: {
     fontSize: 16,
-    color: "#0f172a",
-    fontWeight: "500",
+    color: "#ffffff", // Pure white for great legibility
+    fontWeight: "600",
     paddingLeft: 5,
   },
-  batterRow: { flexDirection: "row", alignItems: "center" },
+  batterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   strikeIcon: {
     width: 20,
     textAlign: "center",
     marginRight: 8,
     fontWeight: "700",
-    color: "#12c2e9",
+    color: "#ffd54f", // Updated indicator tint to amber yellow
   },
   onStrikeBatter: {
-    borderColor: "#12c2e9",
-    borderWidth: 2,
-    backgroundColor: "#e0f7ff",
+    borderColor: "#ffffff", // Bold white frame border
+    borderWidth: 1.5,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 8,
+    paddingHorizontal: 4,
   },
   addBowlerButton: {
-    marginBottom: 12,
+    marginBottom: 4,
     paddingVertical: 10,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#ffffff", // White clean button contrast block
     borderRadius: 8,
     alignItems: "center",
+    elevation: 2,
   },
-  addBowlerButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  addBowlerButtonText: {
+    color: "#0e9cb9", // Links text back to container profile color
+    fontWeight: "700",
+    fontSize: 16,
+  },
   selectedText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#0f172a",
+    color: "#e0f7fa", // Clean legible soft cyan hint text
+    textAlign: "center",
+    marginBottom: 4,
   },
 });

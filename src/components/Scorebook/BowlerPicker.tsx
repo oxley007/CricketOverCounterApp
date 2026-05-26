@@ -153,13 +153,33 @@ export default function BowlerPicker({
                   {currentBowler.name}
                 </Text>
                 <Text style={styles.statsText}>
-                  <Text style={{ fontWeight: "700" }}>O:</Text> {stats.overs}{" "}
-                  <Text style={{ fontWeight: "700" }}>M:</Text> {stats.maidens}{" "}
-                  <Text style={{ fontWeight: "700" }}>R:</Text> {stats.runs}{" "}
-                  <Text style={{ fontWeight: "700" }}>W:</Text> {stats.wickets}{" "}
-                  <Text style={{ fontWeight: "700" }}>Econ:</Text>{" "}
-                  {stats.economy} <Text style={{ fontWeight: "700" }}>WD:</Text>{" "}
-                  {stats.wides} <Text style={{ fontWeight: "700" }}>NB:</Text>{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    O:
+                  </Text>{" "}
+                  {stats.overs}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    M:
+                  </Text>{" "}
+                  {stats.maidens}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    R:
+                  </Text>{" "}
+                  {stats.runs}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    W:
+                  </Text>{" "}
+                  {stats.wickets}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    Econ:
+                  </Text>{" "}
+                  {stats.economy}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    WD:
+                  </Text>{" "}
+                  {stats.wides}{" "}
+                  <Text style={{ fontWeight: "700", color: "#ffffff" }}>
+                    NB:
+                  </Text>{" "}
                   {stats.noBalls}
                 </Text>
               </View>
@@ -174,7 +194,7 @@ export default function BowlerPicker({
         )}
 
         {!bowlingTeam && !isLiveViewer && (
-          <Text>Select a bowling team first</Text>
+          <Text style={styles.selectedText}>Select a bowling team first</Text>
         )}
         {!isLiveViewer && (
           <View style={{ marginTop: 0 }}>
@@ -192,7 +212,7 @@ export default function BowlerPicker({
             {currentBowler && isOverInProgress && (
               <Pressable
                 onPress={() => setShowModal(true)}
-                style={{ marginTop: 6 }}
+                style={{ marginTop: 8, alignItems: "center" }}
               >
                 <Text style={styles.swapBowlerLink}>Swap Bowler</Text>
               </Pressable>
@@ -234,27 +254,27 @@ export default function BowlerPicker({
 
 const styles = StyleSheet.create({
   selectedBowlers: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    flex: 1,
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard theme
+    borderRadius: 12,
     padding: 16,
-    marginVertical: 8,
+    elevation: 1,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     borderLeftWidth: 5,
-    borderLeftColor: "#12c2e9",
+    borderLeftColor: "#ffd54f", // Left indicator badge shifted to high-contrast amber
   },
   selectedBowlerItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    paddingVertical: 4,
   },
   selectedBowlerText: {
-    fontSize: 16,
-    color: "#0f172a",
-    fontWeight: "500",
+    fontSize: 18, // Enlarged slightly to stand out as a main header
+    color: "#ffffff", // Pure white typography
+    fontWeight: "700",
   },
   bowlerRow: {
     flexDirection: "row",
@@ -262,37 +282,39 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   activeBowler: {
-    borderColor: "#12c2e9",
-    borderWidth: 2,
-    backgroundColor: "#e0f7ff",
+    backgroundColor: "rgba(255, 255, 255, 0.15)", // Premium glass highlight (matches Change Team button)
     borderRadius: 8,
   },
   addBowlerButton: {
     marginTop: 12,
     paddingVertical: 10,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#ffffff", // Pure white contrast action button
     borderRadius: 8,
     alignItems: "center",
+    elevation: 2,
   },
   addBowlerButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#0e9cb9", // Links color back to theme backdrop
+    fontWeight: "700",
     fontSize: 16,
   },
   statsText: {
-    fontSize: 12,
-    color: "#334155",
-    marginTop: 2,
+    fontSize: 13,
+    color: "#b2ebf2", // Crisp, secondary light-teal shade for live metrics reading
+    marginTop: 4,
+    lineHeight: 18,
   },
   swapBowlerLink: {
     fontSize: 14,
-    color: "#12c2e9",
+    color: "#b2ebf2", // Subdued but clear links text color
     textDecorationLine: "underline",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   selectedText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#0f172a",
+    color: "#e0f7fa", // High-contrast soft cyan for system hint labels
+    textAlign: "center",
+    marginVertical: 6,
   },
 });
