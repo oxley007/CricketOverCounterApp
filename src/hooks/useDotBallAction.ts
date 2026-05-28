@@ -19,6 +19,7 @@ export function useDotBallAction(isScorebook: boolean) {
     const currentGame = gameState.currentGame;
 
     if (!currentGame) {
+      alert("Please select batting team");
       console.log("❌ No currentGame");
       return;
     }
@@ -27,6 +28,7 @@ export function useDotBallAction(isScorebook: boolean) {
     const bowlerId = currentGame.currentBowlerId;
 
     if (!strikerId && isScorebook) {
+      alert("Please select battiers");
       console.log("❌ No strikerId");
       return;
     }

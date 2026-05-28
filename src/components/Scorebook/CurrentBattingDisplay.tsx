@@ -57,6 +57,8 @@ export default function CurrentBattingDisplay() {
     return team?.name || "Unknown Team";
   }, [isLiveViewer, battingTeamId, currentFixture, allTeams]);
 
+  console.log(battingTeamId, "battingTeamId is what? now");
+
   // Hide if no team is active or no play has started
   if (!battingTeamId || legalBallsBowled === 0) {
     return null;

@@ -44,11 +44,20 @@ export const useStartModalStore = create<StartModalState>()(
     {
       name: "cricket-start-modal",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ selectedMode: s.selectedMode }),
+      // 🚀 CRITICAL FIX 1: Explicitly say what to save. Do NOT save isOpen.
+      partialize: (s) => ({
+        selectedMode: s.selectedMode,
+      }),
 
+      // 🚀 CRITICAL FIX 2: Explicitly force isOpen to be true on startup post-hydration
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hasHydrated = true;
+
+          // If no mode is selected yet, force the modal open on app start
+          if (state.selectedMode === null) {
+            state.isOpen = true;
+          }
         }
       },
     },

@@ -2,7 +2,7 @@
   "expo": {
     "name": "cricket-umpire-ball-counter",
     "slug": "cricket-umpire-ball-counter",
-    "version": "5.3.5",
+    "version": "5.3.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cricketumpireballcounter",
@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.4dot6.cricketballandovercounter",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "5.3.5",
+      "buildNumber": "5.3.6",
       "icon": "./assets/ios-icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -66,7 +66,15 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "4dot6"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

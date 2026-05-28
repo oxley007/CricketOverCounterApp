@@ -428,7 +428,7 @@ function HomeContent() {
               <RemindSupportersCard
                 onPress={() =>
                   router.push({
-                    pathname: "/live-scoring-instructions",
+                    pathname: "/live-scoring-info",
                     params: { modeMessage: "reminder" }, // 🚀 Passing the reminder flag here
                   })
                 }

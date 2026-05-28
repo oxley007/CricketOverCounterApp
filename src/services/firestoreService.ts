@@ -659,6 +659,8 @@ export async function updatePublicTeamData(parentTeamId: string, team: Team) {
     return;
   }
 
+  await ensurePublicTeamExists(team);
+
   const ref = doc(db, "publicTeams", teamCode, "teams", team.id);
 
   // 1. Build the base payload that always syncs

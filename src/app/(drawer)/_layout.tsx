@@ -19,6 +19,8 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+import { Stack } from "expo-router";
+import * as Sentry from "@sentry/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth } from "../../services/firebaseConfig";
 import { useAuthStore } from "../../state/authStore";
@@ -31,7 +33,15 @@ import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { APP_LOGOS } from "../../constants/Assets";
 import { useExitGame } from "../../hooks/useExitGame";
 
-export default function DrawerLayout() {
+Sentry.init({
+  dsn: "https://90fc5ebafc7873a966be3afaaa4dd223@o4509504906067968.ingest.us.sentry.io/4509504906264576", // 👈 Put the DSN string provided by the wizard here
+  debug: __DEV__,
+  tracesSampleRate: 1.0,
+});
+
+//  To this:
+function DrawerLayout() {
+  const { theme } = useTenantConfig();
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -43,6 +53,28 @@ export default function DrawerLayout() {
 
     return unsub;
   }, []);
+
+  useEffect(() => {
+    // 1. Tag the variant based on your existing theme hook
+    const currentVariant =
+      theme.headerLogo === "logo_littlewicket" ? "littlewicket" : "umpire";
+
+    Sentry.setTag("app_variant", currentVariant);
+
+    // 2. Keep your existing Firebase auth listener
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("✅ Firebase session restored:", user.uid);
+        // Optional: Associate the crash with a user ID (GDPR compliant)
+        Sentry.setUser({ id: user.uid });
+      } else {
+        console.log("👤 No logged in user");
+        Sentry.setUser(null); // Clear user on logout
+      }
+    });
+
+    return unsub;
+  }, [theme.headerLogo]); // Run when theme logo changes
 
   return Platform.OS === "android" ? (
     <SafeAreaProvider>
@@ -253,3 +285,5 @@ const styles = StyleSheet.create({
     height: 40,
   },
 });
+
+export default Sentry.wrap(DrawerLayout);

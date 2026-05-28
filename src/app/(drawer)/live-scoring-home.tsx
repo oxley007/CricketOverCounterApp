@@ -69,27 +69,6 @@ export default function LiveScoringHome() {
             <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
           </View>
 
-          {/* SECTION 1: COACHES/SCORERS */}
-          <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>Coaches/Scorers</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.tierTitle}>
-              Setup Live Scoring (for coaches/scorers)
-            </Text>
-            <Text style={styles.bodyText}>
-              Start live scoring to update your team’s fans in real-time.
-            </Text>
-            <Text style={styles.bodyText}>
-              Record every ball, run, and wicket. Share the generated Team ID
-              with supporters so they can follow along.
-            </Text>
-            <Pressable style={styles.ctaButton} onPress={() => setupScoring()}>
-              <Text style={styles.ctaButtonText}>Setup Live Scoring</Text>
-            </Pressable>
-          </View>
-
           {/* SECTION 2: PARENTS/SUPPORTERS */}
           <View style={styles.sectionPill}>
             <Text style={styles.sectionPillText}>Supporters</Text>
@@ -110,6 +89,27 @@ export default function LiveScoringHome() {
               onAuthSuccess={() => router.replace("/live-scoring-fixtures")}
             />
             {/* Input field and logic would follow here */}
+          </View>
+
+          {/* SECTION 1: COACHES/SCORERS */}
+          <View style={styles.sectionPill}>
+            <Text style={styles.sectionPillText}>Coaches/Scorers</Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.tierTitle}>
+              Setup Live Scoring (for coaches/scorers)
+            </Text>
+            <Text style={styles.bodyText}>
+              Start live scoring to update your team’s fans in real-time.
+            </Text>
+            <Text style={styles.bodyText}>
+              Record every ball, run, and wicket. Share the generated Team ID
+              with supporters so they can follow along.
+            </Text>
+            <Pressable style={styles.ctaButton} onPress={() => setupScoring()}>
+              <Text style={styles.ctaButtonText}>Setup Live Scoring</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </View>

@@ -11,6 +11,7 @@ import { useStartModalStore } from "../../state/startModalStore";
 import type { Team } from "../../state/teamStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
 import { useExitGame } from "../../hooks/useExitGame";
+import { updateCurrentGameData } from "@/src/services/firestoreService";
 
 interface BattingTeamSelectorProps {
   allTeams: Team[];
@@ -87,9 +88,24 @@ export default function BattingTeamSelector({
         {allTeams.map((team) => (
           <Pressable
             key={team.id}
-            onPress={() => {
+            onPress={async () => {
               const otherTeam = allTeams.find((t) => t.id !== team.id);
-              onSelectTeam(team.id, otherTeam?.id ?? "");
+              const targetBattingId = team.id;
+              const targetBowlingId = otherTeam?.id ?? "";
+
+              // 1. Update your local state via props
+              onSelectTeam(targetBattingId, targetBowlingId);
+
+              // 2. Sync currentGame immediately to Firebase for live viewers
+              try {
+                await updateCurrentGameData(targetBattingId, {
+                  battingTeamId: targetBattingId,
+                  bowlingTeamId: targetBowlingId,
+                  // Include any other required fields for your currentGame schema here
+                });
+              } catch (error) {
+                console.error("Failed to sync currentGame to Firebase:", error);
+              }
             }}
             style={styles.primaryButton}
           >

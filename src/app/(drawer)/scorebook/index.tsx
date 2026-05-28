@@ -12,9 +12,12 @@ import {
   View,
   Modal,
   ActivityIndicator,
+  Button as ButtonRn,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/shallow";
+//import { Button } from 'react-native';
+import * as Sentry from "@sentry/react-native";
 
 import {
   configureRevenueCat,
@@ -28,6 +31,7 @@ import { useTeamStore } from "../../../state/teamStore";
 import { useLiveStore } from "../../../state/liveStore";
 
 import { useIsLiveViewer } from "../../../hooks/useIsLiveViewer";
+import { useCurrentUserId } from "../../../hooks/useCurrentUserId";
 
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useExitGame } from "../../../hooks/useExitGame";
@@ -105,6 +109,7 @@ export default function ScorebookIndex() {
 
   const router = useRouter();
   const isLiveViewer = useIsLiveViewer();
+  const userId = useCurrentUserId();
 
   /*
   const localTeams = useTeamStore((s) => s.teams);
@@ -636,7 +641,7 @@ export default function ScorebookIndex() {
               {
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: "#FFFFFF",
+                backgroundColor: "#12c2e9",
               },
             ]}
           >
@@ -646,10 +651,10 @@ export default function ScorebookIndex() {
                 marginTop: 15,
                 fontSize: 16,
                 fontWeight: "600",
-                color: "#333",
+                color: "#fff",
               }}
             >
-              Saving and finalizing match...
+              Updating match...
             </Text>
           </View>
         </Modal>
@@ -700,7 +705,7 @@ export default function ScorebookIndex() {
               <RemindSupportersCard
                 onPress={() =>
                   router.push({
-                    pathname: "/live-scoring-instructions",
+                    pathname: "/live-scoring-info",
                     params: { modeMessage: "reminder" }, // 🚀 Passing the reminder flag here
                   })
                 }
@@ -790,6 +795,15 @@ export default function ScorebookIndex() {
             Full Scorecard
           </Text>
         </View>
+
+        {userId === "jJtMXBshezV40VCd55b9DSbcP5j1" && (
+          <ButtonRn
+            title="Test Sentry Crash"
+            onPress={() =>
+              Sentry.captureException(new Error("First Sentry Test Error!"))
+            }
+          />
+        )}
 
         {!showStats && (
           <UpgradeProBox onUpgrade={() => setShowSubscriptionModal(true)} />

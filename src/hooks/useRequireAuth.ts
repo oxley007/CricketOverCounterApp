@@ -35,8 +35,7 @@ export function useRequireAuth(options?: Options) {
   useEffect(() => {
     if (!authVisible || !pendingActionRef.current) return;
 
-    const isReady = () =>
-      !!auth.currentUser || useAuthStore.getState().isGuest;
+    const isReady = () => !!auth.currentUser || useAuthStore.getState().isGuest;
 
     if (isReady()) {
       runPendingAction();

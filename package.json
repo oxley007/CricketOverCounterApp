@@ -20,6 +20,7 @@
     "@react-navigation/drawer": "^7.7.10",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@sentry/react-native": "~7.2.0",
     "expo": "~54.0.30",
     "expo-apple-authentication": "~8.0.8",
     "expo-async-storage": "^0.0.0",

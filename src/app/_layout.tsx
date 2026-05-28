@@ -6,7 +6,7 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
 
@@ -71,10 +71,21 @@ export default function RootLayout() {
   // 🚀 CRITICAL UI LOCK: Do not allow modal renders while the bridge is initializing
   if (!isSdkReady) {
     return (
-      <ActivityIndicator
-        size="large"
-        style={{ flex: 1, justifyContent: "center" }}
-      />
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#12c2e9",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator
+          size="large"
+          style={{ flex: 1, justifyContent: "center" }}
+        />
+      </View>
     );
   }
 
