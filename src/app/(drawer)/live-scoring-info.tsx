@@ -1,6 +1,6 @@
 // app/(drawer)/live-scoring-info.tsx
 
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useState, useEffect } from "react";
 import { isRevenueCatAvailable, getOfferings } from "@/src/services/revenuecat";
 import {
@@ -32,6 +32,13 @@ export default function LiveScoringInfo() {
   const router = useRouter();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { modeMessage: rawModeMessage } = useLocalSearchParams<{
+    modeMessage: string;
+  }>();
+  const modeMessage = rawModeMessage || null;
+
+  const isReminderMode = modeMessage === "reminder";
 
   const livePro = useLiveStore((state) => state.livePro);
 
@@ -224,8 +231,14 @@ export default function LiveScoringInfo() {
           success = true;
         }
 
+        console.log("do i get to here?");
+
         if (success) {
-          router.push("/live-scoring-instructions");
+          console.log("in here woek? yaya?");
+          router.push({
+            pathname: "/live-scoring-instructions",
+            params: { modeMessage: isReminderMode ? "reminder" : "" },
+          });
         }
       } finally {
         if (!success) {

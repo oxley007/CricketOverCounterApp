@@ -659,7 +659,7 @@ export async function updatePublicTeamData(parentTeamId: string, team: Team) {
     return;
   }
 
-  await ensurePublicTeamExists(team);
+  //await ensurePublicTeamExists(team);
 
   const ref = doc(db, "publicTeams", teamCode, "teams", team.id);
 

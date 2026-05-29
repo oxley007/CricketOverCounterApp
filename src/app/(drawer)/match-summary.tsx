@@ -117,10 +117,59 @@ export default function MatchSummaryScreen() {
               <Text style={{ color: "#fff", marginBottom: 20 }}>
                 The match data was cleared successfully.
               </Text>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  // 1. Wipe match memory
+                  useFixtureStore.setState({ currentFixture: undefined });
+
+                  // 2. Reset the mode configuration setup values
+                  const startModal = useStartModalStore.getState();
+                  startModal.reset();
+                  startModal.open();
+
+                  // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
+                  router.replace({
+                    pathname: "/",
+                    params: {
+                      fixtureId: undefined,
+                      prevMode: undefined,
+                    },
+                  });
+                }}
+                style={styles.continueButton}
+              >
+                Continue
+              </Button>
             </View>
           ) : (
             <>
               <Text style={styles.title}>Match Summary</Text>
+
+              <Button
+                mode="contained"
+                onPress={() => {
+                  // 1. Wipe match memory
+                  useFixtureStore.setState({ currentFixture: undefined });
+
+                  // 2. Reset the mode configuration setup values
+                  const startModal = useStartModalStore.getState();
+                  startModal.reset();
+                  startModal.open();
+
+                  // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
+                  router.replace({
+                    pathname: "/",
+                    params: {
+                      fixtureId: undefined,
+                      prevMode: undefined,
+                    },
+                  });
+                }}
+                style={styles.continueButton}
+              >
+                Continue
+              </Button>
 
               {/* Innings summary card */}
               <View style={styles.card}>
@@ -140,31 +189,6 @@ export default function MatchSummaryScreen() {
               </View>
             </>
           )}
-
-          <Button
-            mode="contained"
-            onPress={() => {
-              // 1. Wipe match memory
-              useFixtureStore.setState({ currentFixture: undefined });
-
-              // 2. Reset the mode configuration setup values
-              const startModal = useStartModalStore.getState();
-              startModal.reset();
-              startModal.open();
-
-              // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
-              router.replace({
-                pathname: "/",
-                params: {
-                  fixtureId: undefined,
-                  prevMode: undefined,
-                },
-              });
-            }}
-            style={styles.continueButton}
-          >
-            Continue
-          </Button>
         </ScrollView>
       </View>
     </>

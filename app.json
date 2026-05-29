@@ -2,7 +2,7 @@
   "expo": {
     "name": "cricket-umpire-ball-counter",
     "slug": "cricket-umpire-ball-counter",
-    "version": "5.3.6",
+    "version": "5.3.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cricketumpireballcounter",
@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.4dot6.cricketballandovercounter",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "5.3.6",
+      "buildNumber": "5.3.7",
       "icon": "./assets/ios-icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

@@ -64,14 +64,15 @@ export default function PlayerStatsModal({
   // Get status from store
   // Get status from store
   const ballProUnlocked = useMatchStore((s) => s.proUnlocked);
-  const scorebookProUnlocked = useMatchStore((s) => s.proScorebookUnlocked);
+  const scorebookProUnlocked = useMatchStore((s) => s.proUnlockedScorebook);
 
   // 🚀 Read individual and coach live streaming tiers from the live store
   const livePro = useLiveStore((s) => s.livePro);
   const liveProViewer = useLiveStore((s) => s.liveProViewer);
 
   // 🚀 Logic: Stats reveal if Scorebook Pro is active OR if either live stream tier is true
-  const proUnlocked = scorebookProUnlocked || livePro || liveProViewer;
+  const proUnlocked =
+    scorebookProUnlocked || livePro || liveProViewer || ballProUnlocked;
 
   const showIAPModal = useMatchStore((s) => s.showIAPModal);
 

@@ -99,21 +99,28 @@ module.exports = {
     ],
     theme: {
       headerLogo: "logo_littlewicket",
-      modeSelectionBg: "#ffffff",
+      modeSelectionBg: "#FFFFFF", // Clean white screen background
       modeHeaderBg: "transparent",
-      headerTextColor: "#000000",
+      headerTextColor: "#1C1B1F", // Deep charcoal for crisp readability
       backgroundImage: "icon_littlewicket",
       logoAspectRatio: 4.1,
-      cardBorderColor: "#e9df36",
-      cardBorderWidth: 2,
-      cardBg: "#ffffff",
-      cardTextColor: "#e9df36",
-      scoreText: "#12c2e9",
-      scoreBg: "#ffffff",
-      ballBg: "#ffffff",
-      ballText: "#e9df36",
-      scoreBorderColor: "#12c2e9",
-      ballBorderColor: "#e9df36",
+
+      // Cards: Deep premium forest green with soft background
+      cardBg: "#111111", // Clean, very light slate grey
+      cardBorderColor: "#1E293B", // Soft mid-slate border
+      cardBorderWidth: 1.5,
+      cardTextColor: "#FFFFFF", // Very dark slate text (perfect contrast)
+
+      // --- Scoring UI Elements (Your Core Slate Shade) ---
+      scoreBg: "#334155", // Your chosen core slate grey
+      scoreText: "#FFFFFF", // Crisp white text over dark slate
+      scoreBorderColor: "#1E293B", // Ultra-dark slate accent border
+
+      // --- Ball Tracker Elements (Ultra-Light Tinted Slate Shade) ---
+      ballBg: "#1E293B", // Off-white slate tint (distinguishes it from pure white background)
+      ballText: "#FFFFFF", // Core slate grey text inside the ball
+      ballBorderColor: "#1E293B",
+
       actionTabs: {
         undoColor: "#e2339c",
         dotColor: "#e9df36",
@@ -123,6 +130,7 @@ module.exports = {
         dotLabelColor: "#666",
       },
     },
+
     features: {
       liveStreaming: true,
       showJuniorPrompt: false, // LittleWicket doesn't need to prompt

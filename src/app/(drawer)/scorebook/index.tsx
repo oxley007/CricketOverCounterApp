@@ -106,6 +106,7 @@ export default function ScorebookIndex() {
   const closeMatchRulesModal = useMatchStore((s) => s.closeMatchRulesModal);
 
   const isSaving = useStartModalStore((state) => state.isSaving);
+  const setIsSaving = useStartModalStore((state) => state.setIsSaving);
 
   const router = useRouter();
   const isLiveViewer = useIsLiveViewer();
@@ -289,6 +290,18 @@ export default function ScorebookIndex() {
       }
     };
   }, [currentFixtureTeamId]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (isSaving) {
+      timer = setTimeout(() => {
+        setIsSaving(false);
+      }, 5000); // 5000 milliseconds = 5 seconds
+    }
+
+    return () => clearTimeout(timer); // Cleans up the timer if the modal closes early
+  }, [isSaving, setIsSaving]);
 
   // Ball reminder & stats visibility
   // This selector calculates the value before it even hits your component
@@ -645,7 +658,7 @@ export default function ScorebookIndex() {
               },
             ]}
           >
-            <ActivityIndicator size="large" color="#12c2e9" />
+            <ActivityIndicator size="large" color="#fff" />
             <Text
               style={{
                 marginTop: 15,

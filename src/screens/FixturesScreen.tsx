@@ -32,6 +32,10 @@ export default function FixturesScreen() {
   const proUnlocked = useMatchStore((s) => s.proUnlocked); // for ball counter
   const proScorebookUnlocked = useMatchStore((s) => s.proUnlockedScorebook); // for scorebook
 
+  const livePro = useLiveStore((s) => s.livePro);
+  const liveProViewer = useLiveStore((s) => s.liveProViewer);
+  const isLiveProUnlocked = livePro || liveProViewer; // Combined helper
+
   const startModal = useStartModalStore();
 
   console.log(
@@ -228,29 +232,36 @@ export default function FixturesScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => {
           const innings = Object.values(item.innings || {});
+          const isFreeFixture = index === 0;
 
           const isBallCounterFixture = innings.every(
             (i: any) => !i.battingEntries || i.battingEntries.length === 0,
           );
 
+          // Update Ball Counter check
           if (isBallCounterFixture) {
             return (
               <BallCounterFixtureCard
                 fixture={item}
-                isFreeFixture={index === 0}
+                isFreeFixture={isFreeFixture || isLiveProUnlocked} // Unlocked if livePro/liveProViewer is true
                 onUpgradePress={() => setShowSubscriptionModal(true)}
               />
             );
           }
 
+          // Update Scorebook check
           return (
             <FixtureCard
               fixture={item}
-              isFreeFixture={index === 0}
+              isFreeFixture={isFreeFixture || isLiveProUnlocked} // Visual indicator update
               onPress={() => {
-                const isFreeFixture = index === 0;
-
-                if (!proScorebookUnlocked && !isFreeFixture) {
+                // Allow access if item is free, pro scorebook is unlocked, OR live pro is active
+                if (
+                  !proScorebookUnlocked &&
+                  !proUnlocked &&
+                  !isLiveProUnlocked &&
+                  !isFreeFixture
+                ) {
                   setShowSubscriptionModal(true);
                   return;
                 }
@@ -263,6 +274,7 @@ export default function FixturesScreen() {
           );
         }}
       />
+
       <View style={{ marginBottom: 16, marginTop: 16 }}>
         <Pressable style={styles.modalButton} onPress={openGameModeModal}>
           <Text style={styles.modalButtonText}>Back to Select Game Mode</Text>
