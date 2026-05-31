@@ -76,18 +76,6 @@ import RemindSupportersCard from "../../../components/Live/RemindSupportersCard"
 import CurrentBattingDisplay from "@/src/components/Scorebook/CurrentBattingDisplay";
 
 export default function ScorebookIndex() {
-  console.log(
-    "🎯 Current Fixture:",
-    JSON.stringify(useFixtureStore.getState().currentFixture, null, 2),
-  );
-  console.log(
-    "🏏 Active Batters:",
-    JSON.stringify(useGameStore.getState().currentGame?.activeBatters, null, 2),
-  );
-  console.log(
-    "🏏 Current Game check:",
-    JSON.stringify(useGameStore.getState().currentGame, null, 2),
-  );
   const isSetupComplete = useGameStore((s) => s.isSetupComplete);
   const startGame = useGameStore((s) => s.startGame);
   const setStrike = useGameStore((s) => s.setStrike);

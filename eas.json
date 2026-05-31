@@ -35,6 +35,12 @@
         "APP_VARIANT": "umpire"
       }
     },
+    "little-prod": {
+      "extends": "production",
+      "env": {
+        "APP_VARIANT": "littlewicket"
+      }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal"

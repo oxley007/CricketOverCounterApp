@@ -17,10 +17,23 @@ const lastSyncedOverTracker: Record<string, number> = {};
 
 export function startLiveGameEventListener(teamId: string) {
   const isLiveViewer = useLiveStore.getState().isReadOnly;
+  const teamCode = getTeamCode(teamId);
+
+  console.log(
+    "▶️ startLiveGameEventListener",
+    teamCode,
+    "alreadyExists:",
+    !!activeListeners[teamCode],
+  );
+
+  if (activeListeners[teamCode]) {
+    console.log("⚠️ Listener already active", teamCode);
+    return;
+  }
 
   if (isLiveViewer) {
-    const teamCode = getTeamCode(teamId);
-    if (activeListeners[teamCode]) return;
+    //const teamCode = getTeamCode(teamId);
+    //if (activeListeners[teamCode]) return;
 
     console.log("📡 Starting Live Sync for:", teamCode);
     let remoteProLive = false;
@@ -154,13 +167,29 @@ export function startLiveGameEventListener(teamId: string) {
 export function stopLiveGameEventListener(teamId?: string) {
   if (teamId) {
     const teamCode = getTeamCode(teamId);
+
+    console.log(
+      "🛑 stopLiveGameEventListener",
+      teamCode,
+      "listenerExists:",
+      !!activeListeners[teamCode],
+    );
+
     activeListeners[teamCode]?.();
+
     delete activeListeners[teamCode];
     delete lastSyncedOverTracker[teamCode];
   } else {
-    // Stop all background tracking listeners globally
     Object.keys(activeListeners).forEach((code) => {
-      activeListeners[code]();
+      console.log(
+        "🛑 stopLiveGameEventListener (all)",
+        code,
+        "listenerExists:",
+        !!activeListeners[code],
+      );
+
+      activeListeners[code]?.();
+
       delete activeListeners[code];
       delete lastSyncedOverTracker[code];
     });
