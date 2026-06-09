@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.x4dot6.cricketumpireballcounter"
+  },
+  "ios": {
+    "bundleIdentifier": "com.x4dot6.cricketumpireballcounter"
+  }
+}

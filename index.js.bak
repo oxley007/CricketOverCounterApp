@@ -1,6 +1,7 @@
 import { registerRootComponent } from "expo";
 import { ExpoRoot } from "expo-router";
 
+// This links the entry handler directly to your dynamic file paths
 const ctx = require.context("./src/app");
 
 export function App() {

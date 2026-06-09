@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Sandbox Base",
+    "slug": "sandbox-base",
+    "version": "1.0.0",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.x4dot6.sandboxbase"
+    },
+    "ios": {
+      "bundleIdentifier": "com.x4dot6.sandboxbase"
+    }
+  }
+}

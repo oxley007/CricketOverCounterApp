@@ -1,0 +1,15 @@
+export default ({ config }) => {
+  return {
+    ...config,
+    name: "Umpire 4dot6 Ball Counter", // 👈 Moves the letter to the very front!
+    slug: "sandbox-base",
+    version: "1.0.0",
+    newArchEnabled: true,
+    ios: {
+      bundleIdentifier: "com.x4dot6.sandboxbase",
+    },
+    android: {
+      package: "com.x4dot6.sandboxbase",
+    },
+  };
+};

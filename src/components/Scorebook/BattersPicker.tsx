@@ -1,0 +1,454 @@
+// src/components/Scorebook/BattersPicker.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { savePlayer } from "../../services/firestoreService";
+import { useFixtureStore } from "../../state/fixtureStore";
+import { calculateBatterStats } from "../../state/gameHelpers";
+import { useGameStore } from "../../state/gameStore";
+import { useMatchStore } from "../../state/matchStore";
+import type { Team } from "../../state/teamStore";
+import { useTeamStore } from "../../state/teamStore";
+import AddPlayerFooter from "./AddPlayerFooter";
+import SelectPlayersModal from "./SelectPlayersModal";
+import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
+
+interface BattersPickerProps {
+  battingTeam: Team | null;
+  selectedBatters: string[];
+  onSelectionChange: (ids: string[]) => void;
+}
+
+export default function BattersPicker({
+  battingTeam,
+  selectedBatters,
+  onSelectionChange,
+}: BattersPickerProps) {
+  const [showModal, setShowModal] = useState(false);
+
+  const currentGame = useGameStore((s) => s.currentGame);
+  const selectedBattingTeamId = currentGame?.battingTeamId ?? null;
+  const addBatter = useGameStore((s) => s.addBatter);
+  const setStrike = useGameStore((s) => s.setStrike);
+  const matchEvents = useMatchStore((s) => s.events);
+  const startGame = useGameStore((s) => s.startGame);
+  const hasHydrated = useGameStore((s) => s.hasHydrated);
+
+  const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
+
+  const isLiveViewer = useIsLiveViewer();
+
+  const legalBallsBowled = matchEvents.reduce(
+    (count, e) => count + (e.countsAsBall ? 1 : 0),
+    0,
+  );
+
+  const handleCloseModal = () => setShowModal(false);
+
+  //const batters = useGameStore((s) => s.currentGame?.batters ?? []);
+
+  /*
+  const getBatterStats = (playerId: string, batterInningId?: string) => {
+    const eventsForBatter = matchEvents.filter(
+      (e) =>
+        e.batterId === playerId &&
+        (!batterInningId || e.batterInningId === batterInningId),
+    );
+
+    const runs = eventsForBatter.reduce((sum, e) => {
+      const batRuns = e.runBreakdown?.bat ?? 0;
+      const penaltyAddBack = (e as any).wicketPenaltyAdditionBatter ?? 0;
+
+      return sum + batRuns + penaltyAddBack;
+    }, 0);
+
+    const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
+
+    const strikeRate = balls > 0 ? (runs / balls) * 100 : 0;
+
+    return { runs, balls, strikeRate: strikeRate.toFixed(1) };
+  };
+  */
+
+  console.log(
+    "Persisted batters:",
+    useGameStore.getState().currentGame?.batters,
+  );
+
+  const shouldShowChangeBatters = (() => {
+    // ❌ If no batters selected, we are in "Add Batters" mode
+    if (selectedBatters.length === 0) return false;
+
+    const activeBattersObjects = currentGame?.activeBatters ?? [];
+
+    //if (activeBattersObjects.length === 0) return true;
+    if (activeBattersObjects.length < 2) return true;
+
+    const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
+      calculateBatterStats(matchEvents, playerId, batterInningId),
+    );
+
+    // Allow change if both have not faced a ball
+    if (
+      stats.length === 2 &&
+      stats.every((b) => b.runs === 0 && b.balls === 0)
+    ) {
+      return true;
+    }
+
+    // Allow change if one has not faced a ball
+    if (stats.some((b) => b.runs === 0 && b.balls === 0)) {
+      return true;
+    }
+
+    return false;
+  })();
+
+  //const battingTeamPlayers = battingTeam?.players ?? [];
+  const battingTeamPlayers =
+    battingTeam?.players.map((p) => ({
+      ...p,
+      teamId: battingTeam.id,
+    })) ?? [];
+
+  // currentGame.activeBatters is string[], not objects
+  const battersIds = currentGame?.activeBatters ?? [];
+  const currentBatters = currentGame?.activeBatters ?? [];
+  const battingEntries = currentGame?.battingEntries ?? [];
+
+  // derive active batters for display
+  const activeBatters = (currentGame?.activeBatters ?? [])
+    .map(({ playerId, batterInningId }) => {
+      const player = battingTeamPlayers.find((p) => p.id === playerId);
+      if (!player) return null;
+
+      //const { runs, balls } = getBatterStats(playerId, batterInningId);
+      const { runs, balls } = calculateBatterStats(
+        matchEvents,
+        playerId,
+        batterInningId,
+      );
+
+      return {
+        ...player,
+        runs,
+        balls,
+      };
+    })
+    .filter(Boolean) as ((typeof battingTeamPlayers)[0] & {
+    runs: number;
+    balls: number;
+  })[];
+
+  console.log("battingTeamPlayers:", battingTeamPlayers);
+
+  console.log("Current Batters:", currentBatters);
+  console.log("Batting Entries:", currentGame?.battingEntries);
+  console.log("currentBatters in BattersPicker:", currentGame?.batters);
+
+  useEffect(() => {
+    console.log("===== BattersPicker Debug =====");
+
+    // Fixture store
+    const fixtureStoreState = useFixtureStore.getState();
+    console.log(
+      "fixtureStore.currentFixture:",
+      fixtureStoreState.currentFixture,
+    );
+    console.log("fixtureStore.fixtures:", fixtureStoreState.fixtures);
+
+    // Game store
+    const gameStoreState = useGameStore.getState();
+    console.log("gameStore.currentGame:", gameStoreState.currentGame);
+    console.log("gameStore.gameConfig:", gameStoreState.gameConfig);
+
+    // Selected batters
+    console.log("selectedBatters prop:", selectedBatters);
+
+    // Batting team players
+    console.log("battingTeam?.players:", battingTeam?.players);
+  }, [battingTeam?.id, selectedBatters.join(",")]);
+
+  useEffect(() => {
+    if (!hasHydrated) return; // ⚠️ wait for hydration
+    if (!battingTeam) return;
+
+    const gameState = useGameStore.getState();
+
+    // Start the game if it doesn't exist yet
+    if (!gameState.currentGame) {
+      if (selectedBatters.length > 0) {
+        const cfg = gameState.gameConfig;
+        const bowlingTeamId =
+          cfg && battingTeam.id === cfg.yourTeam.id
+            ? cfg.oppositionTeam.id
+            : cfg?.yourTeam.id;
+        if (bowlingTeamId) {
+          startGame(battingTeam.id, bowlingTeamId, selectedBatters);
+        }
+      }
+      return;
+    }
+
+    const currentBatters = currentGame?.activeBatters ?? [];
+    const battingEntries = currentGame?.battingEntries ?? [];
+
+    // 1️⃣ Merge selectedBatters with current batters, ignoring dismissed entries
+    const mergedBatters = [
+      ...currentBatters.filter(
+        (b) =>
+          !b.retired && // 👈 ADD THIS
+          selectedBatters.includes(b.playerId) &&
+          !battingEntries.find(
+            (e) =>
+              e.playerId === b.playerId &&
+              e.dismissal &&
+              e.dismissal.kind !== "notOut",
+          ),
+      ),
+      ...selectedBatters
+        .filter(
+          (id) =>
+            !currentBatters.some((b) => b.playerId === id) &&
+            !battingEntries.find(
+              (e) =>
+                e.playerId === id &&
+                e.dismissal &&
+                e.dismissal.kind !== "notOut",
+            ),
+        )
+        .map((id) => ({
+          playerId: id,
+          runs: 0,
+          balls: 0,
+          retired: false,
+        })),
+    ];
+
+    // 2️⃣ Update store only if changed
+    /*
+    if (
+      mergedBatters.length !== currentBatters.length ||
+      mergedBatters.some((b, i) => b.playerId !== currentBatters[i]?.playerId)
+    ) {
+      gameState.updateCurrentGame({
+        ...gameState.currentGame,
+        batters: mergedBatters,
+      });
+    }
+    */
+
+    // 3️⃣ Ensure a valid strike
+    const strike = gameState.currentGame.currentStrikeId;
+    const currentBattersIds = currentBatters.map((b) => b.playerId);
+    const newStrikeId =
+      strike != null && strike !== "" && currentBattersIds.includes(strike)
+        ? strike
+        : mergedBatters[0]?.playerId;
+
+    if (
+      newStrikeId &&
+      newStrikeId !== "" &&
+      gameState.currentGame.currentStrikeId !== newStrikeId
+    ) {
+      setStrike(newStrikeId);
+    }
+  }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]); // ✅ include hasHydrated
+
+  const handleSavePlayer = async (teamId: string, player: any) => {
+    try {
+      await savePlayer(teamId, player);
+    } catch (err) {
+      console.error("❌ Error saving player:", err);
+      Alert.alert("Error", "Failed to save player. Try again.");
+    }
+  };
+
+  console.log(battingTeam, " checking what this is on for liveViewer");
+  console.log(
+    selectedBatters,
+    " checking selectedBatters what this is on for liveViewer",
+  );
+
+  console.log(
+    JSON.stringify(useTeamStore().teams),
+    "checking what i have in teams",
+  );
+
+  console.log(JSON.stringify(battingTeam), "battingTeam what i have in teams");
+
+  return (
+    <>
+      {battingTeam && (
+        <>
+          <Pressable
+            style={styles.addBatters}
+            onPress={() => !isLiveViewer && setShowModal(true)}
+          >
+            {shouldShowChangeBatters && (
+              <Pressable
+                style={[styles.addBowlerButton, { marginTop: 12 }]}
+                onPress={() => !isLiveViewer && setShowModal(true)}
+              >
+                <Text style={styles.addBowlerButtonText}>Change Batters</Text>
+              </Pressable>
+            )}
+
+            {selectedBatters.length > 0 ? (
+              <View style={styles.selectedBattersContainer}>
+                {activeBatters.map((p) => {
+                  const strikeRate =
+                    p.balls > 0 ? ((p.runs / p.balls) * 100).toFixed(1) : "0.0";
+                  const onStrike = currentGame?.currentStrikeId === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={[
+                        styles.selectedBatterItem,
+                        onStrike && styles.onStrikeBatter,
+                      ]}
+                      onPress={() => {
+                        if (isLiveViewer) return;
+                        if (
+                          currentGame?.activeBatters?.some(
+                            (b) => b.playerId === p.id,
+                          )
+                        ) {
+                          setStrike(p.id);
+                        }
+                      }}
+                    >
+                      <View style={styles.batterRow}>
+                        <Text style={styles.selectedBatterText}>
+                          {p.name} — {p.runs} ({p.balls}) SR: {strikeRate}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.selectedText}>
+                  Select opening batters to start scoring
+                </Text>
+                <Pressable
+                  style={[styles.addBowlerButton, { marginTop: 12 }]}
+                  onPress={() => !isLiveViewer && setShowModal(true)}
+                >
+                  <Text style={styles.addBowlerButtonText}>Select Batters</Text>
+                </Pressable>
+              </View>
+            )}
+          </Pressable>
+
+          <SelectPlayersModal
+            visible={showModal}
+            onClose={handleCloseModal}
+            title={`Select Batters for ${battingTeam?.name ?? ""}`}
+            players={battingTeamPlayers}
+            selectedIds={selectedBatters}
+            onSelectionChange={onSelectionChange}
+            selectionMode="multiple"
+            maxSelection={2}
+            pickerType="batter"
+            renderFooter={() => (
+              <View style={{ paddingBottom: 20 }}>
+                <AddPlayerFooter
+                  teamId={selectedBattingTeamId!}
+                  onAdded={async (name) => {
+                    const player = addPlayerToTeam(
+                      selectedBattingTeamId!,
+                      name,
+                    );
+                    if (player)
+                      await handleSavePlayer(selectedBattingTeamId!, player);
+                  }}
+                />
+              </View>
+            )}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  addBatters: {
+    flex: 1,
+    marginVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard theme
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    borderLeftWidth: 5,
+    borderLeftColor: "#ffd54f", // Accent line matches selection border yellow
+  },
+  addBattersTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffffff", // Primary title to pure white
+    marginBottom: 4,
+  },
+  selectedBattersContainer: {
+    backgroundColor: "transparent", // Transparent to sit cleanly on card base
+  },
+  selectedBatterItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.15)", // Soft divider line
+    marginVertical: 2,
+  },
+  selectedBatterText: {
+    fontSize: 16,
+    color: "#ffffff", // Pure white for great legibility
+    fontWeight: "600",
+    paddingLeft: 5,
+  },
+  batterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  strikeIcon: {
+    width: 20,
+    textAlign: "center",
+    marginRight: 8,
+    fontWeight: "700",
+    color: "#ffd54f", // Updated indicator tint to amber yellow
+  },
+  onStrikeBatter: {
+    borderColor: "#ffffff", // Bold white frame border
+    borderWidth: 1.5,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 8,
+    paddingHorizontal: 4,
+  },
+  addBowlerButton: {
+    marginBottom: 4,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff", // White clean button contrast block
+    borderRadius: 8,
+    alignItems: "center",
+    elevation: 2,
+  },
+  addBowlerButtonText: {
+    color: "#0e9cb9", // Links text back to container profile color
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  selectedText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#e0f7fa", // Clean legible soft cyan hint text
+    textAlign: "center",
+    marginBottom: 4,
+  },
+});
