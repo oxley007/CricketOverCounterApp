@@ -15,9 +15,10 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Button, Card } from "react-native-paper";
+import { Button } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { shallow } from "zustand/shallow";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { useAuthModalStore } from "../../state/authModalStore";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
@@ -26,6 +27,8 @@ import { useStartModalStore } from "../../state/startModalStore";
 import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { APP_LOGOS } from "../../constants/Assets";
 import { useLiveStore } from "@/src/state/liveStore";
+import { SVG_ASSETS } from "@/src/constants/Assets";
+import Cricket from "../../assets/svg/cricket.svg";
 
 type AppLogoKey = keyof typeof APP_LOGOS;
 
@@ -42,40 +45,23 @@ export default function StartModeModal() {
   const { teamCodesSupporter } = useLiveStore.getState();
   const setReadOnly = useLiveStore.getState().setReadOnly;
 
-  const [pendingAction, setPendingAction] = useState(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
   const fixtures = useFixtureStore((s) => s.fixtures, shallow);
 
-  //const variant = Constants.expoConfig?.extra?.variant;
-  const { theme, features, modes } = useTenantConfig();
-  // Sort modes: Put the 'primary' mode first based on the config data
+  const { theme, modes, features, branding } = useTenantConfig();
+  const Watermark = SVG_ASSETS.cricket;
+
   const sortedModes = [...modes].sort((a, b) => {
     return Number(b.primary) - Number(a.primary);
   });
-  console.log("DEBUG - sortedModes:", sortedModes);
 
   const logoSource = APP_LOGOS[theme.headerLogo as keyof typeof APP_LOGOS];
   const bgKey = theme.backgroundImage as keyof typeof APP_LOGOS | null;
-
-  //const cardLogo = APP_LOGOS[mode.logo as keyof typeof APP_LOGOS];
-
   const bgSource = bgKey ? APP_LOGOS[bgKey] : null;
-  //const isLittleWicket = variant === "littlewicket";
 
-  // Force re-render whenever store updates (helps with hydration & reset)
-  /*
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    // Subscribe to store changes
-    const unsub = useStartModalStore.subscribe(() => {
-      setTick((t) => t + 1);
-    });
-    return unsub;
-  }, []);
-  */
-
-  const handleStart = (type) => {
+  const handleStart = (type: string) => {
     if (!hasSeenPrompt && features.showJuniorPrompt) {
       setPendingAction(type);
 
@@ -106,12 +92,10 @@ export default function StartModeModal() {
     if (type === "liveScores") onLiveScore();
   };
 
-  const IOS_URL =
-    "https://apps.apple.com/us/app/littlewicket-cricket-scorebook/id1571914530";
-  const ANDROID_URL =
-    "https://play.google.com/store/apps/details?id=com.cricketscorebookbyc";
+  const IOS_URL = "https://apple.com";
+  const ANDROID_URL = "https://google.com";
 
-  const handleJuniorChoice = async (choice) => {
+  const handleJuniorChoice = async (choice: "download" | "continue") => {
     setHasSeenPrompt(true);
 
     if (choice === "download") {
@@ -139,9 +123,9 @@ export default function StartModeModal() {
   };
 
   const navigateToGameMode = (
-    selectModeFn: (() => void) | null, // A function with no args/return, or null
-    route: Href, // The path string
-    shouldTriggerSetup: boolean = true, // Optional boolean with default
+    selectModeFn: (() => void) | null,
+    route: Href,
+    shouldTriggerSetup: boolean = true,
   ) => {
     closeStartModal();
 
@@ -164,129 +148,284 @@ export default function StartModeModal() {
       ? "/live-scoring-fixtures"
       : "/live-scoring-home";
 
-  // Usage:
-  /*
-  const onBallCounter = () =>
-    navigateToGameMode(selectBallCounter, "/ball-counter");
-  const onScorebook = () => navigateToGameMode(selectScorebook, "/scorebook");
-  const onLiveScore = () => navigateToGameMode(null, destination, false);
-  */
-
   const onBallCounter = () => {
-    setReadOnly(false); // Enable features
+    setReadOnly(false);
     navigateToGameMode(selectBallCounter, "/ball-counter");
   };
 
   const onScorebook = () => {
-    setReadOnly(false); // Enable features
+    setReadOnly(false);
     navigateToGameMode(selectScorebook, "/scorebook");
   };
 
   const onLiveScore = () => {
-    setReadOnly(true); // Disable features / Read-only mode
+    setReadOnly(true);
     navigateToGameMode(null, destination, false);
   };
 
+  const getCardStyles = (modeId: string) => {
+    switch (modeId) {
+      case "ball":
+        return {
+          gradient: ["#00c2f3", "#5fd4ff"],
+          text: "#003545",
+          labelBg: "rgba(255, 255, 255, 0.2)",
+          icon: "sports-cricket",
+          badgeText: "Umpire Ball & Over Counter",
+          actionIcon: "arrow-forward",
+          actionIconBg: "#004c61",
+          actionIconColor: "#00c2f3",
+        };
+      case "score":
+        return {
+          gradient: ["#ffffff", "#ffffff"],
+          text: "#004c61",
+          labelBg: "rgba(95, 212, 255, 0.1)",
+          icon: "menu-book",
+          badgeText: "Full Cricket Scorebook mode",
+          actionIcon: "edit-note",
+          actionIconBg: "#004c61",
+          actionIconColor: "#ffffff",
+        };
+      case "liveScores":
+      default:
+        return {
+          gradient: ["#004d63", "#00c2f3"],
+          text: "#ffffff",
+          labelBg: "rgba(255,255,255,0.0)",
+          icon: "sensors",
+          badgeText: "",
+          actionIcon: "sensors",
+          actionIconBg: "#ffffff",
+          actionIconColor: "#00c2f3",
+        };
+    }
+  };
+
   return (
-    <>
-      <Modal
-        visible={isOpen && selectedMode === null && !authModalOpen}
-        animationType="fade"
-        transparent
+    <Modal
+      visible={isOpen && selectedMode === null && !authModalOpen}
+      animationType="fade"
+      transparent
+    >
+      <View
+        style={[
+          styles.overlay,
+          { backgroundColor: theme.modeSelectionBg || "#0b1326" },
+        ]}
       >
-        <View
-          style={[styles.overlay, { backgroundColor: theme.modeSelectionBg }]}
+        <SafeAreaView
+          style={{ flex: 1, width: "100%" }}
+          edges={["top", "bottom"]}
         >
-          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-            {/* FULL SCREEN BACKGROUND WRAPPER */}
-            <ImageBackground
-              source={bgSource}
-              style={styles.bg}
-              imageStyle={styles.backgroundImage}
+          <ImageBackground
+            source={bgSource}
+            style={styles.bg}
+            imageStyle={styles.backgroundImage}
+          >
+            <ScrollView
+              contentContainerStyle={styles.scrollContainer}
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
             >
-              {/* CONTENT OVERLAY */}
-              <ScrollView
-                contentContainerStyle={styles.scrollContainer}
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
+              {/* Header Layout Block */}
+              <View
+                style={[
+                  styles.header,
+                  {
+                    backgroundColor: theme.modeHeaderBg,
+                  },
+                ]}
               >
-                {/* Header */}
-                <View
+                <Image
+                  source={logoSource}
                   style={[
-                    styles.header,
-                    { backgroundColor: theme.modeHeaderBg },
+                    styles.headerLogo,
+                    {
+                      aspectRatio: theme.logoAspectRatio,
+                    },
+                  ]}
+                  resizeMode="contain"
+                />
+
+                <Text
+                  style={[
+                    styles.headlineTitle,
+                    {
+                      color: theme.headerTextColor,
+                    },
                   ]}
                 >
-                  <Image
-                    source={logoSource}
-                    style={[
-                      styles.headerLogo,
-                      { aspectRatio: theme.logoAspectRatio },
-                    ]}
-                    resizeMode="contain"
-                  />
-                  <Text
-                    style={[
-                      styles.headerText,
-                      { color: theme.headerTextColor },
-                    ]}
-                  >
-                    Select your mode
-                  </Text>
-                </View>
+                  Select your mode
+                </Text>
 
-                {/* Modes */}
+                <Text
+                  style={[
+                    styles.headlineSubtitle,
+                    {
+                      color:
+                        theme.headerTextColor === "#ffffff"
+                          ? "#ffffff"
+                          : "#ffffff",
+                    },
+                  ]}
+                >
+                  Choose your mode below to start tracking your match.
+                </Text>
+              </View>
+
+              {/* Bento Grid Dynamic Cards */}
+              <View style={styles.gridContainer}>
                 {sortedModes.map((mode, index) => {
                   const cardLogo =
                     APP_LOGOS[mode.logo as keyof typeof APP_LOGOS];
+
                   const bg = theme[`${mode.id}Bg`] ?? theme.cardBg;
+
                   const border =
                     theme[`${mode.id}BorderColor`] ?? theme.cardBorderColor;
+
                   const text =
                     theme[`${mode.id}Text`] ??
                     theme[`${mode.id}TextColor`] ??
                     theme.cardTextColor;
+
+                  const isLightCard =
+                    bg === "#fff" || bg === "#ffffff" || bg === "#FFFFFF";
+
+                  const watermarkSource = theme.scoreWatermark
+                    ? APP_LOGOS[theme.scoreWatermark as keyof typeof APP_LOGOS]
+                    : null;
 
                   return (
                     <Animated.View
                       key={mode.id}
                       entering={FadeInDown.duration(400).delay(index * 100)}
                     >
-                      <Card
-                        mode="contained"
-                        style={[
-                          styles.paperCard,
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.bentoCard,
                           {
                             backgroundColor: bg,
                             borderColor: border,
-                            borderWidth: theme.cardBorderWidth ?? 2,
+                            borderWidth: theme.cardBorderWidth ?? 0,
+                            transform: [{ scale: pressed ? 0.98 : 1 }],
                           },
                         ]}
                         onPress={() => handleStart(mode.id)}
                       >
-                        <Card.Content style={styles.cardContent}>
-                          <Image
-                            source={cardLogo}
-                            style={styles.cardLogo}
-                            resizeMode="contain"
-                          />
-                          <Text style={[styles.cardText, { color: text }]}>
+                        {/* Watermark */}
+                        <View
+                          style={styles.watermarkContainer}
+                          pointerEvents="none"
+                        >
+                          {Watermark && <Watermark width={180} height={180} />}
+                        </View>
+
+                        {/* Top */}
+                        <View style={styles.cardTop}>
+                          <Text style={[styles.cardBrand, { color: text }]}>
+                            {branding.shortName}
+                          </Text>
+
+                          <View
+                            style={[
+                              styles.cardBadge,
+                              {
+                                backgroundColor: isLightCard
+                                  ? "rgba(18,194,233,0.12)"
+                                  : "rgba(255,255,255,0.12)",
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.cardBadgeText,
+                                {
+                                  color: text,
+                                },
+                              ]}
+                            >
+                              {mode.id === "ball"
+                                ? "Umpire Ball & Over Counter"
+                                : mode.id === "score"
+                                  ? "Full Cricket Scorebook mode"
+                                  : "Live Match Streaming for Supporters"}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Bottom */}
+                        <View style={styles.cardBottom}>
+                          <Text
+                            style={[
+                              styles.cardTitle,
+                              {
+                                color: text,
+                              },
+                            ]}
+                          >
                             {mode.label}
                           </Text>
-                        </Card.Content>
-                      </Card>
+
+                          <View
+                            style={[
+                              styles.cardAction,
+                              {
+                                backgroundColor: isLightCard
+                                  ? theme.cardBg
+                                  : "#ffffff",
+                              },
+                            ]}
+                          >
+                            <MaterialIcons
+                              name={
+                                mode.id === "ball"
+                                  ? "sports-cricket"
+                                  : mode.id === "score"
+                                    ? "edit-note"
+                                    : "sensors"
+                              }
+                              size={20}
+                              color={isLightCard ? "#fff" : bg}
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
                     </Animated.View>
                   );
                 })}
+              </View>
 
-                {/* Stats */}
-                {fixtures.length > 0 && (
+              {/* Secondary Utility Controls */}
+              <View style={styles.secondarySection}>
+                <Text
+                  style={[
+                    styles.sectionDividerText,
+                    {
+                      color: theme.headerTextColor,
+                      opacity: 0.7,
+                    },
+                  ]}
+                >
+                  ANALYTICS & MORE
+                </Text>
+
+                <View style={styles.actionGridRow}>
                   <Button
                     mode="contained"
-                    rippleColor="rgba(255, 255, 255, 0.4)"
-                    icon="chart-bar" // Perfect material icon for statistics
-                    style={styles.statsButton}
-                    labelStyle={styles.statsButtonText}
+                    style={[
+                      styles.utilityGridButton,
+                      {
+                        backgroundColor: theme.cardBg,
+                      },
+                    ]}
+                    labelStyle={[
+                      styles.utilityButtonText,
+                      {
+                        color: theme.cardTextColor,
+                      },
+                    ]}
                     onPress={() => {
                       closeStartModal();
                       router.push("/stats");
@@ -294,236 +433,256 @@ export default function StartModeModal() {
                   >
                     View Stats
                   </Button>
-                )}
 
-                {/* Fixtures */}
-                {fixtures.length > 0 && (
                   <Button
                     mode="contained"
-                    rippleColor="rgba(255, 255, 255, 0.4)"
-                    icon="calendar-text" // Standard material icon for schedules/fixtures
-                    style={styles.statsButton}
-                    labelStyle={styles.statsButtonText}
+                    style={[
+                      styles.utilityGridButton,
+                      {
+                        backgroundColor: theme.cardBg,
+                      },
+                    ]}
+                    labelStyle={[
+                      styles.utilityButtonText,
+                      {
+                        color: theme.cardTextColor,
+                      },
+                    ]}
                     onPress={() => {
                       closeStartModal();
                       router.push("/fixtureList");
                     }}
                   >
-                    View Fixtures Results
+                    View Fixtures
                   </Button>
-                )}
+                </View>
 
-                {/* Login */}
                 <Button
-                  mode="contained"
-                  icon="login"
-                  style={styles.loginButton}
-                  labelStyle={styles.loginButtonText}
+                  mode="outlined"
+                  style={[
+                    styles.loginButton,
+                    {
+                      borderColor: theme.cardBg,
+                    },
+                  ]}
+                  labelStyle={[
+                    styles.loginButtonText,
+                    {
+                      color: theme.cardBg,
+                    },
+                  ]}
                   onPress={openAuthModal}
                 >
                   Login / Sign Up
                 </Button>
-              </ScrollView>
-            </ImageBackground>
-          </SafeAreaView>
-        </View>
-      </Modal>
-    </>
+              </View>
+            </ScrollView>
+          </ImageBackground>
+        </SafeAreaView>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,1)",
-    justifyContent: "center",
-    alignItems: "center",
     width: "100%",
   },
-  // Header styles
-  header: {
-    width: "100%",
-    backgroundColor: "#000",
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  headerLogo: {
-    width: 240,
-    height: undefined,
-    aspectRatio: 4,
-    marginBottom: 0,
-  },
-  headerText: {
-    color: "#fff",
-    fontSize: 34,
-    fontWeight: "600",
-  },
 
-  // Card buttons
-
-  cardText: {
-    fontSize: 38,
-    fontWeight: "700",
-  },
-  /*
-  ballCounter: {
-    backgroundColor: "#12c2e9",
-  },
-  ballCounterText: {
-    color: "#fff",
-  },
-  scorebook: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#12c2e9",
-  },
-  scorebookText: {
-    color: "#12c2e9",
-  },
-  */
-  devButton: {
-    marginTop: 30,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#ff3b30",
-    alignItems: "center",
-  },
-  devButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  statsButton: {
-    marginTop: 10,
-    borderRadius: 12,
-    backgroundColor: "#af52de",
-    width: "100%",
-    alignSelf: "center",
-    // Remove paddingVertical: 18 from here
-  },
-
-  statsButtonText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-    paddingVertical: 6, // Controls the inner height beautifully
-  },
-
-  loginButton: {
-    marginTop: 14,
-    borderRadius: 12,
-    backgroundColor: "#000",
-    borderWidth: 1,
-    borderColor: "#fff",
-    width: "100%",
-    alignSelf: "center",
-    // Remove paddingVertical: 14 from here!
-  },
-  loginButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-    paddingVertical: 4, // Control your height via the text padding instead
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingVertical: 20,
-  },
-  container: {
-    flex: 1,
-    width: "100%",
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  backgroundImage: {
-    resizeMode: "cover",
-    width: "100%",
-    height: "100%",
-    opacity: 0.1,
-    position: "absolute",
-    // No need for top/left 0 if width/height are 100% in an ImageBackground
-  },
-
-  card: {
-    width: "100%", // full width of container
-    paddingVertical: 30,
-    borderRadius: 12,
-    alignItems: "center",
-    marginVertical: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-
-  cardLogo: {
-    width: "90%", // responsive width
-    height: undefined,
-    aspectRatio: 3.2,
-    marginBottom: 12,
-    alignSelf: "center",
-  },
-  promptBox: {
-    backgroundColor: "#fff",
-    margin: 24,
-    padding: 20,
-    borderRadius: 12,
-  },
-
-  promptTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-
-  promptText: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
-
-  downloadButton: {
-    backgroundColor: "#34c759",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: "center",
-  },
-
-  downloadText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-
-  continueButton: {
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-
-  continueText: {
-    fontWeight: "600",
-  },
   bg: {
     flex: 1,
     width: "100%",
-    height: "100%",
   },
-  paperCard: {
+
+  backgroundImage: {
+    resizeMode: "cover",
+    opacity: 0.05,
+  },
+
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+    maxWidth: 500,
     width: "100%",
-    marginVertical: 12,
-    borderRadius: 12,
-    overflow: "hidden", // Ensures the ripple effect stays inside the rounded corners
+    alignSelf: "center",
   },
-  cardContent: {
+
+  /* ================= HEADER ================= */
+
+  header: {
+    width: "100%",
     alignItems: "center",
-    paddingVertical: 20,
+    marginBottom: 10,
+    paddingVertical: 12,
+  },
+
+  headerLogo: {
+    width: 240,
+    marginTop: 20,
+    height: undefined,
+    marginBottom: 0,
+    textAlign: "left",
+    alignSelf: "flex-start",
+  },
+
+  headlineTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 8,
+    textAlign: "left",
+    alignSelf: "flex-start", // 👈 Forces the text bounding box to align left
+  },
+
+  headlineSubtitle: {
+    fontSize: 16,
+    opacity: 0.8,
+    lineHeight: 22,
+  },
+
+  /* ================= GRID ================= */
+
+  gridContainer: {
+    gap: 16,
+    width: "100%",
+  },
+
+  /* ================= BENTO CARD ================= */
+
+  bentoCard: {
+    width: "100%",
+    height: 192,
+    borderRadius: 16,
+    padding: 24,
+    justifyContent: "space-between",
+    overflow: "hidden",
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  watermarkContainer: {
+    position: "absolute",
+    right: -20,
+    bottom: 30,
+
+    opacity: 0.12,
+
+    zIndex: 0,
+  },
+
+  watermarkLogo: {
+    width: 180,
+    height: 180,
+  },
+
+  /* ================= CARD TOP ================= */
+
+  cardTop: {
+    gap: 8,
+    zIndex: 1,
+  },
+
+  cardBrand: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+
+  cardBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  cardBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  /* ================= CARD BOTTOM ================= */
+
+  cardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 1,
+  },
+
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+
+  cardAction: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  /* ================= UTILITIES ================= */
+
+  secondarySection: {
+    marginTop: 24,
+    width: "100%",
+  },
+
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  sectionDividerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1,
+    opacity: 0.7,
+    marginBottom: 15,
+  },
+
+  hairlineDivider: {
+    flex: 1,
+    height: 1,
+    marginLeft: 16,
+    opacity: 0.2,
+  },
+
+  actionGridRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+    marginBottom: 16,
+  },
+
+  utilityGridButton: {
+    flex: 1,
+    height: 56,
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+
+  loginButton: {
+    width: "100%",
+    height: 52,
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
+  loginButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.8,
   },
 });
-
-/*
-<Pressable style={styles.devButton} onPress={clearAllFixtures}>
-              <Text style={styles.devButtonText}>DEV: Clear All Fixtures</Text>
-            </Pressable>
-            */

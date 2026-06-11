@@ -76,13 +76,13 @@ export default function ScoreWickets() {
   );
 
   return (
-    <View>
-      {/* Display total runs / wickets */}
-      <Text style={styles.score}>
+    <View style={styles.container}>
+      {/* Updated JSX to use your new text styling structure */}
+      <Text style={styles.scoreDisplay}>
         {totalRuns}/{totalWickets}
       </Text>
 
-      {/* Animate run deltas if any */}
+      {/* Your existing animation tracking array remains identical */}
       {deltaQueue.map((delta, idx) => (
         <ScoreDelta key={idx} delta={delta} onComplete={handleDeltaComplete} />
       ))}
@@ -95,5 +95,21 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: "bold",
     color: "#f5f5f5",
+  },
+
+  /* New styles */
+
+  container: {
+    alignItems: "center",
+    width: "100%",
+  },
+  scoreDisplay: {
+    fontFamily: "Plus Jakarta Sans", // Matches display-score font-family token
+    fontSize: 64, // Matches text-display-score size token
+    lineHeight: 72, // Matches display-score line-height token
+    fontWeight: "800", // Matches display-score font-weight token
+    color: "#7fdaff", // Matches your text-primary color variable
+    letterSpacing: -1.5, // Captures the letterSpacing: "-0.04em"
+    textAlign: "center",
   },
 });

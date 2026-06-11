@@ -1,6 +1,9 @@
+import Cricket from "../../assets/svg/cricket.svg";
+
 // src/constants/Assets.js
 export const APP_LOGOS = {
   logo_umpire: require("../../assets/4dot6logo-transparent.png"),
+  logo_umpire_tight: require("../../assets/4dot6logo-transparent-tight.png"),
   logo_littlewicket: require("../../assets/LittleWicket-logo-small.png"),
 
   logo_ballCounterCard: require("../../assets/4dot6logo-transparent-old_inverse.png"),
@@ -10,4 +13,11 @@ export const APP_LOGOS = {
   logo_littlewicketCardBall_trans: require("../../assets/LittleWicket-logo-small.png"),
 
   icon_littlewicket: require("../../assets/ios-icon-littlewicket.png"),
+  logo_watermark: require("../../assets/svg/cricket.svg"),
 };
+
+export const SVG_ASSETS = {
+  cricket: Cricket,
+} as const;
+
+export type WatermarkKey = keyof typeof SVG_ASSETS;

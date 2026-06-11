@@ -300,38 +300,67 @@ export default function OversCounter() {
   }
 
   return (
-    <View>
-      <Text style={styles.text}>
-        Overs: {displayOvers}
-        {"  "}
-        <Text style={styles.subText}>RR: {runRate}</Text>
-      </Text>
-      {target && (
-        <Text style={styles.text}>
-          {target && (
-            <Text style={styles.subText}>
-              {"  "}Target: {target}
-            </Text>
-          )}
-          {rrr && (
-            <Text style={styles.subText}>
-              {"  "}RRR: {rrr}
-            </Text>
-          )}
+    <View style={styles.statsWrapper}>
+      {/* Main Row: Overs and Run Rate */}
+      <View style={styles.flexRow}>
+        <Text style={styles.headlineText}>
+          Overs: <Text style={styles.whiteValueText}>{displayOvers}</Text>
         </Text>
+
+        {/* Visual vertical divider element linking to w-px */}
+        <View style={styles.divider} />
+
+        <Text style={styles.headlineText}>
+          RR: <Text style={styles.whiteValueText}>{runRate}</Text>
+        </Text>
+      </View>
+
+      {/* Target & Required Run Rate Chasing Row */}
+      {target && (
+        <View style={[styles.flexRow, styles.targetMargin]}>
+          <Text style={styles.headlineText}>
+            Target: <Text style={styles.whiteValueText}>{target}</Text>
+          </Text>
+          {rrr && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.headlineText}>
+                RRR: <Text style={styles.whiteValueText}>{rrr}</Text>
+              </Text>
+            </>
+          )}
+        </View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  text: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#f5f5f5",
+  statsWrapper: {
+    width: "100%",
+    alignItems: "center",
   },
-  subText: {
-    fontSize: 16,
-    opacity: 0.8,
+  flexRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16, // gap-4 (16px)
+  },
+  targetMargin: {
+    marginTop: 8,
+  },
+  headlineText: {
+    fontFamily: "Plus Jakarta Sans", // headline-md configuration font
+    fontSize: 20, // text-headline-md
+    fontWeight: "600",
+    color: "#bcc8cf", // text-on-surface-variant grey color variable
+  },
+  whiteValueText: {
+    color: "#dae2fd", // text-on-surface light color variable
+  },
+  divider: {
+    width: 1, // w-px
+    height: 16, // h-4
+    backgroundColor: "#3d494e", // bg-outline-variant
   },
 });

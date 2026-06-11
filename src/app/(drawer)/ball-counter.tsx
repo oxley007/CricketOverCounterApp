@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useIsLiveViewer } from "../../hooks/useIsLiveViewer";
 import { useExitGame } from "../../hooks/useExitGame";
+import { LinearGradient } from "expo-linear-gradient";
 
 import BattingTeamSelector from "../../components/Scorebook/BattingTeamSelector";
 import {
@@ -444,19 +445,29 @@ function HomeContent() {
 
         <CurrentOverDisplay />
 
-        <Card style={styles.card} mode="elevated">
-          <View style={styles.scoreRow}>
-            <ScoreWickets />
-          </View>
+        <View style={styles.glassCard}>
+          {/* 2. Replace the old <View> with this <LinearGradient> */}
+          <LinearGradient
+            // Horizontal direction: left-to-right (x: 0 to x: 1)
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            // Primary cyan -> Secondary purple -> Tertiary yellow (from your config)
+            colors={["#7fdaff", "#ddb7ff", "#f8ca11"]}
+            style={styles.topGradientBar}
+          />
 
-          <View style={styles.scoreRow}>
-            <OversCounter />
-          </View>
+          <View style={styles.contentContainer}>
+            <View style={styles.scoreRow}>
+              <ScoreWickets />
+            </View>
 
-          <View style={styles.scoreRow}>
+            <View style={styles.oversRow}>
+              <OversCounter />
+            </View>
+
             <CurrentBattingDisplay />
           </View>
-        </Card>
+        </View>
 
         {!isLiveViewer && (
           <BattingTeamSelector
@@ -662,5 +673,38 @@ const styles = StyleSheet.create({
     padding: 12, // Standard inner padding for card content
     height: "auto", // Prevents unwanted vertical stretching
     alignSelf: "stretch", // Spans the full usable width
+  },
+
+  /*new styles */
+
+  glassCard: {
+    backgroundColor: "rgba(30, 41, 59, 0.7)",
+    borderRadius: 16,
+    padding: 24,
+    position: "relative",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    margin: 16,
+  },
+  topGradientBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4, // h-1 equivalent
+    opacity: 0.5, // matches your original opacity-50 web style
+  },
+  contentContainer: {
+    alignItems: "center",
+    gap: 24,
+  },
+  scoreRow: {
+    width: "100%",
+    alignItems: "center",
+  },
+  oversRow: {
+    width: "100%",
+    alignItems: "center",
   },
 });

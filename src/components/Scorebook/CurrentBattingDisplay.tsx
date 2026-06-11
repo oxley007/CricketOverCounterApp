@@ -77,54 +77,45 @@ export default function CurrentBattingDisplay() {
   */
 
   return (
-    <View style={styles.card}>
-      <View style={styles.confirmRow}>
-        <View style={styles.iconCircle}>
-          <MaterialIcons name="check" size={14} color="#fff" />
-        </View>
-        <Text style={styles.selectedText}>
-          <Text style={styles.label}>Batting: </Text>
-          {teamName || "Unknown Team"}
-        </Text>
-      </View>
+    <View style={styles.badgeContainer}>
+      {/* Web matching check_circle styling */}
+      <MaterialIcons
+        name="check-circle"
+        size={14}
+        color="#7fdaff" // text-primary color variable
+        style={styles.iconShift}
+      />
+      <Text style={styles.bodyText}>
+        Batting: <Text style={styles.boldTeamName}>{teamName}</Text>
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginVertical: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#12c2e9",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  confirmRow: {
+  badgeContainer: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8, // gap-2 (8px)
+    backgroundColor: "#222a3d", // bg-surface-container-high
+    paddingVertical: 8, // py-2
+    paddingHorizontal: 16, // px-4
+    borderRadius: 9999, // rounded-full
+    borderWidth: 1,
+    borderColor: "#3d494e", // border-outline-variant
+    alignSelf: "center",
   },
-  iconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#16a34a",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
+  iconShift: {
+    marginTop: 1,
   },
-  label: {
-    color: "#64748b",
+  bodyText: {
+    fontFamily: "Hanken Grotesk", // body-md font variable definition
+    fontSize: 16, // text-body-md
     fontWeight: "400",
+    color: "#bcc8cf", // text-on-surface-variant
   },
-  selectedText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
+  boldTeamName: {
+    fontWeight: "700", // strong bold highlight
+    color: "#dae2fd", // text-on-surface color variable
   },
 });
