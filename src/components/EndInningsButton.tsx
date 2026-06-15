@@ -125,7 +125,7 @@ export default function EndInningsButton({
       const hasSession = !!auth.currentUser || isGuest;
 
       if (hasSession) {
-        if (isGuest && guestMatchesPlayed >= 1) {
+        if (isGuest && guestMatchesPlayed >= 10000) {
           Alert.alert(
             "Create a Free Account",
             "You've reached the guest match limit. Sign up for free to save more matches and stats.",
@@ -611,13 +611,23 @@ export default function EndInningsButton({
         onPress={() => setVisible(true)}
         style={styles.button}
         labelStyle={styles.buttonLabel}
-        // Paper handles icon names directly if wrapped in your provider,
-        // or you can pass a cleaner function definition like this:
-        icon={({ size, color }) => (
-          <Icon name="flag-checkered" size={20} color="#c471ed" />
-        )}
+        contentStyle={styles.buttonContent}
       >
-        End Innings
+        {/* Wrapping contents in a view to space out the text and the new trailing icon */}
+        <View style={styles.buttonInnerContainer}>
+          {/* Left Icon */}
+          <Icon name="flag" size={20} color="#ffb4ab" />
+
+          {/* Button Text */}
+          <Text style={styles.buttonLabel}>End Innings</Text>
+
+          {/* Right ">" Icon with 70% opacity matching your original design */}
+          <Icon
+            name="chevron-right"
+            size={20}
+            color="rgba(255, 180, 171, 0.7)"
+          />
+        </View>
       </Button>
 
       {/* OPTIONS MODAL */}
@@ -661,7 +671,9 @@ export default function EndInningsButton({
                     buttonColor="#f97316"
                     disabled={isSaving}
                     loading={isSaving}
-                    onPress={() => void runProtectedSaveAction(handleAbandonMatch)}
+                    onPress={() =>
+                      void runProtectedSaveAction(handleAbandonMatch)
+                    }
                   >
                     Match Abandoned (save stats, no result)
                   </Button>
@@ -720,19 +732,34 @@ export default function EndInningsButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#ffffff",
-    marginVertical: 12, // Combines top and bottom margins uniformly
-    marginHorizontal: 4, // Matches the side alignment of your cards
-    borderRadius: 8, // Matches the exact corner radius of the Paper Cards
-    elevation: 2, // Adds a subtle Material elevation shadow to pop off the screen
+    // Layout boundaries preserved from your original code
+    marginVertical: 12,
+    marginHorizontal: 4,
+
+    // Theme updates mapping to your dark mode config
+    backgroundColor: "rgba(147, 0, 10, 0.2)", // bg-error-container/20 (#93000a)
+    borderRadius: 12, // rounded-xl
+    borderWidth: 2,
+    borderColor: "rgba(255, 116, 171, 0.2)", // border-error/20 (#ffb4ab)
+
+    // Elevation handling for shadow-lg feel
+    elevation: 4,
+  },
+  buttonContent: {
+    // Replicates py-4 (16px) safely through the React Native Paper content layer
+    paddingVertical: 8,
   },
   buttonLabel: {
-    color: "#c471ed", // Rich purple text to match your icon color
-    fontSize: 16,
-    fontWeight: "bold",
-    paddingVertical: 4, // Clean vertical breathing room handled safely on the text layer
-    textTransform: "uppercase", // Gives it a clean, official sports UI feel
+    color: "#ffb4ab", // text-error
+    fontFamily: "Plus Jakarta Sans", // font-headline-md
+    fontSize: 20, // text-headline-md (from config)
+    lineHeight: 28,
+    fontWeight: "800", // !font-bold
+    textTransform: "uppercase", // uppercase
+    letterSpacing: 1.5, // tracking-wide
   },
+
+  // --- Retained styles for other parts of your component below ---
   modalContainer: {
     backgroundColor: "#fff",
     marginHorizontal: 20,
@@ -781,5 +808,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
+  },
+  buttonInnerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12, // Replicates gap-3 (3 * 4px) to space out flag, text, and chevron
   },
 });

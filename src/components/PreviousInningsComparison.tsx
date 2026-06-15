@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   card: {
     marginVertical: 10,
     marginHorizontal: 4,
-    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard colors
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
     borderRadius: 12,
     width: "100%",
 

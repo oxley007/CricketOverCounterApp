@@ -13,12 +13,14 @@ import {
   Modal,
   ActivityIndicator,
   Button as ButtonRn,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/shallow";
 //import { Button } from 'react-native';
 import * as Sentry from "@sentry/react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import {
   configureRevenueCat,
@@ -641,7 +643,7 @@ export default function ScorebookIndex() {
               {
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: "#12c2e9",
+                backgroundColor: "#0b1326",
               },
             ]}
           >
@@ -686,7 +688,7 @@ export default function ScorebookIndex() {
       />
 
       <ScrollView contentContainerStyle={styles.container}>
-        <BallTimerDisplay />
+        <BallTimerDisplay onUpgrade={() => setShowSubscriptionModal(true)} />
         {!isLiveViewer && (
           <>
             <EndInningsButton
@@ -790,9 +792,12 @@ export default function ScorebookIndex() {
           />
         )}
 
-        <View style={{ alignItems: "center", marginBottom: 10 }}>
-          <Text
-            style={styles.fullScorecardLink}
+        <View style={styles.scorecardLinkWrapper}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.scorecardButton,
+              pressed && { transform: [{ scale: 0.95 }] }, // active:scale-95 conversion
+            ]}
             onPress={() =>
               router.push({
                 pathname: "/fixture-scorecard",
@@ -803,8 +808,9 @@ export default function ScorebookIndex() {
               })
             }
           >
-            Full Scorecard
-          </Text>
+            <Text style={styles.scorecardButtonText}>Full Scorecard</Text>
+            <MaterialIcons name="open-in-new" size={14} color="#7fdaff" />
+          </Pressable>
         </View>
 
         {userId === "jJtMXBshezV40VCd55b9DSbcP5j1" && (
@@ -822,6 +828,7 @@ export default function ScorebookIndex() {
 
         {showStats && (
           <>
+            <Text style={[styles.sectionDividerText]}>IN-GAME STATS:</Text>
             <View style={styles.statsRow}>
               <PreviousInningsComparison />
             </View>
@@ -921,7 +928,7 @@ export default function ScorebookIndex() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#12c2e9" },
+  screen: { flex: 1, backgroundColor: "#0b1326" },
   container: { padding: 20, paddingBottom: 140 },
   scoreRow: {
     flexDirection: "row",
@@ -980,14 +987,19 @@ const styles = StyleSheet.create({
   /*new styles */
 
   glassCard: {
-    backgroundColor: "rgba(30, 41, 59, 0.7)",
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
     borderRadius: 16,
     padding: 24,
     position: "relative",
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    margin: 16,
+
+    // Center alignment & 100% width adjustments
+    width: "100%",
+    alignSelf: "center", // Automatically centers itself inside its parent container
+    marginHorizontal: 5, // Removes side margins so it can stretch fully edge-to-edge
+    marginVertical: 0, // Restores vertical spacing if you still need space on top/bottom
   },
   topGradientBar: {
     position: "absolute",
@@ -1008,5 +1020,32 @@ const styles = StyleSheet.create({
   oversRow: {
     width: "100%",
     alignItems: "center",
+  },
+  sectionDividerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 1,
+    opacity: 0.7,
+    color: "#fff",
+    marginTop: 20,
+  },
+  scorecardLinkWrapper: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 8, // py-2 (8px)
+  },
+  scorecardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8, // gap-2 (8px layout spacing)
+  },
+  scorecardButtonText: {
+    fontFamily: "Plus Jakarta Sans", // font-headline-md
+    fontSize: 20, // text-headline-md (from your configuration)
+    lineHeight: 28,
+    color: "#7fdaff", // text-primary (#7fdaff)
+    fontWeight: "600", // bold typography footings
+    textDecorationLine: "underline", // hover:underline default replication style
   },
 });

@@ -8,6 +8,10 @@ type Props = {
   item: BallEvent | WicketEvent | null;
 };
 
+// 🔧 NORMALISER (fixes wide / noBall / no-ball inconsistencies)
+const normalizeExtraType = (type?: string) =>
+  (type || "").toLowerCase().replace("-", "").trim();
+
 export const BallCircle = ({ item }: Props) => {
   if (!item) {
     return (
@@ -44,7 +48,6 @@ export const BallCircle = ({ item }: Props) => {
   }
 
   // Skip non-ball wickets (like End Partnership)
-  // ✅ Only skip true non-delivery wickets
   if (item.type === "wicket" && !item.countsAsBall && !item.isExtra) {
     return null;
   }
@@ -52,15 +55,19 @@ export const BallCircle = ({ item }: Props) => {
   const isExtra = item.isExtra === true;
   const isWicket = item.type === "wicket";
   const isNegativeWicket = item.type === "ball" && item.runs < 0;
+
+  // 🔥 FIX: normalised extra type
+  const extraType = normalizeExtraType(item.extraType);
+
   const isExtraBall =
-    isExtra && (item.extraType === "wide" || item.extraType === "noBall");
+    isExtra && (extraType === "wide" || extraType === "noball");
+
   const isExtraOnly = isExtra && !isWicket && !isNegativeWicket;
 
   // ---- Base display ----
   let mainText = "•";
   let textStyle = styles.circleText;
 
-  // Determine circle style
   let circleStyle: any = { ...styles.circle };
 
   if (isWicket) {
@@ -79,7 +86,7 @@ export const BallCircle = ({ item }: Props) => {
     mainText = "W";
   } else if (isNegativeWicket) {
     circleStyle = {
-      backgroundColor: "#ffdad6",
+      backgroundColor: "#ff6b6b",
       borderWidth: 2,
       borderColor: "#fff",
       borderRadius: 999,
@@ -92,26 +99,19 @@ export const BallCircle = ({ item }: Props) => {
     textStyle = styles.negativeText;
   } else if (!isWicket && isExtraBall) {
     circleStyle = { ...styles.extraCircle };
-    textStyle = { ...textStyle, color: "#c471ed" }; // purple for normal extras
-    mainText = ""; // don't show the main dot for extras-only
+    textStyle = { ...textStyle, color: "#c471ed" };
+    mainText = "";
   } else if (item.type === "ball") {
     mainText = item.runs !== 0 ? `${item.runs}` : "•";
-    if (item.runs === 4 || item.runs === 6) {
-      circleStyle = {
-        ...circleStyle,
-        backgroundColor: "#00c2f3",
-        borderColor: "#fff",
-        borderWidth: 0,
-      };
-    }
   }
 
   // Subtext for wicket + runs/extra
   let subText = "";
   if (isWicket) {
     if (item.runs > 0) subText += `+${item.runs}`;
-    if (isExtraBall)
-      subText += `${subText ? " " : ""}${item.extraType === "wide" ? "Wd" : "Nb"}`;
+    if (isExtraBall) {
+      subText += `${subText ? " " : ""}${extraType === "wide" ? "Wd" : "Nb"}`;
+    }
   }
 
   // Extras for normal balls
@@ -143,6 +143,7 @@ export const BallCircle = ({ item }: Props) => {
           <View style={{ marginTop: 2, alignItems: "center" }}>
             {extrasInfo.extras.map((e, i) => {
               const [code, runs] = e.split(" ");
+
               return (
                 <View key={i} style={{ alignItems: "center" }}>
                   <Text
@@ -154,13 +155,13 @@ export const BallCircle = ({ item }: Props) => {
                   >
                     {code}
                   </Text>
+
                   {runs && (
                     <Text
                       style={[
                         styles.circleText,
                         { color: "#c471ed", fontWeight: "bold" },
                       ]}
-                      testID={`ball-extra-runs-${i}`}
                       testID={`ball-extra-runs-${i}`}
                     >
                       {runs}
@@ -175,3 +176,108 @@ export const BallCircle = ({ item }: Props) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  placeholderCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#7fdaff",
+    backgroundColor: "transparent",
+  },
+  extraSummaryCircle: {
+    backgroundColor: "#6f00be",
+  },
+  ballBase: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  negativeWicketCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#93000a",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fourCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#00c2f3",
+  },
+  sixCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#7fdaff",
+  },
+  extraContainer: {
+    alignItems: "center",
+  },
+  extraCode: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 10,
+  },
+  extraRuns: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 10,
+  },
+  cell: {
+    marginRight: 12,
+  },
+  circle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2d3449",
+    borderWidth: 1,
+    borderColor: "#3d494e",
+  },
+  extraCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#6900b3",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  wicketCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#93000a",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  circleText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  wicketText: {
+    color: "#ffdad6",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  negativeText: {
+    color: "#ffdad6",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+});

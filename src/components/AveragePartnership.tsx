@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     marginVertical: 0,
-    backgroundColor: "#0e9cb9", // Matches dark cyan theme
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
     borderRadius: 12,
 
     // Identical shadow tracking configuration

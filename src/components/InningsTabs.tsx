@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
   FlatList,
+  Pressable,
 } from "react-native";
 
 import type { Fixture, InningsSnapshot } from "../state/fixtureStore";
@@ -77,32 +78,38 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
   const snapshot = getSnapshotForInnings(activeTab);
 
   return (
-    <View style={{ flex: 1, minHeight: 200 }}>
-      {/* Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {innings.map((inn, index) => (
-          <TouchableOpacity
-            key={`${inn.inningsNumber}-${index}`}
-            style={[styles.tab, activeTab === index && styles.activeTab]}
-            onPress={() => setActiveTab(index)}
-          >
-            <Text
+    <View style={styles.container}>
+      {/* Tabs Container */}
+      <View style={styles.tabsContainer}>
+        {innings.map((inn, index) => {
+          const isActive = activeTab === index;
+          return (
+            <Pressable
+              key={`${inn.inningsNumber}-${index}`}
               style={[
-                styles.tabText,
-                activeTab === index && styles.activeTabText,
+                styles.tab,
+                isActive ? styles.activeTab : styles.inactiveTab,
               ]}
+              onPress={() => setActiveTab(index)}
             >
-              Innings {inn.inningsNumber ?? index + 1}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.tabText,
+                  isActive ? styles.activeTabText : styles.inactiveTabText,
+                ]}
+              >
+                Innings {inn.inningsNumber ?? index + 1}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {/* Scorecards */}
       <FlatList
-        data={[]} // Keep empty since we are using header/footer for the layout
+        data={[]}
         renderItem={null}
-        style={{ marginTop: 12 }}
+        style={styles.list}
         ListHeaderComponent={
           <>
             <Scorecard
@@ -122,22 +129,52 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 200,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    alignSelf: "flex-start", // Mimics inline-flex behaviour
+    padding: 4, // Maps to p-1 (1 * 4px)
+    borderRadius: 12, // Maps to rounded-xl (0.75rem = 12px)
+    // Glass Card styles from your CSS configuration
+    backgroundColor: "rgba(30, 41, 59, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(51, 65, 85, 0.5)",
   },
   tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: "#eee",
-    marginRight: 6,
-    borderRadius: 6,
+    paddingHorizontal: 16, // Maps to px-4 (4 * 4px = 16px)
+    paddingVertical: 8, // Maps to py-2 (2 * 4px = 8px)
+    borderRadius: 8, // Maps to rounded-lg (0.5rem = 8px)
+    justifyContent: "center",
+    alignItems: "center",
   },
   activeTab: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "#00c2f3", // Maps to bg-primary-container
+    // Simple native shadow configuration mapping to shadow-sm
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  inactiveTab: {
+    backgroundColor: "transparent",
   },
   tabText: {
-    fontSize: 14,
+    fontFamily: "Geist", // Maps to font-label-caps
+    fontSize: 12, // Maps to text-label-caps
+    lineHeight: 16,
+    letterSpacing: 0.96, // 12px * 0.08em
+    fontWeight: "600",
+    textTransform: "uppercase", // Maps to uppercase
   },
   activeTabText: {
-    color: "white",
-    fontWeight: "600",
+    color: "#004c61", // Maps to text-on-primary-container
+  },
+  inactiveTabText: {
+    color: "#bcc8cf", // Maps to text-on-surface-variant
+  },
+  list: {
+    marginTop: 12,
   },
 });

@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     marginVertical: 0,
-    backgroundColor: "#0e9cb9",
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
     borderRadius: 12, // Matches standard Paper Card radius
 
     // Identical shadow configuration

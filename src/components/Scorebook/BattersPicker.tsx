@@ -13,6 +13,7 @@ import { useTeamStore } from "../../state/teamStore";
 import AddPlayerFooter from "./AddPlayerFooter";
 import SelectPlayersModal from "./SelectPlayersModal";
 import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface BattersPickerProps {
   battingTeam: Team | null;
@@ -36,60 +37,19 @@ export default function BattersPicker({
   const hasHydrated = useGameStore((s) => s.hasHydrated);
 
   const addPlayerToTeam = useTeamStore((s) => s.addPlayer);
-
   const isLiveViewer = useIsLiveViewer();
-
-  const legalBallsBowled = matchEvents.reduce(
-    (count, e) => count + (e.countsAsBall ? 1 : 0),
-    0,
-  );
 
   const handleCloseModal = () => setShowModal(false);
 
-  //const batters = useGameStore((s) => s.currentGame?.batters ?? []);
-
-  /*
-  const getBatterStats = (playerId: string, batterInningId?: string) => {
-    const eventsForBatter = matchEvents.filter(
-      (e) =>
-        e.batterId === playerId &&
-        (!batterInningId || e.batterInningId === batterInningId),
-    );
-
-    const runs = eventsForBatter.reduce((sum, e) => {
-      const batRuns = e.runBreakdown?.bat ?? 0;
-      const penaltyAddBack = (e as any).wicketPenaltyAdditionBatter ?? 0;
-
-      return sum + batRuns + penaltyAddBack;
-    }, 0);
-
-    const balls = eventsForBatter.filter((e) => e.countsAsBall).length;
-
-    const strikeRate = balls > 0 ? (runs / balls) * 100 : 0;
-
-    return { runs, balls, strikeRate: strikeRate.toFixed(1) };
-  };
-  */
-
-  console.log(
-    "Persisted batters:",
-    useGameStore.getState().currentGame?.batters,
-  );
-
   const shouldShowChangeBatters = (() => {
-    // ❌ If no batters selected, we are in "Add Batters" mode
     if (selectedBatters.length === 0) return false;
-
     const activeBattersObjects = currentGame?.activeBatters ?? [];
-
-    //if (activeBattersObjects.length === 0) return true;
     if (activeBattersObjects.length < 2) return true;
 
     const stats = activeBattersObjects.map(({ playerId, batterInningId }) =>
       calculateBatterStats(matchEvents, playerId, batterInningId),
     );
 
-    // Allow change if both have not faced a ball
     if (
       stats.length === 2 &&
       stats.every((b) => b.runs === 0 && b.balls === 0)
@@ -97,7 +57,6 @@ export default function BattersPicker({
       return true;
     }
 
-    // Allow change if one has not faced a ball
     if (stats.some((b) => b.runs === 0 && b.balls === 0)) {
       return true;
     }
@@ -105,25 +64,18 @@ export default function BattersPicker({
     return false;
   })();
 
-  //const battingTeamPlayers = battingTeam?.players ?? [];
   const battingTeamPlayers =
     battingTeam?.players.map((p) => ({
       ...p,
       teamId: battingTeam.id,
     })) ?? [];
 
-  // currentGame.activeBatters is string[], not objects
-  const battersIds = currentGame?.activeBatters ?? [];
-  const currentBatters = currentGame?.activeBatters ?? [];
-  const battingEntries = currentGame?.battingEntries ?? [];
-
-  // derive active batters for display
+  // Derive active batters for display
   const activeBatters = (currentGame?.activeBatters ?? [])
     .map(({ playerId, batterInningId }) => {
       const player = battingTeamPlayers.find((p) => p.id === playerId);
       if (!player) return null;
 
-      //const { runs, balls } = getBatterStats(playerId, batterInningId);
       const { runs, balls } = calculateBatterStats(
         matchEvents,
         playerId,
@@ -141,42 +93,40 @@ export default function BattersPicker({
     balls: number;
   })[];
 
-  console.log("battingTeamPlayers:", battingTeamPlayers);
+  // ========================================================
+  // FIXED: UNPACK STRIKER AND NON-STRIKER SAFELY
+  // ========================================================
+  const currentStrikeId = currentGame?.currentStrikeId;
+  const strikerObject =
+    activeBatters.find((b) => b.id === currentStrikeId) || activeBatters[0];
+  const nonStrikerObject =
+    activeBatters.find((b) => b.id !== strikerObject?.id) || activeBatters[1];
 
-  console.log("Current Batters:", currentBatters);
-  console.log("Batting Entries:", currentGame?.battingEntries);
-  console.log("currentBatters in BattersPicker:", currentGame?.batters);
+  const striker = {
+    name: strikerObject?.name ?? "No Batter",
+    runs: strikerObject?.runs ?? 0,
+    balls: strikerObject?.balls ?? 0,
+    strikeRate: strikerObject?.balls
+      ? ((strikerObject.runs / strikerObject.balls) * 100).toFixed(1)
+      : "0.0",
+  };
+
+  const nonStriker = {
+    name: nonStrikerObject?.name ?? "No Batter",
+    runs: nonStrikerObject?.runs ?? 0,
+    nonStriker: nonStrikerObject?.balls ?? 0, // Fallback safety match
+    balls: nonStrikerObject?.balls ?? 0,
+    strikeRate: nonStrikerObject?.balls
+      ? ((nonStrikerObject.runs / nonStrikerObject.balls) * 100).toFixed(1)
+      : "0.0",
+  };
 
   useEffect(() => {
-    console.log("===== BattersPicker Debug =====");
-
-    // Fixture store
-    const fixtureStoreState = useFixtureStore.getState();
-    console.log(
-      "fixtureStore.currentFixture:",
-      fixtureStoreState.currentFixture,
-    );
-    console.log("fixtureStore.fixtures:", fixtureStoreState.fixtures);
-
-    // Game store
-    const gameStoreState = useGameStore.getState();
-    console.log("gameStore.currentGame:", gameStoreState.currentGame);
-    console.log("gameStore.gameConfig:", gameStoreState.gameConfig);
-
-    // Selected batters
-    console.log("selectedBatters prop:", selectedBatters);
-
-    // Batting team players
-    console.log("battingTeam?.players:", battingTeam?.players);
-  }, [battingTeam?.id, selectedBatters.join(",")]);
-
-  useEffect(() => {
-    if (!hasHydrated) return; // ⚠️ wait for hydration
+    if (!hasHydrated) return;
     if (!battingTeam) return;
 
     const gameState = useGameStore.getState();
 
-    // Start the game if it doesn't exist yet
     if (!gameState.currentGame) {
       if (selectedBatters.length > 0) {
         const cfg = gameState.gameConfig;
@@ -194,11 +144,10 @@ export default function BattersPicker({
     const currentBatters = currentGame?.activeBatters ?? [];
     const battingEntries = currentGame?.battingEntries ?? [];
 
-    // 1️⃣ Merge selectedBatters with current batters, ignoring dismissed entries
     const mergedBatters = [
       ...currentBatters.filter(
         (b) =>
-          !b.retired && // 👈 ADD THIS
+          !b.retired &&
           selectedBatters.includes(b.playerId) &&
           !battingEntries.find(
             (e) =>
@@ -226,20 +175,6 @@ export default function BattersPicker({
         })),
     ];
 
-    // 2️⃣ Update store only if changed
-    /*
-    if (
-      mergedBatters.length !== currentBatters.length ||
-      mergedBatters.some((b, i) => b.playerId !== currentBatters[i]?.playerId)
-    ) {
-      gameState.updateCurrentGame({
-        ...gameState.currentGame,
-        batters: mergedBatters,
-      });
-    }
-    */
-
-    // 3️⃣ Ensure a valid strike
     const strike = gameState.currentGame.currentStrikeId;
     const currentBattersIds = currentBatters.map((b) => b.playerId);
     const newStrikeId =
@@ -254,7 +189,7 @@ export default function BattersPicker({
     ) {
       setStrike(newStrikeId);
     }
-  }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]); // ✅ include hasHydrated
+  }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]);
 
   const handleSavePlayer = async (teamId: string, player: any) => {
     try {
@@ -265,83 +200,125 @@ export default function BattersPicker({
     }
   };
 
-  console.log(battingTeam, " checking what this is on for liveViewer");
-  console.log(
-    selectedBatters,
-    " checking selectedBatters what this is on for liveViewer",
-  );
-
-  console.log(
-    JSON.stringify(useTeamStore().teams),
-    "checking what i have in teams",
-  );
-
-  console.log(JSON.stringify(battingTeam), "battingTeam what i have in teams");
-
   return (
     <>
       {battingTeam && (
         <>
-          <Pressable
-            style={styles.addBatters}
-            onPress={() => !isLiveViewer && setShowModal(true)}
-          >
-            {shouldShowChangeBatters && (
-              <Pressable
-                style={[styles.addBowlerButton, { marginTop: 12 }]}
-                onPress={() => !isLiveViewer && setShowModal(true)}
-              >
-                <Text style={styles.addBowlerButtonText}>Change Batters</Text>
-              </Pressable>
-            )}
-
+          <View style={{ width: "100%" }}>
             {selectedBatters.length > 0 ? (
-              <View style={styles.selectedBattersContainer}>
-                {activeBatters.map((p) => {
-                  const strikeRate =
-                    p.balls > 0 ? ((p.runs / p.balls) * 100).toFixed(1) : "0.0";
-                  const onStrike = currentGame?.currentStrikeId === p.id;
-                  return (
-                    <Pressable
-                      key={p.id}
-                      style={[
-                        styles.selectedBatterItem,
-                        onStrike && styles.onStrikeBatter,
-                      ]}
-                      onPress={() => {
-                        if (isLiveViewer) return;
-                        if (
-                          currentGame?.activeBatters?.some(
-                            (b) => b.playerId === p.id,
-                          )
-                        ) {
-                          setStrike(p.id);
-                        }
-                      }}
-                    >
-                      <View style={styles.batterRow}>
-                        <Text style={styles.selectedBatterText}>
-                          {p.name} — {p.runs} ({p.balls}) SR: {strikeRate}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.selectedText}>
-                  Select opening batters to start scoring
-                </Text>
+              <View style={styles.grid}>
+                {/* 1. ACTIVE BATTER CARD (STRIKER) */}
                 <Pressable
-                  style={[styles.addBowlerButton, { marginTop: 12 }]}
-                  onPress={() => !isLiveViewer && setShowModal(true)}
+                  style={({ pressed }) => [
+                    styles.glassCard,
+                    styles.strikerNeonCard,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, // Adds a subtle press effect
+                  ]}
+                  onPress={() => {
+                    if (isLiveViewer || !strikerObject?.id) return;
+                    // Validates against active batters array in state
+                    if (
+                      currentGame?.activeBatters?.some(
+                        (b) => b.playerId === strikerObject.id,
+                      )
+                    ) {
+                      setStrike(strikerObject.id);
+                    }
+                  }}
                 >
-                  <Text style={styles.addBowlerButtonText}>Select Batters</Text>
+                  <View style={styles.infoColumn}>
+                    <Text style={styles.strikerNameText}>{striker.name}</Text>
+                    <View style={styles.strikerBadge}>
+                      <Text style={styles.strikerBadgeText}>Striker</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.statsColumn}>
+                    <Text style={styles.scoreText}>
+                      {striker.runs}{" "}
+                      <Text style={styles.ballsText}>({striker.balls})</Text>
+                    </Text>
+                    <Text style={styles.strikeRateText}>
+                      SR: {striker.strikeRate}
+                    </Text>
+                  </View>
+                </Pressable>
+
+                {/* 2. NON-STRIKER CARD */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.glassCard,
+                    styles.nonStrikerCard,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+                  ]}
+                  onPress={() => {
+                    if (isLiveViewer || !nonStrikerObject?.id) return;
+                    if (
+                      currentGame?.activeBatters?.some(
+                        (b) => b.playerId === nonStrikerObject.id,
+                      )
+                    ) {
+                      setStrike(nonStrikerObject.id);
+                    }
+                  }}
+                >
+                  <View style={styles.infoColumn}>
+                    <Text style={styles.nonStrikerNameText}>
+                      {nonStriker.name}
+                    </Text>
+                    <View style={styles.nonStrikerBadge}>
+                      <Text style={styles.nonStrikerBadgeText}>
+                        Non-Striker
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.statsColumn}>
+                    <Text style={styles.scoreText}>
+                      {nonStriker.runs}{" "}
+                      <Text style={styles.ballsText}>({nonStriker.balls})</Text>
+                    </Text>
+                    <Text style={styles.strikeRateText}>
+                      SR: {nonStriker.strikeRate}
+                    </Text>
+                  </View>
                 </Pressable>
               </View>
+            ) : (
+              <View style={styles.glassCardBase}>
+                <LinearGradient
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  colors={["#7fdaff", "#ddb7ff", "#f8ca11"]}
+                  style={styles.topGradientBar}
+                />
+
+                <View style={styles.contentContainer}>
+                  <Text style={styles.title}>
+                    Select opening batters to start scoring
+                  </Text>
+
+                  <Pressable
+                    style={styles.primaryButton}
+                    onPress={() => !isLiveViewer && setShowModal(true)}
+                  >
+                    <Text style={styles.primaryButtonText}>Select Batters</Text>
+                  </Pressable>
+                </View>
+              </View>
             )}
-          </Pressable>
+            {shouldShowChangeBatters && (
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  { marginTop: 12, marginBottom: 12 },
+                ]}
+                onPress={() => !isLiveViewer && setShowModal(true)}
+              >
+                <Text style={styles.primaryButtonText}>Change Batters</Text>
+              </Pressable>
+            )}
+          </View>
 
           <SelectPlayersModal
             visible={showModal}
@@ -362,8 +339,9 @@ export default function BattersPicker({
                       selectedBattingTeamId!,
                       name,
                     );
-                    if (player)
+                    if (player) {
                       await handleSavePlayer(selectedBattingTeamId!, player);
+                    }
                   }}
                 />
               </View>
@@ -380,7 +358,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginVertical: 10,
     marginHorizontal: 4,
-    backgroundColor: "#0e9cb9", // Matches dark cyan dashboard theme
+    backgroundColor: "#0e9cb9",
     borderRadius: 12,
     paddingVertical: 18,
     paddingHorizontal: 20,
@@ -390,65 +368,157 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     borderLeftWidth: 5,
-    borderLeftColor: "#ffd54f", // Accent line matches selection border yellow
+    borderLeftColor: "#ffd54f",
   },
   addBattersTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#ffffff", // Primary title to pure white
+    color: "#ffffff",
     marginBottom: 4,
-  },
-  selectedBattersContainer: {
-    backgroundColor: "transparent", // Transparent to sit cleanly on card base
-  },
-  selectedBatterItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.15)", // Soft divider line
-    marginVertical: 2,
-  },
-  selectedBatterText: {
-    fontSize: 16,
-    color: "#ffffff", // Pure white for great legibility
-    fontWeight: "600",
-    paddingLeft: 5,
-  },
-  batterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  strikeIcon: {
-    width: 20,
-    textAlign: "center",
-    marginRight: 8,
-    fontWeight: "700",
-    color: "#ffd54f", // Updated indicator tint to amber yellow
-  },
-  onStrikeBatter: {
-    borderColor: "#ffffff", // Bold white frame border
-    borderWidth: 1.5,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 8,
-    paddingHorizontal: 4,
   },
   addBowlerButton: {
-    marginBottom: 4,
+    marginBottom: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff", // White clean button contrast block
+    backgroundColor: "#ffffff",
     borderRadius: 8,
     alignItems: "center",
     elevation: 2,
   },
-  addBowlerButtonText: {
-    color: "#0e9cb9", // Links text back to container profile color
+  addBowlerButtonText: { color: "#0e9cb9", fontWeight: "700", fontSize: 16 },
+  glassCardBase: {
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
+    borderRadius: 16,
+    position: "relative",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    width: "100%",
+    alignSelf: "center",
+    marginHorizontal: 5,
+    marginVertical: 10,
+  },
+  glassCard: {
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+  },
+  topGradientBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  contentContainer: { padding: 24 },
+  title: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#dae2fd",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  primaryButton: {
+    paddingVertical: 12,
+    backgroundColor: "rgba(0, 194, 243, 0.15)",
+    borderWidth: 1.5,
+    borderColor: "#00c2f3",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 2,
+  },
+  primaryButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    color: "#7fdaff",
     fontWeight: "700",
     fontSize: 16,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  selectedText: {
-    fontSize: 16,
+  grid: { width: "100%", flexDirection: "column", gap: 12 },
+  strikerNeonCard: {
+    borderWidth: 1,
+    borderColor: "#7fdaff",
+    shadowColor: "#7fdaff",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  strikerNameText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 20,
+    lineHeight: 28,
     fontWeight: "600",
-    color: "#e0f7fa", // Clean legible soft cyan hint text
-    textAlign: "center",
-    marginBottom: 4,
+    color: "#7fdaff",
+  },
+  strikerBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(127, 218, 255, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  strikerBadgeText: {
+    fontFamily: "Geist",
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    color: "#7fdaff",
+  },
+  nonStrikerCard: {
+    opacity: 0.7,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(218, 226, 253, 0.2)",
+  },
+  nonStrikerNameText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: "600",
+    color: "#dae2fd",
+  },
+  nonStrikerBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#2d3449",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  nonStrikerBadgeText: {
+    fontFamily: "Geist",
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    color: "#bcc8cf",
+  },
+  infoColumn: { flexDirection: "column", gap: 4, alignItems: "flex-start" },
+  statsColumn: { flexDirection: "column", alignItems: "flex-end" },
+  scoreText: {
+    fontFamily: "Geist",
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: "500",
+    color: "#dae2fd",
+  },
+  ballsText: {
+    fontFamily: "Hanken Grotesk",
+    fontSize: 16,
+    color: "#bcc8cf",
+    fontWeight: "400",
+  },
+  strikeRateText: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#bcc8cf",
   },
 });

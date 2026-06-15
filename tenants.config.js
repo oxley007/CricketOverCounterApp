@@ -55,8 +55,8 @@ module.exports = {
       // 👇 ADD THIS
       actionTabs: {
         undoColor: "#c471ed",
-        dotColor: "#FFF8F0",
-        dotIconColor: "#12c2e9",
+        dotColor: "#12c2e9",
+        dotIconColor: "rgba(45, 52, 73, 0.7)",
         plusColor: "#77dd77",
         labelColor: "#fff",
         dotLabelColor: "#12c2e9",
@@ -131,8 +131,8 @@ module.exports = {
 
       actionTabs: {
         undoColor: "#e2339c",
-        dotColor: "#e9df36",
-        dotIconColor: "#666",
+        dotColor: "#12c2e9",
+        dotIconColor: "rgba(45, 52, 73, 0.7)",
         plusColor: "#77dd77",
         labelColor: "#fff",
         dotLabelColor: "#666",

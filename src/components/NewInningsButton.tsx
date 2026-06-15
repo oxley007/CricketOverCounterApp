@@ -69,7 +69,7 @@ export default function NewInningsButton({ onComplete }: Props) {
     }
 
     // Block guest users who reached limit
-    if (isGuest && guestMatchesPlayed >= 1) {
+    if (isGuest && guestMatchesPlayed >= 10000) {
       Alert.alert(
         "Create a Free Account",
         "You've reached the guest match limit. Create a free account to continue saving matches and stats.",

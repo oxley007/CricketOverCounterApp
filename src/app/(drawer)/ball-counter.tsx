@@ -414,7 +414,7 @@ function HomeContent() {
       />
 
       <ScrollView contentContainerStyle={styles.container}>
-        <BallTimerDisplay />
+        <BallTimerDisplay onUpgrade={() => setShowSubscriptionModal(true)} />
         {!isLiveViewer && (
           <>
             <EndInningsButton onComplete={handleReset} />
@@ -489,6 +489,7 @@ function HomeContent() {
 
         {showStats && (
           <>
+            <Text style={[styles.sectionDividerText]}>IN-GAME STATS:</Text>
             <View style={styles.statsRow}>
               <PreviousInningsComparison />
             </View>
@@ -571,18 +572,20 @@ function HomeContent() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#0b1326",
   },
   container: {
-    padding: 20,
+    padding: 10,
     paddingBottom: 140,
   },
   scoreRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    //alignItems: "baseline",
     justifyContent: "center",
     gap: 0,
     marginBottom: 0,
+    width: "100%",
+    alignItems: "center",
   },
   statsRow: {
     flexDirection: "row",
@@ -678,15 +681,21 @@ const styles = StyleSheet.create({
   /*new styles */
 
   glassCard: {
-    backgroundColor: "rgba(30, 41, 59, 0.7)",
+    backgroundColor: "rgba(45, 52, 73, 0.7)",
     borderRadius: 16,
     padding: 24,
     position: "relative",
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    margin: 16,
+
+    // Center alignment & 100% width adjustments
+    width: "100%",
+    alignSelf: "center", // Automatically centers itself inside its parent container
+    marginHorizontal: 5, // Removes side margins so it can stretch fully edge-to-edge
+    marginVertical: 0, // Restores vertical spacing if you still need space on top/bottom
   },
+
   topGradientBar: {
     position: "absolute",
     top: 0,
@@ -706,5 +715,13 @@ const styles = StyleSheet.create({
   oversRow: {
     width: "100%",
     alignItems: "center",
+  },
+  sectionDividerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 1,
+    opacity: 0.7,
+    color: "#fff",
+    marginTop: 20,
   },
 });

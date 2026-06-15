@@ -80,7 +80,7 @@ export function useRequireAuth(options?: Options) {
         return false;
       }
 
-      if (enforceGuestLimit && isGuest && guestMatchesPlayed >= 1) {
+      if (enforceGuestLimit && isGuest && guestMatchesPlayed >= 10000) {
         Alert.alert(
           "Create a Free Account",
           "You've reached the guest match limit. Sign up for free to save more matches and stats.",
