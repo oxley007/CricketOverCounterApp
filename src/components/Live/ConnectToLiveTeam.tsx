@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
 import { useLiveStore } from "../../state/liveStore";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../../services/firebaseConfig";
@@ -66,36 +74,101 @@ export default function ConnectToLiveTeam({
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Enter Team Code</Text>
+    <View style={styles.subComponentContainer}>
+      {/* Input field with floating QR icon */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.labelCaps}>TEAM CODE</Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder="TEAM-ABC123"
+            placeholderTextColor="rgba(188, 200, 207, 0.4)" // text-on-surface-variant/40
+            autoCapitalize="characters"
+            style={styles.monoInput}
+          />
+        </View>
+      </View>
 
-      <TextInput
-        value={input}
-        onChangeText={setInput}
-        placeholder="TEAM-ABC123"
-        autoCapitalize="characters"
-        style={styles.input}
-      />
-
-      <Button title="Connect" onPress={handleConnect} />
+      {/* Primary Action Button */}
+      <TouchableOpacity
+        activeOpacity={0.95}
+        style={styles.primaryButton}
+        onPress={handleConnect}
+      >
+        <Text style={styles.buttonText}>Connect Team</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
+  subComponentContainer: {
+    gap: 12, // matches the parent card layout separation
+    marginTop: 4,
   },
-  label: {
-    marginBottom: 8,
-    fontSize: 16,
+  inputGroup: {
+    gap: 4, // space-y-stack-sm
+  },
+  labelCaps: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.96, // 12 * 0.08em
     fontWeight: "600",
+    color: "#bcc8cf", // text-on-surface-variant
+    marginLeft: 4, // ml-1
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+  inputContainer: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  monoInput: {
+    width: "100%",
+    backgroundColor: "#2d3449", // bg-surface-container-highest
+    borderRadius: 8, // rounded-lg
+    paddingVertical: 16, // py-4
+    paddingLeft: 16,
+    paddingRight: 48, // Leave space so text doesn't slide under the QR icon
+    color: "#7fdaff", // text-primary
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace", // tracking-widest fallback
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  rightIconWrapper: {
+    position: "absolute",
+    right: 16, // right-4
+  },
+  materialIcon: {
+    fontFamily: "Material Symbols Outlined", // requires standard asset registration
+    fontSize: 24,
+    color: "#7fdaff", // text-primary
+  },
+  iconMuted: {
+    color: "rgba(188, 200, 207, 0.5)", // text-on-surface-variant/50
+  },
+  primaryButton: {
+    width: "100%",
+    paddingVertical: 16, // py-4
+    backgroundColor: "#7fdaff", // bg-primary
+    borderRadius: 8, // rounded-lg
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  buttonText: {
+    color: "#003545", // text-on-primary
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

@@ -27,21 +27,25 @@ import { useFixtureStore } from "../../state/fixtureStore";
 import { useLiveStore, type LiveTeam } from "../../state/liveStore";
 import { useRequireAuth } from "../../hooks/useRequireAuth";
 import AuthModal from "../../components/AuthModal";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTenantConfig } from "../../hooks/useTenantConfig";
 
 export default function LiveScoringInfo() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { branding } = useTenantConfig();
 
   const { modeMessage: rawModeMessage } = useLocalSearchParams<{
     modeMessage: string;
   }>();
   const modeMessage = rawModeMessage || null;
-
   const isReminderMode = modeMessage === "reminder";
 
   const livePro = useLiveStore((state) => state.livePro);
-
   const [packages, setPackages] = useState<any[]>([]);
   const [fetchingPrices, setFetchingPrices] = useState(true);
 
@@ -53,7 +57,6 @@ export default function LiveScoringInfo() {
   const [selectedTier, setSelectedTier] = useState<"coach" | "supporter">(
     "coach",
   );
-
   const state = useLiveStore.getState();
 
   console.log(
@@ -129,6 +132,25 @@ export default function LiveScoringInfo() {
     }
     loadPrices();
   }, []);
+
+  const coachMonthlyPkg = packages.find(
+    (pkg) => pkg.identifier === "rc_monthly_live",
+  );
+  const coachPrice = coachMonthlyPkg?.product.priceString || "$24.99/month";
+
+  const supporterMonthlyPkg = packages.find(
+    (pkg) => pkg.identifier === "rc_monthly_live_supporter",
+  );
+  const supporterPrice =
+    supporterMonthlyPkg?.product.priceString || "$4.99/month";
+
+  console.log(coachPrice, "coachPrice is wha?");
+
+  const getButtonText = () => {
+    if (livePro) return "Configure Live Scores";
+    if (selectedTier === "coach") return "Choose your subscription";
+    return "Configure Live Scores";
+  };
 
   const handleConfigureLive = async () => {
     console.log(
@@ -249,51 +271,44 @@ export default function LiveScoringInfo() {
     });
   };
 
-  const coachMonthlyPkg = packages.find(
-    (pkg) => pkg.identifier === "rc_monthly_live",
-  );
-  const coachPrice = coachMonthlyPkg?.product.priceString || "$24.99/month";
-
-  const supporterMonthlyPkg = packages.find(
-    (pkg) => pkg.identifier === "rc_monthly_live_supporter",
-  );
-  const supporterPrice =
-    supporterMonthlyPkg?.product.priceString || "$4.99/month";
-
-  console.log(coachPrice, "coachPrice is wha?");
-
-  const getButtonText = () => {
-    if (livePro) {
-      return "Configure Live Scores";
-    }
-    if (selectedTier === "coach") {
-      return "Choose your subscription";
-    }
-    return "Configure Live Scores";
-  };
-
   return (
     <>
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Back */}
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
-          </Pressable>
-
-          {/* Title */}
-          <View style={styles.sectionPillHeader}>
-            <Text style={styles.title}>LittleWicket Live</Text>
-            <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
+          {/* Back Button */}
+          <View style={styles.backButtonContainer}>
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.pressedScale,
+              ]}
+            >
+              <MaterialIcons name="arrow-back" size={18} color="#7fdaff" />
+              <Text style={styles.backText}>Back</Text>
+            </Pressable>
           </View>
 
-          {/* Main Card */}
-          <View style={styles.card}>
-            <Text style={styles.bodyText}>
-              Tap <Text style={styles.bold}>Configure Live Scores</Text> below
-              to sync this account to the cloud.
+          {/* Title Banner */}
+          <View style={styles.banner}>
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitle}>{branding.shortName} Live</Text>
+              <Text style={styles.bannerSubtitle}>
+                Keep supporters in the loop!
+              </Text>
+            </View>
+            <View style={styles.bannerIconDecorator}>
+              <MaterialIcons name="sensors" size={96} color="rgba(0,0,0,0.1)" />
+            </View>
+          </View>
+
+          {/* Main Context Card */}
+          <View style={styles.infoCard}>
+            <Text style={styles.infoText}>
+              Tap <Text style={styles.boldText}>Configure Live Scores</Text>{" "}
+              below to sync this account to the cloud.
             </Text>
-            <Text style={styles.bodyText}>
+            <Text style={[styles.infoText, { marginTop: 16 }]}>
               You’ll then get a unique Team ID and Player IDs to share with your
               team group chat.
             </Text>
@@ -302,85 +317,110 @@ export default function LiveScoringInfo() {
           {!livePro ? (
             <>
               {/* How it works */}
-              <View style={styles.sectionPill}>
-                <Text style={styles.sectionPillText}>HOW IT WORKS</Text>
+              <View style={styles.pillBadge}>
+                <Text style={styles.pillBadgeText}>HOW IT WORKS</Text>
               </View>
-              <View style={styles.card}>
-                <Text style={styles.tierTitle}>FREE Tier</Text>
-                <Text style={styles.bodyText}>
+
+              <View style={styles.tierCard}>
+                <Text style={styles.tierCardTitle}>FREE Tier</Text>
+                <Text style={styles.tierCardBody}>
                   Supporters see live scores and overs (updated every 2 overs,
                   or instantly at innings end).
                 </Text>
               </View>
-              <View style={styles.card}>
-                <Text style={styles.tierTitle}>PRO Tier</Text>
-                <Text style={styles.bodyText}>
-                  Real-time, ball-by-ball updates.
-                </Text>
-                <Text style={styles.bodyText}>
-                  Includes full scorecards, run rates, batter/bowler stats, and
-                  individual player performance.
+
+              <View style={styles.tierCard}>
+                <View style={styles.proIconContainer}>
+                  <MaterialIcons
+                    name="settings"
+                    size={24}
+                    color="rgba(188,200,207,0.4)"
+                  />
+                </View>
+                <Text style={styles.tierCardTitle}>PRO Tier</Text>
+                <Text style={styles.tierCardBody}>
+                  Real-time, ball-by-ball updates. Includes full scorecards, run
+                  rates, batter/bowler stats, and individual player performance.
                 </Text>
               </View>
 
-              {/* Pricing */}
-              <View style={styles.sectionPill}>
-                <Text style={styles.sectionPillText}>
-                  Choose who pays for PRO:
+              {/* Pricing Tiers Selection */}
+              <View style={styles.pillBadge}>
+                <Text style={styles.pillBadgeText}>
+                  CHOOSE WHO PAYS FOR PRO:
                 </Text>
               </View>
 
+              {/* Coach / Manager Pays */}
               <Pressable
-                style={styles.card}
+                style={[
+                  styles.radioCard,
+                  selectedTier === "coach" && styles.radioCardChecked,
+                ]}
                 onPress={() => setSelectedTier("coach")}
               >
-                <View style={styles.cardRow}>
-                  <View style={styles.radioOuter}>
+                <View style={styles.radioRow}>
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      selectedTier === "coach" && styles.radioOuterChecked,
+                    ]}
+                  >
                     {selectedTier === "coach" && (
                       <View style={styles.radioInner} />
                     )}
                   </View>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.tierTitle}>Coach / Manager Pays</Text>
-                    <Text style={styles.bodyText}>
+                  <View style={styles.radioTextContainer}>
+                    <Text style={styles.radioTitle}>Coach / Manager Pays</Text>
+                    <Text style={styles.radioDescription}>
                       A {coachPrice} subscription covers the entire team.
                     </Text>
-                    <Text style={styles.bodyText}>
+                    <Text style={styles.radioSubDescription}>
                       All supporters get Pro access for free.
                     </Text>
                   </View>
                 </View>
               </Pressable>
 
-              {/* Parent Card */}
+              {/* Free / Supporter Pays */}
               <Pressable
-                style={styles.card}
+                style={[
+                  styles.radioCard,
+                  selectedTier === "supporter" && styles.radioCardChecked,
+                ]}
                 onPress={() => setSelectedTier("supporter")}
               >
-                <View style={styles.cardRow}>
-                  <View style={styles.radioOuter}>
+                <View style={styles.radioRow}>
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      selectedTier === "supporter" && styles.radioOuterChecked,
+                    ]}
+                  >
                     {selectedTier === "supporter" && (
                       <View style={styles.radioInner} />
                     )}
                   </View>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.tierTitle}>Free / Supporter Pays</Text>
-                    <Text style={styles.bodyText}>
-                      Each individual can use the Free Teir*, or pay{" "}
+                  <View style={styles.radioTextContainer}>
+                    <Text style={styles.radioTitle}>Free / Supporter Pays</Text>
+                    <Text style={styles.radioDescription}>
+                      Each individual can use the Free Tier*, or pay{" "}
                       {supporterPrice} for their own Pro access.
                     </Text>
-                    <Text style={styles.bodyTextSmall}>
-                      *Free Teir updates every 2 overs
+                    <Text style={styles.radioNote}>
+                      *Free Tier updates every 2 overs
                     </Text>
                   </View>
                 </View>
               </Pressable>
 
               {/* Note */}
-              <Text style={styles.note}>
-                Note: Each Player ID can be linked by up to 3 supporters (e.g.,
-                two parents and a grandparent).
-              </Text>
+              <View style={styles.noteContainer}>
+                <Text style={styles.noteText}>
+                  Note: Each Player ID can be linked by up to 3 supporters
+                  (e.g., two parents and a grandparent).
+                </Text>
+              </View>
             </>
           ) : (
             <View style={styles.proAlertBanner}>
@@ -389,27 +429,49 @@ export default function LiveScoringInfo() {
               </Text>
             </View>
           )}
+        </ScrollView>
 
-          {/* CTA */}
+        {/* CTA Footer */}
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
           <Pressable
-            style={[styles.ctaButton, loading && styles.ctaButtonDisabled]}
+            style={[
+              styles.footerButton,
+              loading && styles.ctaButtonDisabled,
+              ({ pressed }) => pressed && styles.pressedScale,
+            ]}
             onPress={handleConfigureLive}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.ctaText}>{getButtonText()}</Text>
+              <>
+                <Text style={styles.footerButtonText}>{getButtonText()}</Text>
+                {!livePro && selectedTier === "coach" ? (
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={24}
+                    color="#ffffff"
+                  />
+                ) : null}
+              </>
             )}
           </Pressable>
-        </ScrollView>
+        </View>
       </View>
+
       <SubscriptionList
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
         tier={selectedTier}
         isFromLiveConfig={true}
       />
+
       <AuthModal
         visible={authVisible}
         onClose={() => setAuthVisible(false)}
@@ -423,83 +485,224 @@ export default function LiveScoringInfo() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#0b1326", // Dark background match
+  },
+  header: {
+    height: 64,
+    backgroundColor: "#0b1326",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#ffffff",
+    letterSpacing: -0.5,
   },
   content: {
-    padding: 20,
-    paddingBottom: 80,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 140, // Space for fixed bottom CTA panel
+    maxWidth: 672,
+    alignSelf: "center",
+    width: "100%",
+  },
+  backButtonContainer: {
+    marginBottom: 24,
   },
   backButton: {
-    marginBottom: 10,
     alignSelf: "flex-start",
+    backgroundColor: "rgba(127, 218, 255, 0.2)",
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 16,
     borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   backText: {
-    color: "#fff",
+    color: "#7fdaff",
+    fontSize: 14,
     fontWeight: "600",
   },
-  title: {
-    fontSize: 34,
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "800",
+  pressedScale: {
+    transform: [{ scale: 0.98 }],
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#fff",
-    textAlign: "center",
+  banner: {
+    backgroundColor: "#7fdaff",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  bannerContent: {
+    zIndex: 10,
+    alignItems: "center",
+  },
+  bannerTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#004c61",
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontFamily: "Hanken Grotesk",
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#004c61",
     opacity: 0.9,
-    fontWeight: "800",
-    letterSpacing: 1,
   },
-  sectionTitle: {
+  bannerIconDecorator: {
+    position: "absolute",
+    right: -16,
+    bottom: -16,
+  },
+  infoCard: {
+    backgroundColor: "#171f33",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 32,
+  },
+  infoText: {
+    fontFamily: "Hanken Grotesk",
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#dae2fd",
+  },
+  boldText: {
+    fontWeight: "700",
+  },
+  pillBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(127, 218, 255, 0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 9999,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  pillBadgeText: {
+    color: "#7fdaff",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+  },
+  tierCard: {
+    backgroundColor: "#171f33",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 16,
+    position: "relative",
+  },
+  proIconContainer: {
+    position: "absolute",
+    top: 24,
+    right: 24,
+  },
+  tierCardTitle: {
+    color: "#dae2fd",
     fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  card: {
-    backgroundColor: "#f5f5f5",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  tierTitle: {
+  tierCardBody: {
+    fontFamily: "Hanken Grotesk",
+    color: "#bcc8cf",
     fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 6,
-    color: "#333",
+    lineHeight: 22,
   },
-  bodyText: {
+  radioCard: {
+    backgroundColor: "#171f33",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: "transparent",
+    marginBottom: 16,
+  },
+  radioCardChecked: {
+    borderColor: "#7fdaff",
+    backgroundColor: "rgba(127, 218, 255, 0.08)",
+  },
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#3d494e",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  radioOuterChecked: {
+    borderColor: "#7fdaff",
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#7fdaff",
+  },
+  radioTextContainer: {
+    flex: 1,
+  },
+  radioTitle: {
+    color: "#dae2fd",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  radioDescription: {
+    fontFamily: "Hanken Grotesk",
+    color: "#bcc8cf",
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  radioSubDescription: {
+    fontFamily: "Hanken Grotesk",
+    color: "#bcc8cf",
+    fontSize: 16,
+    opacity: 0.8,
+  },
+  radioNote: {
+    fontSize: 12,
+    color: "rgba(188,200,207,0.6)",
+    fontStyle: "italic",
+    marginTop: 8,
+  },
+  noteContainer: {
+    marginTop: 8,
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  noteText: {
+    color: "#7fdaff",
     fontSize: 14,
-    color: "#333",
-    marginBottom: 6,
-  },
-  bodyTextSmall: {
-    fontSize: 10,
-    color: "#999",
-    marginBottom: 6,
-  },
-  bold: {
-    fontWeight: "700",
-  },
-  note: {
-    color: "#fff",
-    fontSize: 13,
-    marginTop: 10,
-    opacity: 0.85,
-    marginBottom: 15,
+    lineHeight: 20,
   },
   proAlertBanner: {
     backgroundColor: "#2e7d32",
     padding: 16,
     borderRadius: 12,
     marginTop: 15,
-    marginBottom: 15,
+    marginBottom: 25,
     alignItems: "center",
   },
   proAlertText: {
@@ -509,70 +712,41 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-  ctaButton: {
-    marginTop: 15,
-    backgroundColor: "#c471ed",
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(11, 19, 38, 0.9)",
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
+  },
+  footerButton: {
+    maxWidth: 672,
+    width: "100%",
+    alignSelf: "center",
+    backgroundColor: "#6f00be", // secondary-container theme purple
+    paddingVertical: 16,
+    borderRadius: 16,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   ctaButtonDisabled: {
-    backgroundColor: "#A0A0A0",
-    opacity: 0.7,
+    backgroundColor: "#3d494e",
+    opacity: 0.6,
   },
-  ctaText: {
-    color: "#fff",
+  footerButtonText: {
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "700",
-  },
-  sectionPill: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  sectionPillHeader: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginTop: 20,
-    marginBottom: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionPillText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 1,
-  },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  radioOuter: {
-    height: 20,
-    width: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#c471ed",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-    marginTop: 2,
-  },
-  radioInner: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: "#c471ed",
-  },
-  cardContent: {
-    flex: 1,
   },
 });

@@ -38,6 +38,7 @@ export default function StartModeModal() {
   const selectBallCounter = useStartModalStore((s) => s.selectBallCounter);
   const selectScorebook = useStartModalStore((s) => s.selectScorebook);
   const closeStartModal = useStartModalStore((s) => s.close);
+  const user = useAuthModalStore((s) => s.user);
   const authModalOpen = useAuthModalStore((s) => s.isOpen);
   const openAuthModal = useAuthModalStore((s) => s.open);
   const hasSeenPrompt = useJuniorPromptStore((s) => s.hasSeenPrompt);
@@ -248,6 +249,118 @@ export default function StartModeModal() {
                   resizeMode="contain"
                 />
 
+                {/* Secondary Utility Controls */}
+                {fixtures.length > 0 && (
+                  <View style={styles.secondarySection}>
+                    <Text
+                      style={[
+                        styles.sectionDividerText,
+                        {
+                          color: theme.headerTextColor,
+                          opacity: 0.7,
+                        },
+                      ]}
+                    >
+                      ANALYTICS & MORE
+                    </Text>
+
+                    <View style={styles.actionGridRow}>
+                      <Button
+                        mode="contained"
+                        style={[
+                          styles.utilityGridButton,
+                          {
+                            backgroundColor: theme.cardBg,
+                          },
+                        ]}
+                        labelStyle={[
+                          styles.utilityButtonText,
+                          {
+                            color: theme.cardTextColor,
+                          },
+                        ]}
+                        onPress={() => {
+                          closeStartModal();
+                          router.push("/stats");
+                        }}
+                      >
+                        View Stats
+                      </Button>
+
+                      <Button
+                        mode="contained"
+                        style={[
+                          styles.utilityGridButton,
+                          {
+                            backgroundColor: theme.cardBg,
+                          },
+                        ]}
+                        labelStyle={[
+                          styles.utilityButtonText,
+                          {
+                            color: theme.cardTextColor,
+                          },
+                        ]}
+                        onPress={() => {
+                          closeStartModal();
+                          router.push("/fixtureList");
+                        }}
+                      >
+                        View Fixtures
+                      </Button>
+                    </View>
+
+                    {/* 2. Wrap your login button to only render if 'user' is null */}
+                    {!user && (
+                      <>
+                        <View
+                          style={[
+                            styles.warningContainer,
+                            {
+                              backgroundColor: theme.cardBg + "15",
+                              borderColor: theme.cardBg + "30",
+                            },
+                          ]}
+                        >
+                          <MaterialIcons
+                            name="cloud-off"
+                            size={20}
+                            color={theme.headerTextColor || "#ffffff"}
+                            style={styles.warningIcon}
+                          />
+                          <Text
+                            style={[
+                              styles.warningText,
+                              { color: theme.headerTextColor || "#ffffff" },
+                            ]}
+                          >
+                            Please sign up or login to save your data to the
+                            cloud.
+                          </Text>
+                        </View>
+                        <Button
+                          mode="outlined"
+                          style={[
+                            styles.loginButton,
+                            {
+                              borderColor: theme.cardBg,
+                            },
+                          ]}
+                          labelStyle={[
+                            styles.loginButtonText,
+                            {
+                              color: theme.cardBg,
+                            },
+                          ]}
+                          onPress={openAuthModal}
+                        >
+                          Login / Sign Up
+                        </Button>
+                      </>
+                    )}
+                  </View>
+                )}
+
                 <Text
                   style={[
                     styles.headlineTitle,
@@ -395,86 +508,6 @@ export default function StartModeModal() {
                     </Animated.View>
                   );
                 })}
-              </View>
-
-              {/* Secondary Utility Controls */}
-              <View style={styles.secondarySection}>
-                <Text
-                  style={[
-                    styles.sectionDividerText,
-                    {
-                      color: theme.headerTextColor,
-                      opacity: 0.7,
-                    },
-                  ]}
-                >
-                  ANALYTICS & MORE
-                </Text>
-
-                <View style={styles.actionGridRow}>
-                  <Button
-                    mode="contained"
-                    style={[
-                      styles.utilityGridButton,
-                      {
-                        backgroundColor: theme.cardBg,
-                      },
-                    ]}
-                    labelStyle={[
-                      styles.utilityButtonText,
-                      {
-                        color: theme.cardTextColor,
-                      },
-                    ]}
-                    onPress={() => {
-                      closeStartModal();
-                      router.push("/stats");
-                    }}
-                  >
-                    View Stats
-                  </Button>
-
-                  <Button
-                    mode="contained"
-                    style={[
-                      styles.utilityGridButton,
-                      {
-                        backgroundColor: theme.cardBg,
-                      },
-                    ]}
-                    labelStyle={[
-                      styles.utilityButtonText,
-                      {
-                        color: theme.cardTextColor,
-                      },
-                    ]}
-                    onPress={() => {
-                      closeStartModal();
-                      router.push("/fixtureList");
-                    }}
-                  >
-                    View Fixtures
-                  </Button>
-                </View>
-
-                <Button
-                  mode="outlined"
-                  style={[
-                    styles.loginButton,
-                    {
-                      borderColor: theme.cardBg,
-                    },
-                  ]}
-                  labelStyle={[
-                    styles.loginButtonText,
-                    {
-                      color: theme.cardBg,
-                    },
-                  ]}
-                  onPress={openAuthModal}
-                >
-                  Login / Sign Up
-                </Button>
               </View>
             </ScrollView>
           </ImageBackground>
@@ -633,7 +666,8 @@ const styles = StyleSheet.create({
   /* ================= UTILITIES ================= */
 
   secondarySection: {
-    marginTop: 24,
+    marginTop: 0,
+    marginBottom: 14,
     width: "100%",
   },
 
@@ -684,5 +718,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 0.8,
+  },
+  warningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 20,
+    marginBottom: 10,
+    marginHorizontal: 4,
+  },
+  warningIcon: {
+    marginRight: 10,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+    opacity: 0.9,
   },
 });

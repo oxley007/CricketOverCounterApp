@@ -25,6 +25,7 @@ import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
+import { useAuthModalStore } from "@/state/authModalStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
 import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { APP_LOGOS } from "../../constants/Assets";
@@ -49,8 +50,10 @@ function DrawerLayout() {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("✅ Firebase session restored:", user.uid);
+        useAuthModalStore.getState().setUser(user); // Set global user state
       } else {
         console.log("👤 No logged in user");
+        useAuthModalStore.getState().setUser(null); // Clear global user state
       }
     });
 

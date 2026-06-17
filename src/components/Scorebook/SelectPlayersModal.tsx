@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   },
   noPlayersText: { color: "#64748b", fontSize: 15 },
   closeButton: {
-    marginTop: 10,
+    //marginTop: 10,
     paddingVertical: 12,
     paddingHorizontal: 20,
     backgroundColor: "#12c2e9",

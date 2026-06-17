@@ -85,7 +85,12 @@ export default function PlayerStatsModal({
   // ... (battingStats and bowlingStats arrays remain exactly as you had them)
   const battingStats = [
     { label: "Matches", value: stats.batting.matches, free: true },
-    { label: "Innings", value: stats.batting.innings, free: true },
+    {
+      // Dynamically changes the text string label based on the conditional status
+      label: isPlayer ? "Innings" : "Total Batters",
+      value: stats.batting.innings,
+      free: true,
+    },
     { label: "Dismissals", value: stats.batting.dismissals, free: true },
     { label: "Runs", value: stats.batting.runs, free: true },
     {

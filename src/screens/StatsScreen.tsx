@@ -1,7 +1,14 @@
 // src/screens/StatsScreen.tsx
 import { router } from "expo-router";
 import React, { useMemo, useState, useEffect } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  Platform,
+} from "react-native";
 import SubscriptionList from "../components/iap/SubscriptionList";
 import PlayerStatsModal from "../components/PlayerStatsModal";
 import { useFixtureStore } from "../state/fixtureStore";
@@ -14,8 +21,10 @@ import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore, Team } from "../state/teamStore";
 import { useLiveStore } from "../state/liveStore";
 import { listenAndMergeFixture } from "../services/fixtureSyncService";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function StatsScreen() {
+  const insets = useSafeAreaInsets();
   const { teams } = useTeamStore();
   const { fixtures } = useFixtureStore();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -277,58 +286,91 @@ export default function StatsScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Season Stats</Text>
 
-      {/* ================= TEAM SELECT ================= */}
+      {/* TEAM SELECT */}
       <View style={styles.selectorRow}>
-        {yourTeams.map((team) => (
-          <Pressable
-            key={team.id}
-            onPress={() => {
-              setSelectedTeamId(team.id);
-              setSelectedSeason(null);
-              setSelectedPlayerId(null);
-            }}
-            style={[
-              styles.selectorCard,
-              normalize(selectedTeamId || "") === normalize(team.id) &&
-                styles.selectorCardSelected,
-            ]}
-          >
-            <Text
-              style={[
-                styles.selectorText,
-                normalize(selectedTeamId || "") === normalize(team.id) &&
-                  styles.selectorTextSelected,
+        {yourTeams.map((team) => {
+          const isSelected =
+            normalize(selectedTeamId || "") === normalize(team.id);
+          return (
+            <Pressable
+              key={team.id}
+              onPress={() => {
+                setSelectedTeamId(team.id);
+                setSelectedSeason(null);
+                setSelectedPlayerId(null);
+              }}
+              style={({ pressed }) => [
+                styles.selectorCard,
+                isSelected
+                  ? styles.selectorCardSelected
+                  : styles.selectorCardUnselected,
+                pressed && styles.selectorCardActive,
               ]}
             >
-              {team.name}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.selectorText,
+                  isSelected ? styles.textSelected : styles.textUnselected,
+                ]}
+              >
+                {team.name}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
+      {/* Separator matches design background to cleanly space items if gap isn't used */}
       <View style={styles.separator} />
 
       {/* ================= SEASON SELECT ================= */}
-      <View style={styles.selectorRow}>
-        {seasons.map((season) => (
+      <View style={styles.seasonContainer}>
+        {/* Header Row with Label & Settings Button matching original design specs */}
+        <View style={styles.headerRow}>
+          <Text style={styles.labelCaps}>SELECT SEASON:</Text>
           <Pressable
-            key={season}
-            onPress={() => setSelectedSeason(season)}
-            style={[
-              styles.selectorCard,
-              selectedSeason === season && styles.selectorCardSelected,
+            onPress={() => {
+              /* Handle settings press */
+            }}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              pressed && styles.settingsButtonActive,
             ]}
           >
-            <Text
-              style={[
-                styles.selectorText,
-                selectedSeason === season && styles.selectorTextSelected,
-              ]}
-            >
-              {season}
-            </Text>
+            <Text style={styles.settingsIcon}>⚙️</Text>
           </Pressable>
-        ))}
+        </View>
+
+        {/* Season Pills Row */}
+        <View style={styles.pillsRow}>
+          {seasons.map((season) => {
+            const isSelected = selectedSeason === season;
+            return (
+              <Pressable
+                key={season}
+                onPress={() => setSelectedSeason(season)}
+                style={({ pressed }) => [
+                  styles.pillCard,
+                  isSelected
+                    ? styles.pillCardSelected
+                    : styles.pillCardUnselected,
+                  pressed && !isSelected && styles.pillCardActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pillText,
+                    isSelected
+                      ? styles.pillTextSelected
+                      : styles.pillTextUnselected,
+                  ]}
+                >
+                  {season}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.separator} />
@@ -336,23 +378,50 @@ export default function StatsScreen() {
       {/* ================= TEAM STATS BUTTON ================= */}
       {selectedTeam && selectedSeason && (
         <Pressable
-          style={[styles.selectorCard, styles.teamStatsCard]}
           onPress={() => {
             setModalType("team");
             setModalVisible(true);
           }}
+          style={({ pressed }) => [
+            styles.statsCardContainer,
+            pressed ? styles.statsCardPressed : styles.statsCardUnpressed,
+          ]}
         >
-          <Text style={[styles.selectorText, { fontWeight: "700" }]}>
-            {selectedTeam.name} - Team Stats
-          </Text>
+          {/* Left-side item content container */}
+          <View style={styles.statsCardLeftRow}>
+            {/* Icon Badge Container rounded-full */}
+            <View style={styles.statsIconBadge}>
+              {/* Recommended icon usage fallback for standard vector components */}
+              <Text style={styles.statsIconText}>📈</Text>
+            </View>
+
+            {/* Stacked Vertical Labels block */}
+            <View style={styles.statsTextColumn}>
+              <Text style={styles.statsTextTitle}>
+                {selectedTeam.name} - Team Stats
+              </Text>
+              <Text style={styles.statsTextSub}>SEASON SUMMARY</Text>
+            </View>
+          </View>
+
+          {/* Right-side action disclosure chevron */}
+          <View style={styles.statsCardRightRow}>
+            <Text style={styles.chevronIconText}>❯</Text>
+          </View>
         </Pressable>
       )}
 
       {/* ================= PLAYER LIST ================= */}
-      <Text style={styles.sectionHeader}>Individual Stats:</Text>
       <FlatList
         data={players}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.playerListContainer}
+        // Renders the section headline once at the top of the list safely
+        ListHeaderComponent={() => (
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionLabelCaps}>INDIVIDUAL STATS:</Text>
+          </View>
+        )}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => {
@@ -360,9 +429,26 @@ export default function StatsScreen() {
               setModalType("player");
               setModalVisible(true);
             }}
-            style={styles.selectorCard}
+            style={({ pressed }) => [
+              styles.playerCardContainer,
+              pressed ? styles.playerCardPressed : styles.playerCardUnpressed,
+            ]}
           >
-            <Text style={styles.selectorText}>{item.name}</Text>
+            {/* Left side: Avatar badge + Player identity text */}
+            <View style={styles.playerCardLeftRow}>
+              <View style={styles.playerAvatarBadge}>
+                {/* Default user silhouette emoji/icon asset indicator */}
+                <Text style={styles.playerAvatarText}>👤</Text>
+              </View>
+              <View style={styles.playerTextColumn}>
+                <Text style={styles.playerNameText}>{item.name}</Text>
+              </View>
+            </View>
+
+            {/* Right side: Action chevron indicator */}
+            <View style={styles.playerCardRightRow}>
+              <Text style={styles.playerChevronIcon}>❯</Text>
+            </View>
           </Pressable>
         )}
       />
@@ -382,9 +468,20 @@ export default function StatsScreen() {
         onUpgrade={() => setShowSubscriptionModal(true)}
       />
 
-      <View style={{ marginBottom: 16 }}>
-        <Pressable style={styles.modalButton} onPress={openGameModeModal}>
-          <Text style={styles.modalButtonText}>Back to Select Game Mode</Text>
+      <View
+        style={[
+          styles.ctaContainer,
+          { paddingBottom: Math.max(insets.bottom, 16) }, // Dynamically respects notches but enforces a 16px minimum
+        ]}
+      >
+        <Pressable
+          style={({ pressed }) => [
+            styles.ctaButton,
+            pressed && styles.ctaButtonActive,
+          ]}
+          onPress={openGameModeModal}
+        >
+          <Text style={styles.ctaButtonText}>Back to Select Game Mode</Text>
         </Pressable>
       </View>
 
@@ -398,14 +495,14 @@ export default function StatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#12c2e9" },
+  container: { flex: 1, padding: 16, backgroundColor: "#0b1326" },
   title: {
-    fontSize: 34,
-    fontWeight: "bold",
-    marginBottom: 24,
-    color: "#fff",
-    textAlign: "center",
-    letterSpacing: 1.2,
+    fontFamily: "Plus Jakarta Sans", // Matches font-headline-lg
+    fontSize: 32, // Matches text-headline-lg
+    lineHeight: 40,
+    fontWeight: "700",
+    color: "#dae2fd", // Matches text-on-background color
+    marginBottom: 24, // Matches mb-6 (6 * 4px)
   },
   selectorRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 0 },
   selectorCard: {
@@ -430,12 +527,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  separator: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    marginVertical: 12,
-    borderRadius: 2,
-  },
+
   teamStatsCard: {
     borderWidth: 2,
     borderColor: "#ffb74d",
@@ -451,5 +543,291 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.5)",
     paddingBottom: 4,
+  },
+
+  ctaContainer: {
+    paddingHorizontal: 16, // Matches px-container-padding-mobile (16px)
+    marginTop: 40, // Matches mt-10 (40px)
+    backgroundColor: "#0b1326", // Matches design system main background
+  },
+  ctaButton: {
+    width: "100%",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: "#6f00be",
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#ddb7ff",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  ctaButtonActive: {
+    transform: [{ scale: 0.97 }],
+  },
+  ctaButtonText: {
+    fontFamily: "Hanken Grotesk",
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: "700",
+    color: "#d6a9ff",
+  },
+  selectorRow: {
+    flexDirection: "row",
+    gap: 12, // Matches spacing.stack-md (12px)
+    marginBottom: 32, // Matches mb-8 (32px)
+  },
+  selectorCard: {
+    flex: 1,
+    paddingVertical: 12, // Matches py-3 (12px)
+    paddingHorizontal: 16, // Matches px-4 (16px)
+    borderRadius: 12, // Matches rounded-xl (12px)
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectorCardSelected: {
+    backgroundColor: "#6f00be", // Matches bg-secondary-container
+    ...Platform.select({
+      ios: {
+        shadowColor: "#6f00be",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  selectorCardUnselected: {
+    backgroundColor: "#222a3d", // Matches bg-surface-container-high
+  },
+  selectorCardActive: {
+    transform: [{ scale: 0.95 }], // Matches active:scale-95
+  },
+  selectorText: {
+    fontWeight: "600",
+    fontSize: 16,
+    fontFamily: "Hanken Grotesk",
+  },
+  textSelected: {
+    color: "#d6a9ff", // Matches text-on-secondary-container
+  },
+  textUnselected: {
+    color: "#dae2fd", // Matches text-on-surface
+  },
+
+  // --- Season Selector Styles ---
+  seasonContainer: {
+    marginBottom: 32, // Matches mb-8 (32px)
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12, // Matches mb-3 (12px)
+  },
+  labelCaps: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 12 * 0.08,
+    fontWeight: "600",
+    color: "#bcc8cf", // Matches text-on-surface-variant
+  },
+  settingsButton: {
+    padding: 4, // Matches p-1 (4px)
+    borderRadius: 9999,
+  },
+  settingsButtonActive: {
+    backgroundColor: "rgba(0, 194, 243, 0.1)", // Matches bg-primary-container/10
+  },
+  settingsIcon: {
+    fontSize: 20,
+    color: "#00c2f3", // Matches text-primary-container
+  },
+  pillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pillCard: {
+    paddingVertical: 8, // Matches py-2 (8px)
+    paddingHorizontal: 24, // Matches px-6 (24px)
+    borderRadius: 9999,
+  },
+  pillCardSelected: {
+    backgroundColor: "#6f00be", // Matches bg-secondary-container
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+  },
+  pillCardUnselected: {
+    backgroundColor: "#222a3d", // Matches bg-surface-container-high
+  },
+  pillCardActive: {
+    transform: [{ scale: 0.95 }],
+  },
+  pillText: {
+    fontFamily: "Geist",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  pillTextSelected: {
+    color: "#d6a9ff",
+  },
+  pillTextUnselected: {
+    color: "#dae2fd",
+  },
+
+  // --- Structure Layout Elements ---
+  separator: {
+    height: 1,
+    backgroundColor: "#2d3449", // Matches border-outline-variant/surface-variant
+    //marginVertical: 16,
+  },
+  statsCardContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16, // Matches p-4 (4 * 4px = 16px)
+    borderRadius: 12, // Matches rounded-xl (12px)
+    borderWidth: 1,
+    borderColor: "#3d494e", // Matches border-outline-variant
+    //marginHorizontal: 16, // Centers matching the standard layouts mobile layout margins
+    marginBottom: 16,
+  },
+  statsCardUnpressed: {
+    backgroundColor: "#131b2e", // Matches bg-surface-container-low
+  },
+  statsCardPressed: {
+    backgroundColor: "#222a3d", // Matches hover:bg-surface-container-high / active-scale
+    transform: [{ scale: 0.98 }],
+  },
+  statsCardLeftRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statsIconBadge: {
+    width: 40, // Matches w-10 (40px)
+    height: 40, // Matches h-10 (40px)
+    borderRadius: 9999, // Matches rounded-full
+    backgroundColor: "#6f00be", // Matches bg-secondary-container
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12, // Matches space-x-stack-md (12px)
+  },
+  statsIconText: {
+    fontSize: 18,
+    color: "#d6a9ff", // Matches text-on-secondary-container
+  },
+  statsTextColumn: {
+    flexDirection: "column",
+  },
+  statsTextTitle: {
+    fontFamily: "Hanken Grotesk", // Matches font-body-md
+    fontSize: 16, // Matches text-body-md (16px)
+    lineHeight: 24,
+    fontWeight: "600", // Matches font-semibold
+    color: "#dae2fd", // Matches text-on-surface
+  },
+  statsTextSub: {
+    fontFamily: "Geist", // Matches font-label-caps
+    fontSize: 12, // Matches text-label-caps (12px)
+    lineHeight: 16,
+    letterSpacing: 12 * 0.08, // Matches tracking parameters
+    fontWeight: "600",
+    color: "#bcc8cf", // Matches text-on-surface-variant
+    marginTop: 2,
+  },
+  statsCardRightRow: {
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  chevronIconText: {
+    fontSize: 16,
+    color: "#bcc8cf", // Matches text-on-surface-variant
+  },
+  playerListContainer: {
+    paddingHorizontal: 16, // Adapts list edges to container margins
+    gap: 4, // Matches gap-stack-sm (4px)
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#3d494e", // Matches border-outline-variant
+    paddingBottom: 8, // Matches pb-2 (2 * 4px = 8px)
+    marginBottom: 12, // Separates the header stack from item cards cleanly
+    marginTop: 24, // Spaces this block apart from upper grid elements
+  },
+  sectionLabelCaps: {
+    fontFamily: "Geist", // Matches font-label-caps
+    fontSize: 12, // Matches text-label-caps (12px)
+    lineHeight: 16,
+    letterSpacing: 12 * 0.08,
+    fontWeight: "600",
+    color: "#bcc8cf", // Matches text-on-surface-variant
+  },
+  playerCardContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16, // Matches p-4 (4 * 4px = 16px)
+    borderRadius: 12, // Matches rounded-xl (12px)
+    borderWidth: 1,
+    borderColor: "#3d494e", // Matches border-outline-variant
+  },
+  playerCardUnpressed: {
+    backgroundColor: "#131b2e", // Matches bg-surface-container-low
+  },
+  playerCardPressed: {
+    backgroundColor: "#222a3d", // Matches hover:bg-surface-container-high / active-scale
+    transform: [{ scale: 0.98 }],
+  },
+  playerCardLeftRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  playerAvatarBadge: {
+    width: 40, // Matches w-10 (40px)
+    height: 40, // Matches h-10 (40px)
+    borderRadius: 9999, // Matches rounded-full
+    backgroundColor: "#2d3449", // Matches bg-surface-container-highest
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12, // Matches space-x-stack-md (12px)
+  },
+  playerAvatarText: {
+    fontSize: 16,
+    color: "#bcc8cf", // Matches text-on-surface-variant inside asset
+  },
+  playerTextColumn: {
+    flexDirection: "column",
+  },
+  playerNameText: {
+    fontFamily: "Hanken Grotesk", // Matches font-body-md
+    fontSize: 16, // Matches text-body-md (16px)
+    lineHeight: 24,
+    fontWeight: "600", // Matches font-semibold
+    color: "#dae2fd", // Matches text-on-surface
+  },
+  playerCardRightRow: {
+    justifyContent: "center",
+  },
+  playerChevronIcon: {
+    fontSize: 16,
+    color: "#bcc8cf", // Matches text-on-surface-variant
   },
 });

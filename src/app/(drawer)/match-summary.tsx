@@ -53,7 +53,9 @@ export default function MatchSummaryScreen() {
   if (!fixture && !isResetView) {
     return (
       <View style={styles.screen}>
-        <Text style={styles.title}>Match Summary</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Match Summary</Text>
+        </View>
         <Text style={{ color: "#fff", textAlign: "center" }}>
           Fixture not found.
         </Text>
@@ -64,25 +66,11 @@ export default function MatchSummaryScreen() {
   // -----------------------------
   // Only compute innings/result if fixture exists
   // -----------------------------
-  let inningsSummary: string[] = [];
+  let rawInnings: any[] = [];
   let resultText = "No result";
 
   if (!isResetView && fixture) {
-    const innings = Array.isArray(fixture.innings) ? fixture.innings : [];
-
-    inningsSummary = innings
-      .filter((inn) => inn.battingTeamId)
-      .map((inn) => {
-        const teamName =
-          inn.battingTeamId === fixture.yourTeam.id
-            ? fixture.yourTeam.name
-            : inn.battingTeamId === fixture.oppositionTeam.id
-              ? fixture.oppositionTeam.name
-              : "UNKNOWN";
-
-        return `${teamName} ${inn.totalRuns}/${inn.totalWickets}`;
-      });
-
+    rawInnings = Array.isArray(fixture.innings) ? fixture.innings : [];
     const result = fixture.result;
 
     if (result) {
@@ -115,22 +103,20 @@ export default function MatchSummaryScreen() {
           {isResetView ? (
             // WHAT TO SHOW IF NOT SCOREBOOK
             <View style={{ alignItems: "center", marginTop: 50 }}>
-              <Text style={styles.title}>Ball Counter Reset</Text>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>Ball Counter Reset</Text>
+              </View>
               <Text style={{ color: "#fff", marginBottom: 20 }}>
                 The match data was cleared successfully.
               </Text>
               <Button
                 mode="contained"
                 onPress={() => {
-                  // 1. Wipe match memory
                   useFixtureStore.setState({ currentFixture: undefined });
-
-                  // 2. Reset the mode configuration setup values
                   const startModal = useStartModalStore.getState();
                   startModal.reset();
                   startModal.open();
 
-                  // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
                   router.replace({
                     pathname: "/",
                     params: {
@@ -140,26 +126,27 @@ export default function MatchSummaryScreen() {
                   });
                 }}
                 style={styles.continueButton}
+                buttonColor="#6f00be"
+                textColor="#fff"
               >
                 Continue
               </Button>
             </View>
           ) : (
             <>
-              <Text style={styles.title}>Match Summary</Text>
+              {/* Page Title Wrapper */}
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>Match Summary</Text>
+              </View>
 
               <Button
                 mode="contained"
                 onPress={() => {
-                  // 1. Wipe match memory
                   useFixtureStore.setState({ currentFixture: undefined });
-
-                  // 2. Reset the mode configuration setup values
                   const startModal = useStartModalStore.getState();
                   startModal.reset();
                   startModal.open();
 
-                  // 🚀 THE FIX: Pass empty params configuration to drop the old match ID and modes
                   router.replace({
                     pathname: "/",
                     params: {
@@ -169,24 +156,57 @@ export default function MatchSummaryScreen() {
                   });
                 }}
                 style={styles.continueButton}
+                buttonColor="#6f00be"
+                textColor="#fff"
               >
                 Continue
               </Button>
 
-              {/* Innings summary card */}
-              <View style={styles.card}>
-                {inningsSummary.map((line, idx) => (
-                  <Text key={idx} style={styles.inningsLine}>
-                    {line}
-                  </Text>
-                ))}
+              {/* Styled Banner Block matching Tailwind specification colors */}
+              <View style={styles.bannerContainer}>
+                <View style={styles.accentBar} />
+                <Text style={styles.headerText}>Match Completed</Text>
+                <Text style={styles.result}>{resultText}</Text>
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>FINAL RESULT</Text>
+                </View>
               </View>
 
-              {/* Result */}
-              <Text style={styles.result}>{resultText}</Text>
+              {/* Team Scores Comparison Card */}
+              <View style={styles.card}>
+                {rawInnings
+                  .filter((inn) => inn.battingTeamId)
+                  .map((inn, idx) => {
+                    const teamName =
+                      inn.battingTeamId === fixture?.yourTeam?.id
+                        ? fixture?.yourTeam?.name
+                        : inn.battingTeamId === fixture?.oppositionTeam?.id
+                          ? fixture?.oppositionTeam?.name
+                          : "UNKNOWN";
+
+                    const scoreText = `${inn.totalRuns}/${inn.totalWickets}`;
+
+                    return (
+                      <React.Fragment key={idx}>
+                        {idx > 0 && <View style={styles.scoreSeparator} />}
+
+                        <View style={styles.teamScoreRow}>
+                          <View style={styles.teamInfoCol}>
+                            <Text style={styles.teamNameText}>{teamName}</Text>
+                          </View>
+                          <View style={styles.scoreCol}>
+                            <Text style={styles.displayScoreText}>
+                              {scoreText}
+                            </Text>
+                          </View>
+                        </View>
+                      </React.Fragment>
+                    );
+                  })}
+              </View>
 
               {/* Tabs */}
-              <View style={styles.card}>
+              <View style={{ marginBottom: 20 }}>
                 <InningsTabs fixture={fixture!} />
               </View>
             </>
@@ -195,16 +215,12 @@ export default function MatchSummaryScreen() {
           <Button
             mode="contained"
             onPress={() => {
-              // 1. Wipe match memory
               useFixtureStore.setState({ currentFixture: undefined });
-
-              // 2. Clear guest session and prep for a fresh game setup
               resetGuestIfNeeded();
               const gameStore = useGameStore.getState();
               gameStore.setSetupComplete(false);
               gameStore.triggerSetup();
 
-              // 3. Reset the mode configuration and open StartModeModal
               const startModal = useStartModalStore.getState();
               startModal.reset();
               startModal.open();
@@ -218,6 +234,8 @@ export default function MatchSummaryScreen() {
               });
             }}
             style={styles.continueButton}
+            buttonColor="#6f00be"
+            textColor="#fff"
           >
             Continue
           </Button>
@@ -230,32 +248,56 @@ export default function MatchSummaryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#0b1326", // updated from blue gradient to match dark brand background color (#0b1326)
   },
 
   container: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 120,
   },
 
+  titleContainer: {
+    marginBottom: 16, // mb-gutter
+  },
+
   title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
+    fontSize: 24, // text-headline-lg-mobile
+    fontWeight: "700", // font-headline-lg-mobile
+    color: "#dae2fd", // text-on-surface
+    letterSpacing: -0.4, // tracking-tight
+    textAlign: "left",
+  },
+
+  continueButton: {
+    borderRadius: 10,
+    marginTop: 10,
     marginBottom: 20,
   },
 
-  card: {
-    backgroundColor: "#fff",
+  bannerContainer: {
+    backgroundColor: "#131b2e", // surface-container-low
+    borderWidth: 1,
+    borderColor: "#3d494e", // outline-variant
     borderRadius: 12,
     padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
 
-  inningsLine: {
-    fontSize: 18,
-    marginVertical: 4,
+  accentBar: {
+    width: 48,
+    height: 4,
+    backgroundColor: "#7fdaff", // primary cyan accent
+    borderRadius: 9999,
+    marginBottom: 12,
+  },
+
+  headerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#00c2f3", // primary-container bright blue
+    marginBottom: 6,
     textAlign: "center",
   },
 
@@ -263,13 +305,67 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
-    color: "#fff",
+    color: "#dae2fd", // on-surface pale white text
+    marginBottom: 12,
+  },
+
+  badgeContainer: {
+    backgroundColor: "#2d3449", // surface-container-highest
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: "#7fdaff", // primary cyan
+  },
+
+  card: {
+    backgroundColor: "#131b2e", // bg-surface-container-low
+    borderWidth: 1,
+    borderColor: "#3d494e", // border-outline-variant
+    borderRadius: 12, // rounded-xl
+    padding: 16, // p-container-padding-mobile (16px)
     marginBottom: 20,
   },
 
-  continueButton: {
-    borderRadius: 10,
-    marginTop: 10,
-    marginBottom: 10,
+  teamScoreRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+
+  teamInfoCol: {
+    flexDirection: "column",
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  scoreCol: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+  },
+
+  teamNameText: {
+    fontSize: 20, // text-headline-md
+    fontWeight: "600",
+    color: "#dae2fd", // text-on-surface
+  },
+
+  displayScoreText: {
+    fontSize: 32,
+    fontWeight: "800", // font-display-score
+    color: "#dae2fd", // text-on-surface
+    lineHeight: 36,
+  },
+
+  scoreSeparator: {
+    height: 1, // h-px
+    backgroundColor: "#3d494e", // bg-outline-variant
+    opacity: 0.3,
+    marginVertical: 16,
   },
 });
