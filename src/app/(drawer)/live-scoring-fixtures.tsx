@@ -66,24 +66,37 @@ export default function LiveScoringFixtures() {
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
 
-          {/* Title */}
-          <View style={styles.sectionPillHeader}>
-            <Text style={styles.title}>Live Fixtures</Text>
-
-            <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
+          {/* Title Segment Container */}
+          <View style={styles.cardContainer}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Live Fixtures</Text>
+              <Text style={styles.subtitle}>Keep supporters in the loop!</Text>
+            </View>
           </View>
+
           {Object.entries(fixtures).map(([teamCode, fixture]) => (
             <FixtureCard key={teamCode} fixture={fixture} />
           ))}
-
-          <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>Add Another Team</Text>
+          {/* Section Header Banner */}
+          <View style={styles.headerBanner}>
+            <Text style={styles.headerText}>Add Player to see Stats</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={styles.cardContainer}>
             <ConnectToLiveEntity
               requireAuth={requireAuth}
               onAuthSuccess={() => router.push("/live-scoring-fixtures")}
+            />
+          </View>
+
+          <View style={styles.headerBanner}>
+            <Text style={styles.headerText}>Add Another Team</Text>
+          </View>
+
+          <View style={styles.cardContainer}>
+            <ConnectToLiveTeam
+              requireAuth={requireAuth}
+              onAuthSuccess={() => router.replace("/live-scoring-fixtures")}
             />
           </View>
         </ScrollView>
@@ -99,9 +112,50 @@ export default function LiveScoringFixtures() {
 }
 
 const styles = StyleSheet.create({
+  headerBanner: {
+    backgroundColor: "rgba(45, 52, 73, 0.3)", // bg-surface-variant/30
+    alignSelf: "flex-start", // inline-block
+    paddingHorizontal: 16, // px-4
+    paddingVertical: 8, // py-2
+    borderRadius: 9999, // rounded-full
+    marginBottom: 16, // mb-4 (16px base stack gap)
+  },
+  headerText: {
+    fontFamily: "Plus Jakarta Sans", // font-headline-md
+    fontSize: 20, // text-headline-md
+    fontWeight: "600",
+    color: "#7fdaff", // text-primary
+  },
+  cardContainer: {
+    backgroundColor: "#131b2e", // bg-surface-container-low
+    borderColor: "rgba(61, 73, 78, 0.2)", // border-outline-variant/20
+    borderWidth: 1,
+    borderRadius: 12, // rounded-xl
+    padding: 24, // p-stack-lg
+    gap: 12, // space-y-stack-md
+  },
+  titleContainer: {
+    zIndex: 10, // relative z-10
+    marginBottom: 16, // Layout space context for the header block
+  },
+  title: {
+    fontFamily: "Plus Jakarta Sans", // font-headline-lg-mobile
+    fontSize: 24, // text-headline-lg-mobile (24px)
+    fontWeight: "700",
+    color: "#dae2fd", // text-on-background / text-on-surface
+    marginBottom: 8, // mb-2 (8px base spacing stack gap)
+  },
+  subtitle: {
+    fontFamily: "Hanken Grotesk", // font-body-md
+    fontSize: 16, // text-body-md (16px)
+    fontWeight: "400",
+    color: "#dae2fd", // base theme text colour
+    opacity: 0.9, // opacity-90
+  },
+
   container: {
     flex: 1,
-    backgroundColor: "#12c2e9",
+    backgroundColor: "#0b1326",
   },
   content: {
     padding: 20,
@@ -119,22 +173,6 @@ const styles = StyleSheet.create({
   backText: {
     color: "#fff",
     fontWeight: "600",
-  },
-  title: {
-    fontSize: 34,
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "800",
-    //letterSpacing: 1,
-  },
-
-  subtitle: {
-    fontSize: 16,
-    color: "#fff",
-    textAlign: "center",
-    opacity: 0.9,
-    fontWeight: "800",
-    letterSpacing: 1,
   },
   sectionTitle: {
     fontSize: 18,

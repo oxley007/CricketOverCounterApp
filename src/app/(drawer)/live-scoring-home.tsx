@@ -17,6 +17,7 @@ import { useLiveStore } from "@/src/state/liveStore";
 import { useRequireAuth } from "../../hooks/useRequireAuth";
 import { useStartModalStore } from "../../state/startModalStore";
 import ConnectToLiveTeam from "../../components/Live/ConnectToLiveTeam";
+import ConnectToLiveEntity from "../../components/Live/ConnectToLiveEntity";
 import { listenAndMergeFixture } from "@/src/services/fixtureSyncService";
 import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -116,6 +117,7 @@ export default function LiveScoringHome() {
             </Text>
 
             {/* Input Field, Scan Logic, and Connect Button */}
+
             <ConnectToLiveTeam
               requireAuth={requireAuth}
               onAuthSuccess={() => router.replace("/live-scoring-fixtures")}

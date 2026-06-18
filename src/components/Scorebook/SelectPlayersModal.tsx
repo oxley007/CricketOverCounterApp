@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
@@ -377,12 +378,13 @@ export default function SelectPlayersModal({
               )
             }
           >
-            <FlatList
-              style={[styles.scroll, { flex: 1, minHeight: 200 }]} // Force it to fill available room cleanly
+            <FlashList
+              style={[styles.scroll, { flex: 1 }]} // Force it to fill available room cleanly
               contentContainerStyle={{ flexGrow: 1 }}
               keyboardShouldPersistTaps="handled"
               data={enrichedPlayers}
               keyExtractor={(player) => player.id}
+              estimatedItemSize={60}
               ListHeaderComponent={() => (
                 <>
                   {/* Only render the relevant scorecard */}
@@ -422,7 +424,6 @@ export default function SelectPlayersModal({
 
                 return (
                   <View
-                    key={player.id}
                     style={[
                       styles.playerItem,
                       { backgroundColor: selected ? "#12c2e9" : "#f0f0f0" },

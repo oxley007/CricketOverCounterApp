@@ -14,7 +14,7 @@ export default ({ config }) => {
     ...config,
     name: tenant.name,
     slug: "cricket-umpire-ball-counter",
-    version: "5.3.8",
+    version: "6.0.1",
     icon: tenant.icon,
     orientation: "portrait",
     userInterfaceStyle: "automatic",
@@ -28,7 +28,7 @@ export default ({ config }) => {
       bundleIdentifier: tenant.bundleId,
       googleServicesFile: tenant.googleIos,
       supportsTablet: false,
-      buildNumber: "5.3.8",
+      buildNumber: "6.0.1",
       icon: tenant.iosIcon,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -42,7 +42,7 @@ export default ({ config }) => {
     android: {
       package: tenant.package,
       googleServicesFile: tenant.googleAndroid,
-      versionCode: 60,
+      versionCode: 61,
       adaptiveIcon: {
         backgroundColor: tenant.color,
         foregroundImage: tenant.iosIcon,
