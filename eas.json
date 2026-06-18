@@ -32,13 +32,15 @@
     "base-prod": {
       "extends": "production",
       "env": {
-        "APP_VARIANT": "umpire"
+        "APP_VARIANT": "umpire",
+        "SENTRY_DISABLE_METRO_SERIALIZER": "true"
       }
     },
     "little-prod": {
       "extends": "production",
       "env": {
-        "APP_VARIANT": "littlewicket"
+        "APP_VARIANT": "littlewicket",
+        "SENTRY_DISABLE_METRO_SERIALIZER": "true"
       }
     },
     "development": {

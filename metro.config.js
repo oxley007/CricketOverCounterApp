@@ -13,5 +13,11 @@ config.resolver.assetExts = config.resolver.assetExts.filter(
 
 config.resolver.sourceExts.push("svg");
 
-// ---- SENTRY WRAP (keep last) ----
-module.exports = withSentryConfig(config);
+// ---- SENTRY WRAP ----
+// If the serializer is throwing errors, we can safely export the clean config
+const isEASBuild = process.env.EAS_BUILD === "true";
+
+module.exports =
+  process.env.SENTRY_DISABLE_METRO_SERIALIZER === "true"
+    ? config
+    : withSentryConfig(config);
