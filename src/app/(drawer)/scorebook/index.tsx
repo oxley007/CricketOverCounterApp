@@ -84,7 +84,6 @@ export default function ScorebookIndex() {
   const startGame = useGameStore((s) => s.startGame);
   const setStrike = useGameStore((s) => s.setStrike);
   const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
-  useStartModalStore();
   // State Selectors (Primitives)
   const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
   const proUnlocked = useMatchStore((s) => s.proUnlocked);
@@ -335,8 +334,8 @@ export default function ScorebookIndex() {
 
   useEffect(() => {
     if (!currentGame) {
-      setSelectedBatters([]);
-      setSelectedBowlerId(null);
+      setSelectedBatters((prev) => (prev.length === 0 ? prev : []));
+      setSelectedBowlerId((prev) => (prev === null ? prev : null));
       return;
     }
 
@@ -357,7 +356,7 @@ export default function ScorebookIndex() {
       if (storeBowler != null && storeBowler !== "") {
         return storeBowler === bowler ? bowler : storeBowler;
       }
-      return bowler;
+      return bowler === null ? bowler : null;
     });
   }, [
     currentGame?.battingTeamId,
@@ -383,13 +382,15 @@ export default function ScorebookIndex() {
   ]);*/
 
   useEffect(() => {
-    // 🚨 1. Check if the app is running in read-only Viewer mode
-    // (Use whatever hook or store tracks your viewer state, e.g., useLiveStore)
     const isViewer = useLiveStore.getState().isReadOnly;
-    if (isViewer) return; // 🛑 Stop completely! Viewers do not force-sync bowler states.
+    if (isViewer) return;
 
     if (!selectedBowlerId) return;
     if (!currentGame?.battingTeamId) return;
+
+    // Do not push local selection when the store bowler was deliberately cleared
+    if (!currentGame.currentBowlerId) return;
+
     if (currentGame.currentBowlerId === selectedBowlerId) return;
 
     setCurrentBowler(selectedBowlerId);
@@ -457,13 +458,18 @@ export default function ScorebookIndex() {
     useGameStore.getState().resetTeamsOnly();
 
     // 2. Clear your local component state
-    setSelectedBatters([]);
-    setSelectedBowlerId(null);
+    setSelectedBatters((prev) => (prev.length === 0 ? prev : []));
+    setSelectedBowlerId((prev) => (prev === null ? prev : null));
 
     // 3. Clear matchStore events if necessary
     useMatchStore.getState().resetInnings();
 
     // Note: Because we didn't call resetGame(), isSetupComplete stays TRUE.
+  }, []);
+
+  const handleEndInningsComplete = useCallback(() => {
+    setSelectedBatters((prev) => (prev.length === 0 ? prev : []));
+    setSelectedBowlerId((prev) => (prev === null ? prev : null));
   }, []);
 
   const playingTeams = useMemo(() => {
@@ -699,12 +705,7 @@ export default function ScorebookIndex() {
         <BallTimerDisplay onUpgrade={() => setShowSubscriptionModal(true)} />
         {!isLiveViewer && (
           <>
-            <EndInningsButton
-              onComplete={() => {
-                setSelectedBatters([]);
-                setSelectedBowlerId(null);
-              }}
-            />
+            <EndInningsButton onComplete={handleEndInningsComplete} />
             {!livePro && (
               <LiveScoresCard
                 onPress={() => router.push("/live-scoring-info")}

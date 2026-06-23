@@ -1,5 +1,5 @@
 import { useIsFocused } from "expo-router/react-navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -51,6 +51,22 @@ export default function EndInningsButton({
     isFocusedRef.current = isFocused;
   }, [isFocused]);
 
+  const [visible, setVisible] = useState(false);
+  const endGameInProgressRef = useRef(false);
+
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const closeModal = useCallback(() => {
+    setVisible(false);
+  }, []);
+
+  const notifyComplete = useCallback(() => {
+    onCompleteRef.current?.();
+  }, []);
+
   const navigateToMatchSummary = (params: {
     fixtureId: string;
     prevMode?: string | null;
@@ -61,7 +77,7 @@ export default function EndInningsButton({
       );
     }
 
-    setVisible(false);
+    closeModal();
     useStartModalStore.getState().close();
 
     router.replace({
@@ -72,9 +88,6 @@ export default function EndInningsButton({
       },
     });
   };
-
-  const [visible, setVisible] = useState(false);
-  const endGameInProgressRef = useRef(false);
 
   // Live store resets
   const resetInnings = useMatchStore((s) => s.resetInnings);
@@ -360,7 +373,8 @@ export default function EndInningsButton({
         JSON.stringify(completedFixture.innings, null, 2),
       );
 
-      onComplete?.();
+      closeModal();
+      notifyComplete();
 
       // Keep completed fixture in fixtures[] so match-summary can resolve it by id
       useFixtureStore.setState({
@@ -509,7 +523,8 @@ export default function EndInningsButton({
 
       suppressSetupModalUntilNewGame();
 
-      onComplete?.();
+      closeModal();
+      notifyComplete();
 
       dismissAuthGate();
 
@@ -546,7 +561,8 @@ export default function EndInningsButton({
       resetStartModal();
       useGameStore.getState().setSetupComplete(false);
       useGameStore.getState().triggerSetup();
-      onComplete?.();
+      closeModal();
+      notifyComplete();
       router.replace("/");
       return;
     }
@@ -595,7 +611,8 @@ export default function EndInningsButton({
 
     suppressSetupModalUntilNewGame();
 
-    onComplete?.();
+    closeModal();
+    notifyComplete();
 
     navigateToMatchSummary({
       fixtureId: fixtureSnapshot.id,
@@ -634,7 +651,7 @@ export default function EndInningsButton({
       <Portal>
         <Modal
           visible={visible}
-          onDismiss={() => setVisible(false)}
+          onDismiss={closeModal}
           contentContainerStyle={styles.modalContainer}
         >
           <ScrollView
@@ -647,7 +664,7 @@ export default function EndInningsButton({
               Choose what you would like to do next.
             </Text>
 
-            <NewInningsButton onComplete={() => setVisible(false)} />
+            <NewInningsButton onComplete={closeModal} />
 
             <View style={styles.actionsColumn}>
               <Button
@@ -690,14 +707,14 @@ export default function EndInningsButton({
                 </>
               )}
 
-              <Button onPress={() => setVisible(false)}>Cancel</Button>
+              <Button onPress={closeModal}>Cancel</Button>
             </View>
             {selectedMode === "scorebook" && (
               <View style={{ alignItems: "center", marginBottom: 10 }}>
                 <Text
                   style={styles.fullScorecardLink}
                   onPress={() => {
-                    setVisible(false);
+                    closeModal();
 
                     router.push({
                       pathname: "/fixture-scorecard",
