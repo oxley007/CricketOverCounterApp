@@ -9,6 +9,7 @@ import {
   Text,
   View,
   Platform,
+  ScrollView,
 } from "react-native";
 import { listenAndMergeFixture } from "../services/fixtureSyncService";
 
@@ -51,6 +52,9 @@ export default function FixturesScreen() {
     useLiveStore.getState().teamCodesSupporter,
     " check teamCodesSupporter here.",
   );
+
+  // Helper utility to safely compare local and remote team identifiers
+  const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
 
   // src/screens/FixturesScreen.tsx
 
@@ -130,9 +134,21 @@ export default function FixturesScreen() {
     const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
     const uniqueTeams = new Map();
 
-    // 1. Add your managed teams
+    // 1. Add your managed teams ONLY if they have active fixtures/stats
     teams.forEach((t) => {
-      uniqueTeams.set(t.id.toLowerCase(), { ...t, isSupporter: false });
+      const normalizedTeamId = t.id.toLowerCase();
+
+      // Check if this team exists in your fixtures/stats data
+      const hasFixtures = fixtures.some(
+        (f) =>
+          (f.yourTeam?.id || f.yourTeamId || "").toLowerCase() ===
+          normalizedTeamId,
+      );
+
+      // Only add to the list if stats/fixtures exist for it
+      if (hasFixtures) {
+        uniqueTeams.set(normalizedTeamId, { ...t, isSupporter: false });
+      }
     });
 
     // 2. Add supporter teams using names from liveStore
@@ -148,7 +164,7 @@ export default function FixturesScreen() {
     });
 
     return Array.from(uniqueTeams.values());
-  }, [teams, supporterTeamNames]); // 👈 'fixtures' removed, 'supporterTeamNames' added
+  }, [teams, supporterTeamNames, fixtures]); // 👈 Added 'fixtures' back to dependency array
 
   /* =========================
      SEASONS
@@ -195,250 +211,264 @@ export default function FixturesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Fixtures</Text>
+      <ScrollView>
+        <Text style={styles.title}>Fixtures</Text>
 
-      {/* TEAM SELECT */}
-      <View style={styles.selectorRow}>
-        {yourTeams.map((team) => {
-          const isSelected = selectedTeamId === team.id;
-          return (
-            <Pressable
-              key={team.id}
-              onPress={() => {
-                setSelectedTeamId(team.id);
-                setSelectedSeason(null);
-              }}
-              // Using a function for style implements the active:scale-95 micro-interaction
-              style={({ pressed }) => [
-                styles.selectorCard,
-                isSelected
-                  ? styles.selectorCardSelected
-                  : styles.selectorCardUnselected,
-                pressed && styles.selectorCardActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  isSelected ? styles.textSelected : styles.textUnselected,
-                ]}
-              >
-                {/* Appending Home/Away based on context like the HTML sample */}
-                {team.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.separator} />
-
-      {/* SEASON SELECT */}
-      <View style={styles.seasonContainer}>
-        {/* Header Row with Label and Settings Icon */}
-        <View style={styles.headerRow}>
-          <Text style={styles.labelCaps}>SELECT SEASON:</Text>
-          <Pressable
-            onPress={() => {
-              /* Handle settings press */
-            }}
-            style={({ pressed }) => [
-              styles.settingsButton,
-              pressed && styles.settingsButtonActive,
-            ]}
-          >
-            {/* 
-        Using a standard text character or an icon library like 
-        @expo/vector-icons (MaterialIcons 'settings') is recommended here.
-      */}
-          </Pressable>
-        </View>
-
-        {/* Season Pills Row */}
-        <View style={styles.pillsRow}>
-          {seasons.map((season) => {
-            const isSelected = selectedSeason === season;
+        {/* TEAM SELECT */}
+        <View style={styles.selectorRow}>
+          {yourTeams.map((team) => {
+            // Updated to use the normalize function for safer ID comparison
+            const isSelected =
+              normalize(selectedTeamId || "") === normalize(team.id);
             return (
               <Pressable
-                key={season}
-                onPress={() => setSelectedSeason(season)}
+                key={team.id}
+                onPress={() => {
+                  setSelectedTeamId(team.id);
+                  setSelectedSeason(null);
+                  // Kept omitted player reset if fixtures page doesn't use it
+                }}
                 style={({ pressed }) => [
-                  styles.pillCard,
+                  styles.selectorCard,
                   isSelected
-                    ? styles.pillCardSelected
-                    : styles.pillCardUnselected,
-                  pressed && !isSelected && styles.pillCardActive, // HTML only scales the unselected item
+                    ? styles.selectorCardSelected
+                    : styles.selectorCardUnselected,
+                  pressed && styles.selectorCardActive,
                 ]}
               >
                 <Text
                   style={[
-                    styles.pillText,
+                    styles.selectorText,
                     isSelected
-                      ? styles.pillTextSelected
-                      : styles.pillTextUnselected,
+                      ? styles.selectorTextSelected // Fixed style name here
+                      : styles.textUnselected, // Fixed style name here
                   ]}
                 >
-                  {season}
+                  {team.name}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-      </View>
 
-      {/* FIXTURE LIST */}
-      <FlatList
-        data={sortedSeasonFixtures}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item, index }) => {
-          const innings = Object.values(item.innings || {});
+        <View style={styles.separator} />
 
-          // Explicit condition matching your business logic
-          const isFreeFixture = index === 0;
-          const isUnlocked = isFreeFixture || isLiveProUnlocked;
+        {/* SEASON SELECT */}
+        <View style={styles.seasonContainer}>
+          {/* Header Row with Label and Settings Icon */}
+          <View style={styles.headerRow}>
+            <Text style={styles.labelCaps}>SELECT SEASON:</Text>
+            <Pressable
+              onPress={() => {
+                /* Handle settings press */
+              }}
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.settingsButtonActive,
+              ]}
+            >
+              {/* 
+        Using a standard text character or an icon library like 
+        @expo/vector-icons (MaterialIcons 'settings') is recommended here.
+      */}
+            </Pressable>
+          </View>
 
-          // Check if match is incomplete / placeholder style
-          if (item.status === "Incomplete") {
-            return (
-              <View style={styles.incompleteCard}>
-                <View style={styles.mb4}>
-                  <Text style={styles.dateText}>
-                    {item.date || "12/06/2026"}
+          {/* Season Pills Row */}
+          <View style={styles.pillsRow}>
+            {seasons.map((season) => {
+              const isSelected = selectedSeason === season;
+              return (
+                <Pressable
+                  key={season}
+                  onPress={() => setSelectedSeason(season)}
+                  style={({ pressed }) => [
+                    styles.pillCard,
+                    isSelected
+                      ? styles.pillCardSelected
+                      : styles.pillCardUnselected,
+                    pressed && !isSelected && styles.pillCardActive, // HTML only scales the unselected item
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.pillText,
+                      isSelected
+                        ? styles.pillTextSelected
+                        : styles.pillTextUnselected,
+                    ]}
+                  >
+                    {season}
                   </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* FIXTURE LIST */}
+        <FlatList
+          data={sortedSeasonFixtures}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          renderItem={({ item, index }) => {
+            const innings = Object.values(item.innings || {});
+
+            // Explicit condition matching your business logic
+            const isFreeFixture = index === 0;
+            const isUnlocked = isFreeFixture || isLiveProUnlocked;
+
+            // Check if match is incomplete / placeholder style
+            if (item.status === "Incomplete") {
+              return (
+                <View style={styles.incompleteCard}>
+                  <View style={styles.mb4}>
+                    <Text style={styles.dateText}>
+                      {item.date || "12/06/2026"}
+                    </Text>
+                  </View>
+                  {/* Animated pulse layout placeholder */}
+                  <View style={styles.pulsePlaceholder} />
                 </View>
-                {/* Animated pulse layout placeholder */}
-                <View style={styles.pulsePlaceholder} />
-              </View>
+              );
+            }
+
+            // Determine if it is a Pro Locked view
+            // If it's a ball counter fixture OR if the user doesn't have access to this paid card
+            const isBallCounterFixture = innings.every(
+              (i: any) => !i.battingEntries || i.battingEntries.length === 0,
             );
-          }
+            const isLocked =
+              !isUnlocked && !proScorebookUnlocked && !proUnlocked;
 
-          // Determine if it is a Pro Locked view
-          // If it's a ball counter fixture OR if the user doesn't have access to this paid card
-          const isBallCounterFixture = innings.every(
-            (i: any) => !i.battingEntries || i.battingEntries.length === 0,
-          );
-          const isLocked = !isUnlocked && !proScorebookUnlocked && !proUnlocked;
+            if (isLocked) {
+              return (
+                <View style={[styles.glassCard, styles.proCardBorder]}>
+                  {/* Large Background Lock Icon Asset */}
+                  <View style={styles.lockIconAbsolute}>
+                    <Text style={styles.lockIconText}>🔒</Text>
+                  </View>
 
-          if (isLocked) {
-            return (
-              <View style={[styles.glassCard, styles.proCardBorder]}>
-                {/* Large Background Lock Icon Asset */}
-                <View style={styles.lockIconAbsolute}>
-                  <Text style={styles.lockIconText}>🔒</Text>
+                  <View style={[styles.flexRowJustify, styles.mb4]}>
+                    <Text style={styles.dateText}>
+                      {item.date || "15/06/2026"}
+                    </Text>
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.headlineMd,
+                      styles.textOnSurface,
+                      styles.mb6,
+                    ]}
+                  >
+                    vs {item.awayTeamName || "Andrew UI Away"}
+                  </Text>
+
+                  <View style={styles.zIndex10}>
+                    <Pressable
+                      onPress={() => setShowSubscriptionModal(true)}
+                      style={({ pressed }) => [
+                        styles.proButton,
+                        pressed && styles.proButtonActive,
+                      ]}
+                    >
+                      <Text style={styles.proButtonTextBold}>
+                        Upgrade to Pro
+                      </Text>
+                      <Text style={styles.proButtonTextSub}>
+                        to see innings scores and result
+                      </Text>
+                    </Pressable>
+
+                    <View style={[styles.flexRowJustify, styles.mt4]}>
+                      <View style={styles.capsBadge}>
+                        <Text style={styles.capsBadgeText}>
+                          BALL COUNTER MATCH
+                        </Text>
+                      </View>
+                      <Text style={styles.premiumIcon}>⭐</Text>
+                    </View>
+                  </View>
                 </View>
+              );
+            }
 
+            // Standard Free / Unlocked Card Layout
+            return (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.glassCard,
+                  pressed && styles.glassCardPressed,
+                ]}
+                onPress={() => {
+                  if (!isUnlocked && !proScorebookUnlocked && !proUnlocked) {
+                    setShowSubscriptionModal(true);
+                    return;
+                  }
+                  useFixtureStore.setState({ currentFixture: item });
+                  setSelectedFixture(item);
+                  setModalVisible(true);
+                }}
+              >
+                {/* Card Header */}
                 <View style={[styles.flexRowJustify, styles.mb4]}>
                   <Text style={styles.dateText}>
                     {item.date || "15/06/2026"}
                   </Text>
+                  <View style={styles.completedBadge}>
+                    <Text style={styles.completedBadgeText}>COMPLETED</Text>
+                  </View>
                 </View>
 
+                {/* Card Title */}
                 <Text
-                  style={[styles.headlineMd, styles.textOnSurface, styles.mb6]}
+                  style={[
+                    styles.headlineMd,
+                    styles.textPrimaryContainer,
+                    styles.mb4,
+                  ]}
                 >
                   vs {item.awayTeamName || "Andrew UI Away"}
                 </Text>
 
-                <View style={styles.zIndex10}>
-                  <Pressable
-                    onPress={() => setShowSubscriptionModal(true)}
-                    style={({ pressed }) => [
-                      styles.proButton,
-                      pressed && styles.proButtonActive,
-                    ]}
-                  >
-                    <Text style={styles.proButtonTextBold}>Upgrade to Pro</Text>
-                    <Text style={styles.proButtonTextSub}>
-                      to see innings scores and result
+                {/* Innings Scores Rows */}
+                <View style={styles.mb4}>
+                  <View style={[styles.flexRowJustify, styles.py1]}>
+                    <Text style={styles.textOnSurface}>
+                      {item.homeTeamName || "Andrew UI Home"}
                     </Text>
-                  </Pressable>
-
-                  <View style={[styles.flexRowJustify, styles.mt4]}>
-                    <View style={styles.capsBadge}>
-                      <Text style={styles.capsBadgeText}>
-                        BALL COUNTER MATCH
-                      </Text>
-                    </View>
-                    <Text style={styles.premiumIcon}>⭐</Text>
+                    <Text style={styles.scoreTextWhite}>
+                      {item.homeScore || "20/2"}
+                    </Text>
+                  </View>
+                  <View style={[styles.flexRowJustify, styles.py1]}>
+                    <Text style={styles.textOnSurfaceVariant}>
+                      {item.awayTeamName || "Andrew UI Away"}
+                    </Text>
+                    <Text style={styles.scoreTextSurface}>
+                      {item.awayScore || "22/2"}
+                    </Text>
                   </View>
                 </View>
-              </View>
+
+                {/* Dynamic Margin Alert Banner */}
+                <View style={styles.resultBanner}>
+                  <Text style={styles.resultBannerText}>
+                    {item.resultString || "Andrew UI Away won by 8 wickets"}
+                  </Text>
+                </View>
+
+                {/* Footer Interaction Notice */}
+                <View style={styles.tapNoticeContainer}>
+                  <Text style={styles.tapNoticeIcon}>👆</Text>
+                  <Text style={styles.tapNoticeText}>(Tap for Scorecard)</Text>
+                </View>
+              </Pressable>
             );
-          }
-
-          // Standard Free / Unlocked Card Layout
-          return (
-            <Pressable
-              style={({ pressed }) => [
-                styles.glassCard,
-                pressed && styles.glassCardPressed,
-              ]}
-              onPress={() => {
-                if (!isUnlocked && !proScorebookUnlocked && !proUnlocked) {
-                  setShowSubscriptionModal(true);
-                  return;
-                }
-                useFixtureStore.setState({ currentFixture: item });
-                setSelectedFixture(item);
-                setModalVisible(true);
-              }}
-            >
-              {/* Card Header */}
-              <View style={[styles.flexRowJustify, styles.mb4]}>
-                <Text style={styles.dateText}>{item.date || "15/06/2026"}</Text>
-                <View style={styles.completedBadge}>
-                  <Text style={styles.completedBadgeText}>COMPLETED</Text>
-                </View>
-              </View>
-
-              {/* Card Title */}
-              <Text
-                style={[
-                  styles.headlineMd,
-                  styles.textPrimaryContainer,
-                  styles.mb4,
-                ]}
-              >
-                vs {item.awayTeamName || "Andrew UI Away"}
-              </Text>
-
-              {/* Innings Scores Rows */}
-              <View style={styles.mb4}>
-                <View style={[styles.flexRowJustify, styles.py1]}>
-                  <Text style={styles.textOnSurface}>
-                    {item.homeTeamName || "Andrew UI Home"}
-                  </Text>
-                  <Text style={styles.scoreTextWhite}>
-                    {item.homeScore || "20/2"}
-                  </Text>
-                </View>
-                <View style={[styles.flexRowJustify, styles.py1]}>
-                  <Text style={styles.textOnSurfaceVariant}>
-                    {item.awayTeamName || "Andrew UI Away"}
-                  </Text>
-                  <Text style={styles.scoreTextSurface}>
-                    {item.awayScore || "22/2"}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Dynamic Margin Alert Banner */}
-              <View style={styles.resultBanner}>
-                <Text style={styles.resultBannerText}>
-                  {item.resultString || "Andrew UI Away won by 8 wickets"}
-                </Text>
-              </View>
-
-              {/* Footer Interaction Notice */}
-              <View style={styles.tapNoticeContainer}>
-                <Text style={styles.tapNoticeIcon}>👆</Text>
-                <Text style={styles.tapNoticeText}>(Tap for Scorecard)</Text>
-              </View>
-            </Pressable>
-          );
-        }}
-      />
+          }}
+        />
+      </ScrollView>
 
       {/* Global CTA Container */}
       <View
@@ -512,11 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: 8, // Padding space before the selection options
     paddingHorizontal: 4, // Alignment breathing room
   },
-  selectorRow: {
-    flexDirection: "row",
-    gap: 12, // Matches spacing.stack-md (12px)
-    marginBottom: 32, // Matches mb-8 (8 * 4px = 32px)
-  },
+
   selectorCard: {
     flex: 1,
     paddingVertical: 12, // Matches py-3 (3 * 4px = 12px)
@@ -542,24 +568,11 @@ const styles = StyleSheet.create({
     }),
   },
   // Inactive button state
-  selectorCardUnselected: {
-    backgroundColor: "#222a3d", // Matches bg-surface-container-high
-  },
+
   // Micro-interaction state
-  selectorCardActive: {
-    transform: [{ scale: 0.95 }], // Matches active:scale-95
-  },
-  selectorText: {
-    // Styling matches font-semibold and body-md/headline-md properties from config
-    fontWeight: "600",
-    fontSize: 16,
-    fontFamily: "Hanken Grotesk",
-  },
+
   textSelected: {
     color: "#d6a9ff", // Matches text-on-secondary-container
-  },
-  textUnselected: {
-    color: "#dae2fd", // Matches text-on-surface
   },
 
   seasonContainer: {
@@ -856,5 +869,59 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: "700",
     color: "#d6a9ff", // Matches text-on-secondary-container
+  },
+
+  selectorRow: {
+    flexDirection: "row",
+    flexWrap: "wrap", // Allows items to move to the next line
+    marginBottom: 0,
+  },
+  selectorCard: {
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginRight: 8, // Horizontal spacing between cards
+    marginBottom: 8, // Vertical spacing when wrapped
+    elevation: 3, // Shadow for Android
+    // Optional: Add shadow for iOS to match elevation
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+
+  // Active selection button state
+  selectorCardSelected: {
+    backgroundColor: "#c471ed", // Matches bg-secondary-container
+    // Shadow implementation matching shadow-lg shadow-secondary-container/20
+    ...Platform.select({
+      ios: {
+        shadowColor: "#6f00be",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  selectorCardUnselected: {
+    // Keeps fallback background from selectorCard
+  },
+  selectorCardActive: {
+    opacity: 0.7, // Visual feedback when tapped
+  },
+  selectorText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  selectorTextSelected: {
+    color: "#fff", // White text when selected
+  },
+  textUnselected: {
+    color: "#333", // Dark gray text when unselected
   },
 });

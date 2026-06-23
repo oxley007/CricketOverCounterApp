@@ -58,32 +58,34 @@ export default function TeamPickerModal({
           <View style={styles.container}>
             <Text style={styles.title}>{title}</Text>
 
-            {/* EMPTY STATE */}
-            {teams.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>No teams yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Add your first team to get started
-                </Text>
-              </View>
-            )}
+            <View style={{ flexGrow: 1, flexShrink: 1 }}>
+              {/* EMPTY STATE */}
+              {teams.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyTitle}>No teams yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Add your first team to get started
+                  </Text>
+                </View>
+              )}
 
-            {/* TEAM LIST */}
-            {teams.length > 0 && (
-              <FlatList
-                data={teams}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingBottom: 12 }}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.teamRow}
-                    onPress={() => onSelect(item)}
-                  >
-                    <Text style={styles.teamText}>{item.name}</Text>
-                  </Pressable>
-                )}
-              />
-            )}
+              {/* TEAM LIST */}
+              {teams.length > 0 && (
+                <FlatList
+                  data={teams}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={{ paddingBottom: 12 }}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={styles.teamRow}
+                      onPress={() => onSelect(item)}
+                    >
+                      <Text style={styles.teamText}>{item.name}</Text>
+                    </Pressable>
+                  )}
+                />
+              )}
+            </View>
 
             {/* ADD TEAM */}
             <View style={styles.addSection}>
@@ -121,6 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     maxHeight: "90%",
+    flexShrink: 1,
   },
   title: {
     fontSize: 22,

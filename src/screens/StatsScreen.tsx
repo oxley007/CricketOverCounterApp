@@ -8,6 +8,7 @@ import {
   Text,
   View,
   Platform,
+  ScrollView,
 } from "react-native";
 import SubscriptionList from "../components/iap/SubscriptionList";
 import PlayerStatsModal from "../components/PlayerStatsModal";
@@ -70,33 +71,59 @@ export default function StatsScreen() {
     const supporterCodes = useLiveStore.getState().teamCodesSupporter || [];
     const uniqueTeams = new Map();
 
-    // 1. Add all your managed local teams
+    // 1. Add all your managed local teams ONLY if they have active fixtures/stats
     teams.forEach((t) => {
-      uniqueTeams.set(normalize(t.id), { ...t, isSupporter: false });
+      const normalizedTeamId = normalize(t.id);
+
+      // Look through the fixtures database to confirm this team has matched stats
+      const hasFixtures = fixtures.some(
+        (f) =>
+          normalize(f.yourTeam?.id || f.yourTeamId || "") === normalizedTeamId,
+      );
+
+      // Only display the local managed team if stats/fixtures exist for it
+      if (hasFixtures) {
+        uniqueTeams.set(normalizedTeamId, { ...t, isSupporter: false });
+      }
     });
 
-    // 2. Merge in all data from liveViewTeams directly
+    // 2. Merge in all data from liveViewTeams ONLY if they have active fixtures/stats
     const safeLiveTeams = liveViewTeams || [];
     safeLiveTeams.forEach((lt) => {
       const normalizedId = normalize(lt.id);
       const existing = uniqueTeams.get(normalizedId);
 
-      uniqueTeams.set(normalizedId, {
-        ...existing,
-        ...lt,
-        isSupporter: existing?.isSupporter ?? true,
-        // 🚀 FORCE PLAYER IDs TO LOWERCASE: Map over incoming live players
-        players: (lt.players ?? []).map((p) => ({
-          ...p,
-          id: (p.id || "").toLowerCase(),
-        })),
-      });
+      // Check if this live supporter team has active fixtures/stats
+      const hasFixtures = fixtures.some(
+        (f) => normalize(f.yourTeam?.id || f.yourTeamId || "") === normalizedId,
+      );
+
+      // Condition: It's either an existing managed team OR a supporter team with active fixtures
+      if (existing || hasFixtures) {
+        uniqueTeams.set(normalizedId, {
+          ...existing,
+          ...lt,
+          isSupporter: existing?.isSupporter ?? true,
+          // 🚀 FORCE PLAYER IDs TO LOWERCASE: Map over incoming live players
+          players: (lt.players ?? []).map((p) => ({
+            ...p,
+            id: (p.id || "").toLowerCase(),
+          })),
+        });
+      }
     });
 
     // 3. Fallback check for supporter codes not yet fully loaded in liveViewTeams
     supporterCodes.forEach((code) => {
       const normalizedId = normalize(code);
-      if (!uniqueTeams.has(normalizedId)) {
+
+      // Check if this fallback supporter team has active fixtures/stats
+      const hasFixtures = fixtures.some(
+        (f) => normalize(f.yourTeam?.id || f.yourTeamId || "") === normalizedId,
+      );
+
+      // Only insert the fallback if it isn't listed yet AND it actually has fixtures
+      if (!uniqueTeams.has(normalizedId) && hasFixtures) {
         uniqueTeams.set(normalizedId, {
           id: code,
           name: supporterTeamNames[code] || code,
@@ -107,7 +134,7 @@ export default function StatsScreen() {
     });
 
     return Array.from(uniqueTeams.values());
-  }, [teams, supporterTeamNames, liveViewTeams]);
+  }, [teams, supporterTeamNames, liveViewTeams, fixtures]); // ✨ Added fixtures to the dependency array
 
   /* ========================= 2. DERIVED SEASONS ========================= */
   const seasons = useMemo(() => {
@@ -172,6 +199,24 @@ export default function StatsScreen() {
       players: Array.from(extractedPlayersMap.values()),
     } as Team;
   }, [selectedTeamId, teams, yourTeams, fixtures]);
+
+  /* ========================= FIXTURES ========================= */
+  const sortedSeasonFixtures = useMemo(() => {
+    if (!selectedTeamId || !selectedSeason) return [];
+
+    const normalize = (id: string) => id?.replace("TEAM-", "").toLowerCase();
+    const targetId = normalize(selectedTeamId);
+
+    return (
+      fixtures
+        .filter((f) => {
+          const fixtureTeamId = normalize(f.yourTeam?.id || f.yourTeamId || "");
+          return fixtureTeamId === targetId && f.season === selectedSeason;
+        })
+        // 👇 Re-added the sort logic here
+        .sort((a, b) => (b.date ?? 0) - (a.date ?? 0))
+    );
+  }, [fixtures, selectedTeamId, selectedSeason]);
 
   /* ========================= SELECT LIVE SELECTION STATES ========================= */
   //const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
@@ -284,174 +329,178 @@ export default function StatsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Season Stats</Text>
+      <ScrollView>
+        <Text style={styles.title}>Season Stats</Text>
 
-      {/* TEAM SELECT */}
-      <View style={styles.selectorRow}>
-        {yourTeams.map((team) => {
-          const isSelected =
-            normalize(selectedTeamId || "") === normalize(team.id);
-          return (
-            <Pressable
-              key={team.id}
-              onPress={() => {
-                setSelectedTeamId(team.id);
-                setSelectedSeason(null);
-                setSelectedPlayerId(null);
-              }}
-              style={({ pressed }) => [
-                styles.selectorCard,
-                isSelected
-                  ? styles.selectorCardSelected
-                  : styles.selectorCardUnselected,
-                pressed && styles.selectorCardActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  isSelected ? styles.textSelected : styles.textUnselected,
-                ]}
-              >
-                {team.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Separator matches design background to cleanly space items if gap isn't used */}
-      <View style={styles.separator} />
-
-      {/* ================= SEASON SELECT ================= */}
-      <View style={styles.seasonContainer}>
-        {/* Header Row with Label & Settings Button matching original design specs */}
-        <View style={styles.headerRow}>
-          <Text style={styles.labelCaps}>SELECT SEASON:</Text>
-          <Pressable
-            onPress={() => {
-              /* Handle settings press */
-            }}
-            style={({ pressed }) => [
-              styles.settingsButton,
-              pressed && styles.settingsButtonActive,
-            ]}
-          >
-            <Text style={styles.settingsIcon}>⚙️</Text>
-          </Pressable>
-        </View>
-
-        {/* Season Pills Row */}
-        <View style={styles.pillsRow}>
-          {seasons.map((season) => {
-            const isSelected = selectedSeason === season;
+        {/* TEAM SELECT */}
+        <View style={styles.selectorRow}>
+          {yourTeams.map((team) => {
+            const isSelected =
+              normalize(selectedTeamId || "") === normalize(team.id);
             return (
               <Pressable
-                key={season}
-                onPress={() => setSelectedSeason(season)}
+                key={team.id}
+                onPress={() => {
+                  setSelectedTeamId(team.id);
+                  setSelectedSeason(null);
+                  setSelectedPlayerId(null);
+                }}
                 style={({ pressed }) => [
-                  styles.pillCard,
+                  styles.selectorCard,
                   isSelected
-                    ? styles.pillCardSelected
-                    : styles.pillCardUnselected,
-                  pressed && !isSelected && styles.pillCardActive,
+                    ? styles.selectorCardSelected
+                    : styles.selectorCardUnselected,
+                  pressed && styles.selectorCardActive,
                 ]}
               >
                 <Text
                   style={[
-                    styles.pillText,
+                    styles.selectorText,
                     isSelected
-                      ? styles.pillTextSelected
-                      : styles.pillTextUnselected,
+                      ? styles.selectorTextSelected
+                      : styles.textUnselected, // Fixed style names here
                   ]}
                 >
-                  {season}
+                  {team.name}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-      </View>
 
-      <View style={styles.separator} />
+        {/* Separator matches design background to cleanly space items if gap isn't used */}
+        <View style={styles.separator} />
 
-      {/* ================= TEAM STATS BUTTON ================= */}
-      {selectedTeam && selectedSeason && (
-        <Pressable
-          onPress={() => {
-            setModalType("team");
-            setModalVisible(true);
-          }}
-          style={({ pressed }) => [
-            styles.statsCardContainer,
-            pressed ? styles.statsCardPressed : styles.statsCardUnpressed,
-          ]}
-        >
-          {/* Left-side item content container */}
-          <View style={styles.statsCardLeftRow}>
-            {/* Icon Badge Container rounded-full */}
-            <View style={styles.statsIconBadge}>
-              {/* Recommended icon usage fallback for standard vector components */}
-              <Text style={styles.statsIconText}>📈</Text>
-            </View>
-
-            {/* Stacked Vertical Labels block */}
-            <View style={styles.statsTextColumn}>
-              <Text style={styles.statsTextTitle}>
-                {selectedTeam.name} - Team Stats
-              </Text>
-              <Text style={styles.statsTextSub}>SEASON SUMMARY</Text>
-            </View>
+        {/* ================= SEASON SELECT ================= */}
+        <View style={styles.seasonContainer}>
+          {/* Header Row with Label & Settings Button matching original design specs */}
+          <View style={styles.headerRow}>
+            <Text style={styles.labelCaps}>SELECT SEASON:</Text>
+            <Pressable
+              onPress={() => {
+                /* Handle settings press */
+              }}
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.settingsButtonActive,
+              ]}
+            >
+              <Text style={styles.settingsIcon}>⚙️</Text>
+            </Pressable>
           </View>
 
-          {/* Right-side action disclosure chevron */}
-          <View style={styles.statsCardRightRow}>
-            <Text style={styles.chevronIconText}>❯</Text>
+          {/* Season Pills Row */}
+          <View style={styles.pillsRow}>
+            {seasons.map((season) => {
+              const isSelected = selectedSeason === season;
+              return (
+                <Pressable
+                  key={season}
+                  onPress={() => setSelectedSeason(season)}
+                  style={({ pressed }) => [
+                    styles.pillCard,
+                    isSelected
+                      ? styles.pillCardSelected
+                      : styles.pillCardUnselected,
+                    pressed && !isSelected && styles.pillCardActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.pillText,
+                      isSelected
+                        ? styles.pillTextSelected
+                        : styles.pillTextUnselected,
+                    ]}
+                  >
+                    {season}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-        </Pressable>
-      )}
+        </View>
 
-      {/* ================= PLAYER LIST ================= */}
-      <FlatList
-        data={players}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.playerListContainer}
-        // Renders the section headline once at the top of the list safely
-        ListHeaderComponent={() => (
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabelCaps}>INDIVIDUAL STATS:</Text>
-          </View>
-        )}
-        renderItem={({ item }) => (
+        <View style={styles.separator} />
+
+        {/* ================= TEAM STATS BUTTON ================= */}
+        {selectedTeam && selectedSeason && (
           <Pressable
             onPress={() => {
-              setSelectedPlayerId(item.id);
-              setModalType("player");
+              setModalType("team");
               setModalVisible(true);
             }}
             style={({ pressed }) => [
-              styles.playerCardContainer,
-              pressed ? styles.playerCardPressed : styles.playerCardUnpressed,
+              styles.statsCardContainer,
+              pressed ? styles.statsCardPressed : styles.statsCardUnpressed,
             ]}
           >
-            {/* Left side: Avatar badge + Player identity text */}
-            <View style={styles.playerCardLeftRow}>
-              <View style={styles.playerAvatarBadge}>
-                {/* Default user silhouette emoji/icon asset indicator */}
-                <Text style={styles.playerAvatarText}>👤</Text>
+            {/* Left-side item content container */}
+            <View style={styles.statsCardLeftRow}>
+              {/* Icon Badge Container rounded-full */}
+              <View style={styles.statsIconBadge}>
+                {/* Recommended icon usage fallback for standard vector components */}
+                <Text style={styles.statsIconText}>📈</Text>
               </View>
-              <View style={styles.playerTextColumn}>
-                <Text style={styles.playerNameText}>{item.name}</Text>
+
+              {/* Stacked Vertical Labels block */}
+              <View style={styles.statsTextColumn}>
+                <Text style={styles.statsTextTitle}>
+                  {selectedTeam.name} - Team Stats
+                </Text>
+                <Text style={styles.statsTextSub}>SEASON SUMMARY</Text>
               </View>
             </View>
 
-            {/* Right side: Action chevron indicator */}
-            <View style={styles.playerCardRightRow}>
-              <Text style={styles.playerChevronIcon}>❯</Text>
+            {/* Right-side action disclosure chevron */}
+            <View style={styles.statsCardRightRow}>
+              <Text style={styles.chevronIconText}>❯</Text>
             </View>
           </Pressable>
         )}
-      />
+
+        {/* ================= PLAYER LIST ================= */}
+        <FlatList
+          data={players}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.playerListContainer}
+          // Renders the section headline once at the top of the list safely
+          ListHeaderComponent={() => (
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabelCaps}>INDIVIDUAL STATS:</Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => {
+                setSelectedPlayerId(item.id);
+                setModalType("player");
+                setModalVisible(true);
+              }}
+              style={({ pressed }) => [
+                styles.playerCardContainer,
+                pressed ? styles.playerCardPressed : styles.playerCardUnpressed,
+              ]}
+            >
+              {/* Left side: Avatar badge + Player identity text */}
+              <View style={styles.playerCardLeftRow}>
+                <View style={styles.playerAvatarBadge}>
+                  {/* Default user silhouette emoji/icon asset indicator */}
+                  <Text style={styles.playerAvatarText}>👤</Text>
+                </View>
+                <View style={styles.playerTextColumn}>
+                  <Text style={styles.playerNameText}>{item.name}</Text>
+                </View>
+              </View>
+
+              {/* Right side: Action chevron indicator */}
+              <View style={styles.playerCardRightRow}>
+                <Text style={styles.playerChevronIcon}>❯</Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      </ScrollView>
 
       {/* ================= STATS MODAL ================= */}
       <PlayerStatsModal
@@ -504,19 +553,41 @@ const styles = StyleSheet.create({
     color: "#dae2fd", // Matches text-on-background color
     marginBottom: 24, // Matches mb-6 (6 * 4px)
   },
-  selectorRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 0 },
+  selectorRow: {
+    flexDirection: "row",
+    flexWrap: "wrap", // Allows items to move to the next line
+    marginBottom: 0,
+  },
   selectorCard: {
     backgroundColor: "#f5f5f5",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: 8, // Horizontal spacing between cards
+    marginBottom: 8, // Vertical spacing when wrapped
     elevation: 3,
   },
-  selectorCardSelected: { backgroundColor: "#c471ed" },
-  selectorText: { fontSize: 16, fontWeight: "600", color: "#333" },
-  selectorTextSelected: { color: "#fff" },
+  selectorCardSelected: {
+    backgroundColor: "#c471ed",
+  },
+  selectorCardUnselected: {
+    // Optional: add explicit unselected styles here if needed
+  },
+  selectorCardActive: {
+    opacity: 0.7, // Provides visual feedback when tapped
+  },
+  selectorText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  selectorTextSelected: {
+    color: "#fff",
+  },
+  textUnselected: {
+    color: "#333",
+  },
+
   modalButton: {
     backgroundColor: "#c471ed",
     paddingVertical: 14,
@@ -580,49 +651,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#d6a9ff",
   },
-  selectorRow: {
-    flexDirection: "row",
-    gap: 12, // Matches spacing.stack-md (12px)
-    marginBottom: 32, // Matches mb-8 (32px)
-  },
-  selectorCard: {
-    flex: 1,
-    paddingVertical: 12, // Matches py-3 (12px)
-    paddingHorizontal: 16, // Matches px-4 (16px)
-    borderRadius: 12, // Matches rounded-xl (12px)
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectorCardSelected: {
-    backgroundColor: "#6f00be", // Matches bg-secondary-container
-    ...Platform.select({
-      ios: {
-        shadowColor: "#6f00be",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  selectorCardUnselected: {
-    backgroundColor: "#222a3d", // Matches bg-surface-container-high
-  },
-  selectorCardActive: {
-    transform: [{ scale: 0.95 }], // Matches active:scale-95
-  },
-  selectorText: {
-    fontWeight: "600",
-    fontSize: 16,
-    fontFamily: "Hanken Grotesk",
-  },
+
   textSelected: {
     color: "#d6a9ff", // Matches text-on-secondary-container
-  },
-  textUnselected: {
-    color: "#dae2fd", // Matches text-on-surface
   },
 
   // --- Season Selector Styles ---

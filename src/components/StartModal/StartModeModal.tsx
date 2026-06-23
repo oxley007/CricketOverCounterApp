@@ -78,10 +78,6 @@ export default function StartModeModal() {
             text: "Continue with 4dot6",
             onPress: () => handleJuniorChoice("continue"),
           },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
         ],
       );
 

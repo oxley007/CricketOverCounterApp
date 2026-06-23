@@ -9,7 +9,9 @@ module.exports = {
     splashColor: "#12c2e9",
     icon: "./assets/images/splash-icon-4dot6.png",
     iosIcon: "./assets/ios-icon.png",
+    androidIcon: "./assets/ic_launcher_round.png",
     splash: "./assets/images/splash-icon-4dot6.png",
+    splashAndroid: "./assets/ic_launcher_round.png",
     googleIos: "./config/umpire/GoogleService-Info.plist",
     googleAndroid: "./config/umpire/google-services.json",
     // --- UI & THEME STRATEGY ---
@@ -75,9 +77,11 @@ module.exports = {
     scheme: "com.fourdootsix.cricketscorebookbyc",
     color: "#2E7D32",
     splashColor: "#ffffff",
-    icon: "./assets/images/icon-littlewicket.png",
+    icon: "./assets/ios-icon-littlewicket.png",
     iosIcon: "./assets/ios-icon-littlewicket.png",
+    androidIcon: "./assets/ic_launcher_round_littlewicket.png",
     splash: "./assets/images/splash-littlewicket.png",
+    splashAndroid: "./assets/ic_launcher_round_littlewicket.png",
     googleIos: "./config/littlewicket/GoogleService-Info.plist",
     googleAndroid: "./config/littlewicket/google-services.json",
     // --- UI & THEME STRATEGY ---

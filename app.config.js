@@ -46,7 +46,7 @@ export default ({ config }) => {
       versionCode: 62,
       adaptiveIcon: {
         backgroundColor: tenant.color,
-        foregroundImage: tenant.iosIcon,
+        foregroundImage: tenant.androidIcon,
       },
       //edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
@@ -64,17 +64,20 @@ export default ({ config }) => {
       [
         "expo-splash-screen",
         {
-          image: tenant.splash,
+          image: tenant.splash, // Default image (e.g., iOS)
           resizeMode: "contain",
           imageWidth: 288,
           backgroundColor: tenant.splashColor,
           dark: {
             backgroundColor: tenant.splashColor,
           },
+          android: {
+            image: tenant.splashAndroid, // 👈 Overrides image on Android only
+            resizeMode: "contain",
+          },
         },
       ],
       "expo-secure-store",
-      // 👇 ADD THE SENTRY PLUGIN CONFIG HERE
       [
         "@sentry/react-native/expo",
         {

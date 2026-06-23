@@ -275,10 +275,11 @@ function DrawerContent() {
               style={[
                 styles.logoContainer,
                 {
-                  backgroundColor: isLittleWicket ? "#fff" : "transparent",
-                  borderRadius: isLittleWicket ? 50 : 0,
-                  paddingHorizontal: isLittleWicket ? 10 : 0,
-                  paddingVertical: isLittleWicket ? 5 : 0,
+                  //backgroundColor: isLittleWicket ? "#fff" : "transparent",
+                  //borderRadius: isLittleWicket ? 50 : 0,
+                  //paddingHorizontal: isLittleWicket ? 10 : 0,
+                  //paddingVertical: isLittleWicket ? 5 : 0,
+                  //marginBottom: isLittleWicket ? 5 : 0,
                 },
               ]}
             >

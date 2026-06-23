@@ -217,127 +217,119 @@ export default function GameSetupModal({ visible, onClose }: Props) {
           >
             <Text style={styles.title}>Setup your game</Text>
 
-            <ScrollView
-              style={styles.scrollContent}
-              keyboardShouldPersistTaps="handled" // Important if you used a keyboard earlier
+            {/* Your Team */}
+            <Text style={styles.label}>Your Team</Text>
+            <Pressable
+              style={styles.selectRow}
+              onPress={() => {
+                console.log("Opening Your Team Picker");
+                setShowYourTeamPicker(true);
+              }}
             >
-              {/* Your Team */}
-              <Text style={styles.label}>Your Team</Text>
-              <Pressable
-                style={styles.selectRow}
-                onPress={() => {
-                  console.log("Opening Your Team Picker");
-                  setShowYourTeamPicker(true);
-                }}
+              <Text
+                style={[styles.selectText, !yourTeam && styles.placeholderText]}
               >
-                <Text
-                  style={[
-                    styles.selectText,
-                    !yourTeam && styles.placeholderText,
-                  ]}
-                >
-                  {yourTeam ? yourTeam.name : "Select your team"}
-                </Text>
-              </Pressable>
+                {yourTeam ? yourTeam.name : "Select your team"}
+              </Text>
+            </Pressable>
 
-              <TeamPickerModal
-                visible={showYourTeamPicker}
-                title="Select your team"
-                onSelect={(team) => {
-                  setYourTeam(team);
-                  setShowYourTeamPicker(false);
-                }}
-                onClose={() => setShowYourTeamPicker(false)}
-              />
+            <TeamPickerModal
+              visible={showYourTeamPicker}
+              title="Select your team"
+              onSelect={(team) => {
+                setYourTeam(team);
+                setShowYourTeamPicker(false);
+              }}
+              onClose={() => setShowYourTeamPicker(false)}
+            />
 
-              {/* Opposition Team */}
-              <Text style={styles.label}>Opposition Team</Text>
-              <Pressable
-                style={styles.selectRow}
-                onPress={() => setShowOppositionPicker(true)}
-              >
-                <Text
-                  style={[
-                    styles.selectText,
-                    !oppositionTeam && styles.placeholderText,
-                  ]}
-                >
-                  {oppositionTeam
-                    ? oppositionTeam.name
-                    : "Select opposition team"}
-                </Text>
-              </Pressable>
-
-              <TeamPickerModal
-                visible={showOppositionPicker}
-                title="Select opposition team"
-                onSelect={(team) => {
-                  setOppositionTeam(team);
-                  setShowOppositionPicker(false);
-                }}
-                onClose={() => setShowOppositionPicker(false)}
-              />
-
-              {/* Overs */}
-              <Text style={styles.label}>Overs</Text>
-              <TextInput
+            {/* Opposition Team */}
+            <Text style={styles.label}>Opposition Team</Text>
+            <Pressable
+              style={styles.selectRow}
+              onPress={() => setShowOppositionPicker(true)}
+            >
+              <Text
                 style={[
-                  styles.input,
-                  isUnlimited && styles.disabledInput, // 👈 Apply grey style when true
+                  styles.selectText,
+                  !oppositionTeam && styles.placeholderText,
                 ]}
-                placeholder="Enter overs (1-100 or Unlimited)"
-                value={overs}
-                onChangeText={setOvers}
-                keyboardType="numeric"
-                editable={!isUnlimited}
-              />
-              <View style={styles.switchRow}>
-                <Text style={styles.smallLabel}>Unlimited</Text>
-                <Switch
-                  value={isUnlimited}
-                  onValueChange={(val) => {
-                    setIsUnlimited(val);
-                    if (val) setOvers("0"); // Set internal high value
-                  }}
-                />
-              </View>
-
-              {/* Season */}
-              <Text style={styles.label}>Season</Text>
-              <Pressable
-                style={styles.selectRow}
-                onPress={() => {
-                  console.log("Opening Season Picker");
-                  setShowSeasonPicker(true);
-                }}
               >
-                <Text
-                  style={[styles.selectText, !season && styles.placeholderText]}
-                >
-                  {season || "Select season"}
-                </Text>
-              </Pressable>
+                {oppositionTeam
+                  ? oppositionTeam.name
+                  : "Select opposition team"}
+              </Text>
+            </Pressable>
 
-              <SeasonPickerModal
-                visible={showSeasonPicker}
-                title="Select Season"
-                seasons={useGameStore.getState().seasons}
-                onSelect={(s) => {
-                  // add to store if not already there
-                  if (!useGameStore.getState().seasons.includes(s)) {
-                    useGameStore.getState().addSeason(s);
-                  }
+            <TeamPickerModal
+              visible={showOppositionPicker}
+              title="Select opposition team"
+              onSelect={(team) => {
+                setOppositionTeam(team);
+                setShowOppositionPicker(false);
+              }}
+              onClose={() => setShowOppositionPicker(false)}
+            />
 
-                  // remember as last season
-                  useGameStore.getState().setLastSeason(s);
-
-                  // update local state
-                  setSeason(s);
-                  setShowSeasonPicker(false);
+            {/* Overs */}
+            <Text style={styles.label}>Overs</Text>
+            <TextInput
+              style={[
+                styles.input,
+                isUnlimited && styles.disabledInput, // 👈 Apply grey style when true
+              ]}
+              placeholder="Enter overs (1-100 or Unlimited)"
+              value={overs}
+              onChangeText={setOvers}
+              keyboardType="numeric"
+              editable={!isUnlimited}
+            />
+            <View style={styles.switchRow}>
+              <Text style={styles.smallLabel}>Unlimited</Text>
+              <Switch
+                value={isUnlimited}
+                onValueChange={(val) => {
+                  setIsUnlimited(val);
+                  if (val) setOvers("0"); // Set internal high value
                 }}
-                onClose={() => setShowSeasonPicker(false)}
               />
-            </ScrollView>
+            </View>
+
+            {/* Season */}
+            <Text style={styles.label}>Season</Text>
+            <Pressable
+              style={styles.selectRow}
+              onPress={() => {
+                console.log("Opening Season Picker");
+                setShowSeasonPicker(true);
+              }}
+            >
+              <Text
+                style={[styles.selectText, !season && styles.placeholderText]}
+              >
+                {season || "Select season"}
+              </Text>
+            </Pressable>
+
+            <SeasonPickerModal
+              visible={showSeasonPicker}
+              title="Select Season"
+              seasons={useGameStore.getState().seasons}
+              onSelect={(s) => {
+                // add to store if not already there
+                if (!useGameStore.getState().seasons.includes(s)) {
+                  useGameStore.getState().addSeason(s);
+                }
+
+                // remember as last season
+                useGameStore.getState().setLastSeason(s);
+
+                // update local state
+                setSeason(s);
+                setShowSeasonPicker(false);
+              }}
+              onClose={() => setShowSeasonPicker(false)}
+            />
 
             <Pressable
               style={[

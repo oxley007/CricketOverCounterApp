@@ -472,11 +472,19 @@ export default function ScorebookIndex() {
 
     if (!gameConfig) return [];
 
-    return teams.filter(
+    // Filter for teams that match either your team or the opposition
+    const matchedTeams = teams.filter(
       (t) =>
         t.id === gameConfig.yourTeam.id ||
         t.id === gameConfig.oppositionTeam.id,
     );
+
+    // Filter out any duplicates (e.g., if IDs are the same)
+    const uniqueTeams = matchedTeams.filter(
+      (team, index, self) => self.findIndex((t) => t.id === team.id) === index,
+    );
+
+    return uniqueTeams;
   }, [teams, gameConfig]);
 
   const hasPreviousInnings =
