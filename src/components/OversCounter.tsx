@@ -19,7 +19,7 @@ export default function OversCounter() {
   const selectedMode = useStartModalStore((s) => s.selectedMode);
   const isScorebook = selectedMode === "scorebook";
 
-  /* =========================
+  /* ========================= 
      Get balls for current over
   ========================= */
   const { ballsThisOver } = buildCurrentOverCircles(events, {

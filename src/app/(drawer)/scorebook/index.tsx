@@ -385,21 +385,22 @@ export default function ScorebookIndex() {
     const isViewer = useLiveStore.getState().isReadOnly;
     if (isViewer) return;
 
+    const storeBowler = currentGame?.currentBowlerId;
+
+    // ⚡ LOOP BREAKER: If the store rolled back (e.g. on undo),
+    // update the local state to match it instead of overriding the store!
+    if (storeBowler && storeBowler !== selectedBowlerId) {
+      setSelectedBowlerId(storeBowler);
+      return;
+    }
+
     if (!selectedBowlerId) return;
     if (!currentGame?.battingTeamId) return;
-
-    // Do not push local selection when the store bowler was deliberately cleared
-    if (!currentGame.currentBowlerId) return;
-
-    if (currentGame.currentBowlerId === selectedBowlerId) return;
+    if (!storeBowler) return;
+    if (storeBowler === selectedBowlerId) return;
 
     setCurrentBowler(selectedBowlerId);
-  }, [
-    selectedBowlerId,
-    currentGame?.battingTeamId,
-    currentGame?.currentBowlerId,
-    setCurrentBowler,
-  ]);
+  }, [selectedBowlerId, currentGame?.currentBowlerId]);
 
   useEffect(() => {
     if (!currentGame) return;

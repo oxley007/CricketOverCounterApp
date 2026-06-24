@@ -1180,19 +1180,34 @@ export default function RunModal({
           <SelectPlayersModal
             visible={true}
             onClose={() => {
-              setShowPlayerSelect(null); // hide player modal
-              onClose(); // also close RunModal
+              setShowPlayerSelect(null);
+              onClose();
             }}
             title={`Select Next Batter for ${battingTeam.name}`}
             players={battingTeamPlayers}
-            selectedIds={selectedBatters}
+            // 🌟 CHANGE 1: Pass the absolute source of truth directly from your global store
+            selectedIds={
+              useGameStore
+                .getState()
+                .currentGame?.activeBatters.map((b) => b.playerId) ?? []
+            }
             onSelectionChange={(ids) => {
+              // 1. Determine who was just added by filtering out the old selections
+              const newlyAdded = ids.filter(
+                (id) => !selectedBatters.includes(id),
+              );
+
+              // 2. Commit the new selection array to the state tracking pipeline
               setSelectedBatters(ids);
 
-              if (ids.length === maxSelection) {
-                const newStrike = ids[0];
-                setStrike(newStrike);
+              // 3. If a new batter was selected, make them the active striker automatically
+              if (newlyAdded.length > 0) {
+                const lastSelectedId = newlyAdded[newlyAdded.length - 1];
+                useGameStore.getState().setStrike(lastSelectedId);
+              }
 
+              // 4. Handle modal dismissal rules based on your team criteria bounds
+              if (ids.length === maxSelection) {
                 setShowPlayerSelect(null);
                 onClose();
               }
@@ -1200,13 +1215,11 @@ export default function RunModal({
             selectionMode="multiple"
             pickerType="batter"
             maxSelection={maxSelection}
-            // RunModal.tsx
             renderFooter={() => (
               <View style={{ paddingBottom: 20 }}>
                 <AddPlayerFooter
-                  teamId={battingTeam.id} // This is correct
+                  teamId={battingTeam.id}
                   onAdded={async (name) => {
-                    // CHANGE THESE TWO LINES:
                     const player = addPlayerToTeam(battingTeam.id, name);
                     if (player) await handleSavePlayer(battingTeam.id, player);
                   }}

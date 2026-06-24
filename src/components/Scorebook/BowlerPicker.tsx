@@ -31,6 +31,7 @@ export default function BowlerPicker({
 }: BowlerPickerProps) {
   // ======= STATE =======
   const [showModal, setShowModal] = useState(false);
+  const [isSwapFlow, setIsSwapFlow] = useState(false);
   const [lastBowlerStats, setLastBowlerStats] = useState<{
     name: string;
     stats: BowlerStats;
@@ -241,7 +242,10 @@ export default function BowlerPicker({
                 <View style={{ marginTop: 0 }}>
                   <Pressable
                     style={styles.primaryButton}
-                    onPress={() => setShowModal(true)}
+                    onPress={() => {
+                      setIsSwapFlow(false); // 🌟 Fresh over/add over means clear active selector highlight
+                      setShowModal(true);
+                    }}
                   >
                     <Text style={styles.primaryButtonText}>
                       {currentBowler ? "Change Bowler" : "Add Bowler"}
@@ -250,7 +254,10 @@ export default function BowlerPicker({
 
                   {currentBowler && isOverInProgress && (
                     <Pressable
-                      onPress={() => setShowModal(true)}
+                      onPress={() => {
+                        setIsSwapFlow(true); // 🌟 Mid-over injury swap means keep existing selection checked
+                        setShowModal(true);
+                      }}
                       style={{ marginTop: 12, alignItems: "center" }}
                     >
                       <Text style={styles.swapBowlerLink}>Swap Bowler</Text>
@@ -259,9 +266,13 @@ export default function BowlerPicker({
                 </View>
               )}
 
-              {currentBowler && isOverInProgress && (
+              {/* Clean up duplicate rendering conditions safely */}
+              {!shouldShowChangeBowler && currentBowler && isOverInProgress && (
                 <Pressable
-                  onPress={() => setShowModal(true)}
+                  onPress={() => {
+                    setIsSwapFlow(true); // 🌟 Mid-over injury swap means keep existing selection checked
+                    setShowModal(true);
+                  }}
                   style={{ marginTop: 8, alignItems: "center" }}
                 >
                   <Text style={styles.swapBowlerLink}>Swap Bowler</Text>
@@ -278,7 +289,8 @@ export default function BowlerPicker({
           onClose={() => setShowModal(false)}
           title={`Select Bowler for ${bowlingTeam.name}`}
           players={bowlingTeamPlayers}
-          selectedIds={currentBowler ? [currentBowler.id] : []}
+          // 🌟 FIX: Only display current bowler checked if we explicitly initiated a swap action flow
+          selectedIds={isSwapFlow && currentBowler ? [currentBowler.id] : []}
           onSelectionChange={(ids) => {
             if (ids.length) {
               handleSelectBowler(ids[0]);

@@ -17,13 +17,13 @@ import { LinearGradient } from "expo-linear-gradient";
 
 interface BattersPickerProps {
   battingTeam: Team | null;
-  selectedBatters: string[];
+  selectedBatters: string[]; // Still accepted for interface compatibility if parent uses it
   onSelectionChange: (ids: string[]) => void;
 }
 
 export default function BattersPicker({
   battingTeam,
-  selectedBatters,
+  selectedBatters: parentSelectedBatters,
   onSelectionChange,
 }: BattersPickerProps) {
   const [showModal, setShowModal] = useState(false);
@@ -41,8 +41,13 @@ export default function BattersPicker({
 
   const handleCloseModal = () => setShowModal(false);
 
+  // 🌟 FIX: Derive active selections directly from the single source of truth
+  const activeBatterIds = (currentGame?.activeBatters ?? []).map(
+    (b) => b.playerId,
+  );
+
   const shouldShowChangeBatters = (() => {
-    if (selectedBatters.length === 0) return false;
+    if (activeBatterIds.length === 0) return false;
     const activeBattersObjects = currentGame?.activeBatters ?? [];
     if (activeBattersObjects.length < 2) return true;
 
@@ -93,9 +98,6 @@ export default function BattersPicker({
     balls: number;
   })[];
 
-  // ========================================================
-  // FIXED: UNPACK STRIKER AND NON-STRIKER SAFELY
-  // ========================================================
   const currentStrikeId = currentGame?.currentStrikeId;
   const strikerObject =
     activeBatters.find((b) => b.id === currentStrikeId) || activeBatters[0];
@@ -114,7 +116,6 @@ export default function BattersPicker({
   const nonStriker = {
     name: nonStrikerObject?.name ?? "No Batter",
     runs: nonStrikerObject?.runs ?? 0,
-    nonStriker: nonStrikerObject?.balls ?? 0, // Fallback safety match
     balls: nonStrikerObject?.balls ?? 0,
     strikeRate: nonStrikerObject?.balls
       ? ((nonStrikerObject.runs / nonStrikerObject.balls) * 100).toFixed(1)
@@ -128,14 +129,14 @@ export default function BattersPicker({
     const gameState = useGameStore.getState();
 
     if (!gameState.currentGame) {
-      if (selectedBatters.length > 0) {
+      if (activeBatterIds.length > 0) {
         const cfg = gameState.gameConfig;
         const bowlingTeamId =
           cfg && battingTeam.id === cfg.yourTeam.id
             ? cfg.oppositionTeam.id
             : cfg?.yourTeam.id;
         if (bowlingTeamId) {
-          startGame(battingTeam.id, bowlingTeamId, selectedBatters);
+          startGame(battingTeam.id, bowlingTeamId, activeBatterIds);
         }
       }
       return;
@@ -148,7 +149,7 @@ export default function BattersPicker({
       ...currentBatters.filter(
         (b) =>
           !b.retired &&
-          selectedBatters.includes(b.playerId) &&
+          activeBatterIds.includes(b.playerId) &&
           !battingEntries.find(
             (e) =>
               e.playerId === b.playerId &&
@@ -156,7 +157,7 @@ export default function BattersPicker({
               e.dismissal.kind !== "notOut",
           ),
       ),
-      ...selectedBatters
+      ...activeBatterIds
         .filter(
           (id) =>
             !currentBatters.some((b) => b.playerId === id) &&
@@ -189,7 +190,7 @@ export default function BattersPicker({
     ) {
       setStrike(newStrikeId);
     }
-  }, [hasHydrated, battingTeam?.id, selectedBatters.join(",")]);
+  }, [hasHydrated, battingTeam?.id, activeBatterIds.join(",")]);
 
   const handleSavePlayer = async (teamId: string, player: any) => {
     try {
@@ -200,23 +201,30 @@ export default function BattersPicker({
     }
   };
 
+  // Safe callback wrapper that automatically forwards updates back up
+  const handleSelectionChange = (ids: string[]) => {
+    onSelectionChange(ids);
+    if (ids.length === 2) {
+      setShowModal(false);
+    }
+  };
+
   return (
     <>
       {battingTeam && (
         <>
           <View style={{ width: "100%" }}>
-            {selectedBatters.length > 0 ? (
+            {activeBatterIds.length > 0 ? (
               <View style={styles.grid}>
                 {/* 1. ACTIVE BATTER CARD (STRIKER) */}
                 <Pressable
                   style={({ pressed }) => [
                     styles.glassCard,
                     styles.strikerNeonCard,
-                    pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, // Adds a subtle press effect
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
                   ]}
                   onPress={() => {
                     if (isLiveViewer || !strikerObject?.id) return;
-                    // Validates against active batters array in state
                     if (
                       currentGame?.activeBatters?.some(
                         (b) => b.playerId === strikerObject.id,
@@ -325,7 +333,10 @@ export default function BattersPicker({
             onClose={handleCloseModal}
             title={`Select Batters for ${battingTeam?.name ?? ""}`}
             players={battingTeamPlayers}
-            selectedIds={selectedBatters}
+            // 🌟 FIX: Map absolute global game engine state so dismissed batters are never left selected
+            selectedIds={
+              currentGame?.activeBatters?.map((b) => b.playerId) ?? []
+            }
             onSelectionChange={onSelectionChange}
             selectionMode="multiple"
             maxSelection={2}
