@@ -84,6 +84,7 @@ export default function ScorebookIndex() {
   const startGame = useGameStore((s) => s.startGame);
   const setStrike = useGameStore((s) => s.setStrike);
   const setCurrentBowler = useGameStore((s) => s.setCurrentBowler);
+  useStartModalStore();
   // State Selectors (Primitives)
   const showMatchRulesModal = useMatchStore((s) => s.showMatchRulesModal);
   const proUnlocked = useMatchStore((s) => s.proUnlocked);
@@ -295,7 +296,7 @@ export default function ScorebookIndex() {
     if (isSaving) {
       timer = setTimeout(() => {
         setIsSaving(false);
-      }, 5000); // 5000 milliseconds = 5 seconds
+      }, 10000); // 5000 milliseconds = 5 seconds
     }
 
     return () => clearTimeout(timer); // Cleans up the timer if the modal closes early

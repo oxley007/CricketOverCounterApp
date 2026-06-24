@@ -258,7 +258,8 @@ export default function RunModal({
       //console.log(hasWicket, "hasWicket");
       //console.log(confirmingWicket, "confirmingWicket");
 
-      if (hasWicket && !confirmingWicket) {
+      // ✅ Change this line to only block for Scorebook mode
+      if (isScorebook && hasWicket && !confirmingWicket) {
         setConfirmingWicket(true);
         return;
       }
@@ -780,18 +781,19 @@ export default function RunModal({
   };
 
   const toggleWicket = (wicket: string) => {
-    //console.log("toggleWicket tapped:", wicket); // 🔹 log tapped wicket
-
-    setSelectedWickets([wicket]); // single selection
+    setSelectedWickets([wicket]);
 
     if (wicket === "Retired") {
-      //console.log("Retired selected — opening DismissBatterModal"); // 🔹 log retired path
       setDismissedKind("retired");
-      setShowDismissModal(true); // open modal first
+      if (isScorebook) {
+        setShowDismissModal(true);
+      }
     } else if (wicket !== "Partnership") {
-      //console.log(`${wicket} selected — opening DismissBatterModal`); // 🔹 log other wickets
       setDismissedKind(normalizeWicketKind(wicket));
-      setShowDismissModal(true);
+      // ✅ Only open the modal if we are tracking individual players
+      if (isScorebook) {
+        setShowDismissModal(true);
+      }
     }
   };
 
@@ -1090,9 +1092,12 @@ export default function RunModal({
                           selectedWickets.includes(w) && styles.optionSelected,
                         ]}
                         onPress={() => {
-                          //console.log("Wicket button pressed:", w); // 🔹 log button press
                           toggleWicket(w);
-                          if (w !== "Retired" && w !== "Partnership") {
+                          if (
+                            isScorebook &&
+                            w !== "Retired" &&
+                            w !== "Partnership"
+                          ) {
                             setShowDismissModal(true);
                           }
                         }}
