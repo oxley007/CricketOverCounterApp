@@ -12,10 +12,10 @@ export default ({ config }) => {
 
   return {
     ...config,
-    name: tenant.name,
+    name: tenant.displayName || tenant.name,
     slug: "cricket-umpire-ball-counter",
     scheme: tenant.scheme || tenant.bundleId,
-    version: "6.0.2",
+    version: "6.0.3",
     icon: tenant.icon,
     orientation: "portrait",
     userInterfaceStyle: "automatic",
@@ -29,7 +29,7 @@ export default ({ config }) => {
       bundleIdentifier: tenant.bundleId,
       googleServicesFile: tenant.googleIos,
       supportsTablet: false,
-      buildNumber: "6.0.2",
+      buildNumber: "6.0.3",
       icon: tenant.iosIcon,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -43,7 +43,7 @@ export default ({ config }) => {
     android: {
       package: tenant.package,
       googleServicesFile: tenant.googleAndroid,
-      versionCode: 62,
+      versionCode: 63,
       adaptiveIcon: {
         backgroundColor: tenant.color,
         foregroundImage: tenant.androidIcon,

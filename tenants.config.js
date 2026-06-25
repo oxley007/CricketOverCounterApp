@@ -11,7 +11,7 @@ module.exports = {
     icon: "./assets/images/splash-icon-4dot6.png",
     iosIcon: "./assets/ios-icon.png",
     androidIcon: "./assets/android-foreground-umpire.png",
-    splash: "./assets/images/splash-icon-4dot6.png",
+    splash: "./assets/4dot6logo-transparent.png",
     splashAndroid: "./assets/android-splash-umpire.png",
     googleIos: "./config/umpire/GoogleService-Info.plist",
     googleAndroid: "./config/umpire/google-services.json",

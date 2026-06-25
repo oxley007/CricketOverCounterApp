@@ -41,46 +41,35 @@ Sentry.init({
   tracesSampleRate: 1.0,
 });
 
-//  To this:
 function DrawerLayout() {
   const { theme } = useTenantConfig();
   useStartModalGate();
 
+  // Consolidate logic into a single source-of-truth lifecycle tracking block
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("✅ Firebase session restored:", user.uid);
-        useAuthModalStore.getState().setUser(user); // Set global user state
-      } else {
-        console.log("👤 No logged in user");
-        useAuthModalStore.getState().setUser(null); // Clear global user state
-      }
-    });
-
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    // 1. Tag the variant based on your existing theme hook
+    // 1. Instantly tag your application variant on mount / config adjustments
     const currentVariant =
       theme.headerLogo === "logo_littlewicket" ? "littlewicket" : "umpire";
-
     Sentry.setTag("app_variant", currentVariant);
 
-    // 2. Keep your existing Firebase auth listener
+    // 2. Manage a single global listener reference for the lifecycle of this block
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("✅ Firebase session restored:", user.uid);
-        // Optional: Associate the crash with a user ID (GDPR compliant)
+
+        // Wrap state mutations cleanly to prevent context evaluation race conditions
+        useAuthModalStore.getState().setUser(user);
         Sentry.setUser({ id: user.uid });
       } else {
         console.log("👤 No logged in user");
-        Sentry.setUser(null); // Clear user on logout
+
+        useAuthModalStore.getState().setUser(null);
+        Sentry.setUser(null);
       }
     });
 
     return unsub;
-  }, [theme.headerLogo]); // Run when theme logo changes
+  }, [theme.headerLogo]); // Safely track and update when the theme configuration resolves
 
   return (
     <>
@@ -245,7 +234,7 @@ function DrawerContent() {
                   {
                     borderTopWidth: StyleSheet.hairlineWidth,
                     borderTopColor: isDark ? "#333" : "#eee",
-                    pt: 15,
+                    paddingTop: 15,
                   },
                 ]}
               >

@@ -46,7 +46,9 @@ export default function BallReminderSettings(props: Props = {}) {
       {ballReminderEnabled && (
         <>
           <View style={styles.inputRow}>
-            <Text style={styles.label}>Threshold</Text>
+            <Text style={styles.label}>Ball reminder Threshold</Text>
+          </View>
+          <View style={styles.inputRow}>
             <TextInput
               keyboardType="numeric"
               value={String(ballReminderThresholdPercent)}

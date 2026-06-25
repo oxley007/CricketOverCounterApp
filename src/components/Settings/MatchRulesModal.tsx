@@ -13,7 +13,7 @@ import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useFixtureStore } from "../../state/fixtureStore";
 import { useStartModalStore } from "../../state/startModalStore";
-import WicketsNegativeInfo from "./WicketsNegativeInfo";
+//import WicketsNegativeInfo from "./WicketsNegativeInfo";
 import { updatebaseRunsData } from "@/src/services/firestoreService";
 
 export default function MatchRulesModal({
@@ -79,14 +79,25 @@ export default function MatchRulesModal({
         <View style={styles.overlay}>
           <View style={styles.container}>
             <Text style={styles.title}>Match Rules</Text>
+            <Pressable
+              style={styles.button}
+              onPress={() => {
+                // 🚀 3. Push the data to Firestore before closing
+                updatebaseRunsData(teamId, baseRuns);
+                onClose();
+              }}
+            >
+              <Text style={styles.buttonText}>Skip Match Rules</Text>
+            </Pressable>
+            <Text style={styles.buttonTextSkip}>
+              Skip for a quick start. You can change match rules anytime using
+              the settings cog.
+            </Text>
             <ScrollView
               style={styles.scrollContent}
               contentContainerStyle={{ paddingBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {/* ✅ Show info when setting is enabled */}
-              {wicketsAsNegativeRuns && <WicketsNegativeInfo />}
-
               {/* 👇 CONTENT COMES FROM PARENT */}
               <View style={styles.content}>{children}</View>
             </ScrollView>
@@ -138,10 +149,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+  buttonSkip: {
+    marginTop: 16,
+    backgroundColor: "#1e88e5",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginHorizontal: 10,
+  },
   buttonText: {
     color: "#fff",
     fontWeight: "600",
     fontSize: 16,
+  },
+  buttonTextSkip: {
+    color: "#333",
+    fontWeight: "600",
+    fontSize: 16,
+    paddingVertical: 10,
   },
   scrollContent: {
     maxHeight: "70%", // ensures scrolling before it grows too big
