@@ -114,9 +114,9 @@ export function useBallReminder(enabled: boolean = true) {
   }, [events, enabled]);
 
   const averageBallTime =
-    deliveryIntervals.length > 0
+    deliveryIntervals.length > 1
       ? deliveryIntervals.reduce((a, b) => a + b, 0) / deliveryIntervals.length
-      : 30;
+      : 60;
 
   const thresholdSeconds = Math.round(
     averageBallTime * (thresholdPercent / 100),

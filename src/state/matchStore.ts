@@ -415,10 +415,12 @@ export const matchStoreRef = create<MatchState>()(
           const lastEvent = state.events[state.events.length - 1];
 
           // 🚫 Block wicket undo
+          /*
           if (lastEvent.type === "wicket") {
             Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
             return state;
           }
+            */
 
           const updatedEvents = state.events.slice(0, -1);
           const gameStore = useGameStore.getState();

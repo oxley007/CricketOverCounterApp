@@ -12,6 +12,7 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -50,6 +51,7 @@ const PlayerRowItem = React.memo(
     player,
     selected,
     isRetired,
+    isUpdating,
     isEditing,
     editedName,
     setEditedName,
@@ -63,6 +65,7 @@ const PlayerRowItem = React.memo(
     selected: boolean;
     isRetired: boolean;
     isEditing: boolean;
+    isUpdating: boolean;
     editedName: string;
     setEditedName: (text: string) => void;
     onToggle: (id: string) => void;
@@ -107,6 +110,31 @@ const PlayerRowItem = React.memo(
                   {isRetired ? " — retired (tap to continue innings)" : ""}
                 </Text>
               </Pressable>
+
+              {isUpdating && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 4,
+                  }}
+                >
+                  <ActivityIndicator
+                    size="small"
+                    color={selected ? "#fff" : "#12c2e9"}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={{
+                      color: selected ? "#e0e0e0" : "#64748b",
+                      fontSize: 12,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Updating scorecard...
+                  </Text>
+                </View>
+              )}
 
               {player.teamId && (
                 <Pressable
@@ -164,6 +192,7 @@ export default function SelectPlayersModal({
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [loadingPlayerId, setLoadingPlayerId] = useState<string | null>(null);
   /*const [selectedIds, setSelectedIds] = useState<string[]>(
     parentSelectedIds ?? [],
   );*/
@@ -186,133 +215,142 @@ export default function SelectPlayersModal({
   }, [visible, parentSelectedIds]);
   */
 
-  // 🌟 FIX 2: Business logic fully cleaned up, flattened, and optimized
-  const togglePlayer = (playerId: string) => {
-    // 🌟 Use incoming parent prop instead of old local state
-    const currentSelectedIds = parentSelectedIds ?? [];
+  // 2. Wrap your existing togglePlayer logic to set the loading state
+  const togglePlayer = async (playerId: string) => {
+    setLoadingPlayerId(playerId);
 
-    if (pickerType === "bowler") {
-      const next = [playerId];
-      onSelectionChange(next);
-      useGameStore.getState().updateLastBowlerId(null);
-      return;
-    }
+    // Small delay ensures UI gets a chance to render the spinner before blocking the thread
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    const gameStore = useGameStore.getState();
-    const game = gameStore.currentGame;
-    if (!game || pickerType !== "batter") return;
+    try {
+      // === YOUR ORIGINAL CODE STARTS HERE ===
+      const currentSelectedIds = parentSelectedIds ?? [];
 
-    // Resolve require once cleanly at calculation boundary
-    const matchStore =
-      require("../../state/matchStore").useMatchStore.getState();
-    const events = matchStore.events ?? [];
+      if (pickerType === "bowler") {
+        const next = [playerId];
+        onSelectionChange(next);
+        useGameStore.getState().updateLastBowlerId(null);
+        return;
+      }
 
-    // 🌟 FIX A: Safely get the first element [0] from the sorted results
-    const sortedEntries = game.battingEntries
-      .filter((e) => e.playerId === playerId)
-      .sort((a, b) => (b.inningsNumber || 0) - (a.inningsNumber || 0));
+      const gameStore = useGameStore.getState();
+      const game = gameStore.currentGame;
+      if (!game || pickerType !== "batter") return;
 
-    const playerEntry = sortedEntries[0] || null;
-    const batterInningId = playerEntry?.entryId;
+      const matchStore =
+        require("../../state/matchStore").useMatchStore.getState();
+      const events = matchStore.events ?? [];
 
-    const ballsFaced = batterInningId
-      ? events.filter(
-          (ev) => ev.batterInningId === batterInningId && ev.countsAsBall,
-        ).length
-      : 0;
-    const isSelected = game.activeBatters.some((b) => b.playerId === playerId);
+      const sortedEntries = game.battingEntries
+        .filter((e) => e.playerId === playerId)
+        .sort((a, b) => (b.inningsNumber || 0) - (a.inningsNumber || 0));
 
-    let nextSelected = [...currentSelectedIds];
-    let newActiveBatters = [...game.activeBatters];
-    const entryId =
-      playerEntry?.entryId ||
-      game.activeBatters.find((b) => b.playerId === playerId)?.batterInningId;
+      const playerEntry = sortedEntries[0] || null;
+      const batterInningId = playerEntry?.entryId;
 
-    if (isSelected && ballsFaced === 0 && entryId) {
-      nextSelected = nextSelected.filter((id) => id !== playerId);
-      newActiveBatters = newActiveBatters.filter(
-        (b) => b.playerId !== playerId,
-      );
-      const newBattingEntries = game.battingEntries.filter(
-        (e) => !(e.playerId === playerId && e.entryId === entryId),
-      );
-
-      gameStore.updateCurrentGame({
-        ...game,
-        activeBatters: newActiveBatters,
-        battingEntries: newBattingEntries,
-      });
-    } else if (
-      selectionMode === "single" &&
-      game.activeBatters.length >= effectiveMax
-    ) {
-      const existing = game.activeBatters[0];
-      const updatedBatters = game.activeBatters.filter(
-        (b) => b.playerId !== existing.playerId,
-      );
-
-      gameStore.updateCurrentGame({
-        ...game,
-        activeBatters: updatedBatters,
-      });
-      nextSelected = [playerId];
-    } else if (!isSelected) {
-      nextSelected = [...currentSelectedIds, playerId];
-      const retiredBatter = game.activeRetired?.find(
+      const ballsFaced = batterInningId
+        ? events.filter(
+            (ev) => ev.batterInningId === batterInningId && ev.countsAsBall,
+          ).length
+        : 0;
+      const isSelected = game.activeBatters.some(
         (b) => b.playerId === playerId,
       );
 
-      if (retiredBatter) {
-        matchStore.removeEventByPredicate?.((event: any) => {
-          return (
-            event.type === "wicket" &&
-            event.kind === "retired" &&
-            event.batterInningId === retiredBatter.batterInningId
-          );
-        });
+      let nextSelected = [...currentSelectedIds];
+      let newActiveBatters = [...game.activeBatters];
+      const entryId =
+        playerEntry?.entryId ||
+        game.activeBatters.find((b) => b.playerId === playerId)?.batterInningId;
 
-        newActiveBatters = [...game.activeBatters, retiredBatter];
-        gameStore.updateCurrentGame({
-          ...game,
-          activeBatters: newActiveBatters,
-          activeRetired: game.activeRetired.filter(
-            (b) => b.playerId !== playerId,
-          ),
-        });
-      } else {
-        const newEntryId = `${playerId}-${Date.now()}`;
-        const newEntry = {
-          entryId: newEntryId,
-          playerId: playerId,
-          inningsNumber:
-            (game.battingEntries.filter((e) => e.playerId === playerId)
-              .length || 0) + 1,
-          battingOrder: (game.battingEntries.length || 0) + 1,
-          runs: 0,
-          balls: 0,
-        };
-
-        newActiveBatters = [
-          ...game.activeBatters,
-          { playerId, batterInningId: newEntryId },
-        ];
-        const isFirstBatter = game.activeBatters.length === 0;
+      if (isSelected && ballsFaced === 0 && entryId) {
+        nextSelected = nextSelected.filter((id) => id !== playerId);
+        newActiveBatters = newActiveBatters.filter(
+          (b) => b.playerId !== playerId,
+        );
+        const newBattingEntries = game.battingEntries.filter(
+          (e) => !(e.playerId === playerId && e.entryId === entryId),
+        );
 
         gameStore.updateCurrentGame({
           ...game,
           activeBatters: newActiveBatters,
-          battingEntries: [...game.battingEntries, newEntry],
-          currentEntryId: newEntryId,
-          currentStrikeId: isFirstBatter
-            ? playerId
-            : (game.currentStrikeId ?? newActiveBatters[0]?.playerId),
+          battingEntries: newBattingEntries,
         });
+      } else if (
+        selectionMode === "single" &&
+        game.activeBatters.length >= effectiveMax
+      ) {
+        const existing = game.activeBatters[0];
+        const updatedBatters = game.activeBatters.filter(
+          (b) => b.playerId !== existing.playerId,
+        );
+
+        gameStore.updateCurrentGame({
+          ...game,
+          activeBatters: updatedBatters,
+        });
+        nextSelected = [playerId];
+      } else if (!isSelected) {
+        nextSelected = [...currentSelectedIds, playerId];
+        const retiredBatter = game.activeRetired?.find(
+          (b) => b.playerId === playerId,
+        );
+
+        if (retiredBatter) {
+          matchStore.removeEventByPredicate?.((event: any) => {
+            return (
+              event.type === "wicket" &&
+              event.kind === "retired" &&
+              event.batterInningId === retiredBatter.batterInningId
+            );
+          });
+
+          newActiveBatters = [...game.activeBatters, retiredBatter];
+          gameStore.updateCurrentGame({
+            ...game,
+            activeBatters: newActiveBatters,
+            activeRetired: game.activeRetired.filter(
+              (b) => b.playerId !== playerId,
+            ),
+          });
+        } else {
+          const newEntryId = `${playerId}-${Date.now()}`;
+          const newEntry = {
+            entryId: newEntryId,
+            playerId: playerId,
+            inningsNumber:
+              (game.battingEntries.filter((e) => e.playerId === playerId)
+                .length || 0) + 1,
+            battingOrder: (game.battingEntries.length || 0) + 1,
+            runs: 0,
+            balls: 0,
+          };
+
+          newActiveBatters = [
+            ...game.activeBatters,
+            { playerId, batterInningId: newEntryId },
+          ];
+          const isFirstBatter = game.activeBatters.length === 0;
+
+          gameStore.updateCurrentGame({
+            ...game,
+            activeBatters: newActiveBatters,
+            battingEntries: [...game.battingEntries, newEntry],
+            currentEntryId: newEntryId,
+            currentStrikeId: isFirstBatter
+              ? playerId
+              : (game.currentStrikeId ?? newActiveBatters[0]?.playerId),
+          });
+        }
       }
-    }
 
-    // Direct synchronization using unified active arrays
-    const unifiedSelection = newActiveBatters.map((b) => b.playerId);
-    onSelectionChange(unifiedSelection);
+      const unifiedSelection = newActiveBatters.map((b) => b.playerId);
+      onSelectionChange(unifiedSelection);
+      // === YOUR ORIGINAL CODE ENDS HERE ===
+    } finally {
+      setLoadingPlayerId(null);
+    }
   };
 
   const filteredPlayers = useMemo(() => {
@@ -394,6 +432,7 @@ export default function SelectPlayersModal({
                     selected={isSelected}
                     isRetired={isRetired}
                     isEditing={editingPlayerId === player.id}
+                    isUpdating={loadingPlayerId === player.id}
                     editedName={editedName}
                     setEditedName={setEditedName}
                     onToggle={togglePlayer}

@@ -3,10 +3,13 @@ import { useGameStore } from "../state/gameStore";
 import { useMatchStore } from "../state/matchStore";
 import { buildCurrentOverCircles } from "../utils/currentOverUtils";
 import { useFeedback } from "../hooks/useFeedback";
+import { useStartModalStore } from "@/state/startModalStore";
 
 export function useUndoAction() {
   const undoLastEvent = useMatchStore((s) => s.undoLastEvent);
   const wideIsExtraBall = useMatchStore((s) => s.wideIsExtraBall);
+  const selectedMode = useStartModalStore((s) => s.selectedMode);
+  const isScorebook = selectedMode === "scorebook";
   const triggerTap = useFeedback().triggerTap;
 
   return () => {
@@ -17,8 +20,13 @@ export function useUndoAction() {
 
     const lastEvent = events[events.length - 1];
 
-    if (lastEvent.type === "wicket") {
-      Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
+    console.log(isScorebook, "isScorebook is what here?");
+
+    if (isScorebook && lastEvent.type === "wicket") {
+      Alert.alert(
+        "Undo Not Allowed",
+        "You cannot undo after a wicket in Scorebook mode...",
+      );
       return;
     }
 

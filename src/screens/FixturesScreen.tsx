@@ -204,6 +204,10 @@ export default function FixturesScreen() {
         })
         // 👇 Re-added the sort logic here
         .sort((a, b) => (b.date ?? 0) - (a.date ?? 0))
+        .map((f) => {
+          console.log("Fixture item:", f);
+          return f;
+        })
     );
   }, [fixtures, selectedTeamId, selectedSeason]);
 
@@ -312,19 +316,24 @@ export default function FixturesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item, index }) => {
-            const innings = Object.values(item.innings || {});
+            // Safe normalisation for innings since data shows it can be an Object OR an Array
+            const innings: any[] = Object.values(item.innings || {});
 
-            // Explicit condition matching your business logic
+            // 1️⃣ ORIGINAL PRO LOGIC PRESERVED: Only index 0 is free, others require pro
             const isFreeFixture = index === 0;
             const isUnlocked = isFreeFixture || isLiveProUnlocked;
 
-            // Check if match is incomplete / placeholder style
-            if (item.status === "Incomplete") {
+            // Check if match is incomplete / placeholder style using your actual raw data keys
+            const isIncomplete = !item.completed;
+
+            if (isIncomplete) {
               return (
                 <View style={styles.incompleteCard}>
                   <View style={styles.mb4}>
                     <Text style={styles.dateText}>
-                      {item.date || "12/06/2026"}
+                      {item.date
+                        ? new Date(item.date).toLocaleDateString("en-GB")
+                        : "12/06/2026"}
                     </Text>
                   </View>
                   {/* Animated pulse layout placeholder */}
@@ -333,11 +342,14 @@ export default function FixturesScreen() {
               );
             }
 
-            // Determine if it is a Pro Locked view
-            // If it's a ball counter fixture OR if the user doesn't have access to this paid card
-            const isBallCounterFixture = innings.every(
-              (i: any) => !i.battingEntries || i.battingEntries.length === 0,
-            );
+            // 2️⃣ BALL COUNTER LOGIC FIXED: Check if any innings records contain valid batting entries
+            const isBallCounterFixture =
+              innings.length > 0 &&
+              innings.every(
+                (i: any) => !i.battingEntries || i.battingEntries.length === 0,
+              );
+
+            // 3️⃣ ORIGINAL PRO LOGIC PRESERVED: Determine if it is a Pro Locked view
             const isLocked =
               !isUnlocked && !proScorebookUnlocked && !proUnlocked;
 
@@ -351,7 +363,9 @@ export default function FixturesScreen() {
 
                   <View style={[styles.flexRowJustify, styles.mb4]}>
                     <Text style={styles.dateText}>
-                      {item.date || "15/06/2026"}
+                      {item.date
+                        ? new Date(item.date).toLocaleDateString("en-GB")
+                        : "15/06/2026"}
                     </Text>
                   </View>
 
@@ -362,7 +376,7 @@ export default function FixturesScreen() {
                       styles.mb6,
                     ]}
                   >
-                    vs {item.awayTeamName || "Andrew UI Away"}
+                    vs {item.oppositionTeam?.name}
                   </Text>
 
                   <View style={styles.zIndex10}>
@@ -394,6 +408,19 @@ export default function FixturesScreen() {
               );
             }
 
+            // --- DATA PARSING FOR STANDARD LAYOUT ---
+            const getTeamSummary = (teamId: string) => {
+              const teamInnings = innings.find(
+                (i: any) => i.battingTeamId === teamId,
+              );
+              if (!teamInnings) return "DNB";
+              return `${teamInnings.totalRuns || 0}/${teamInnings.totalWickets || 0}`;
+            };
+
+            const homeSummary = getTeamSummary(item.yourTeam?.id);
+            const awaySummary = getTeamSummary(item.oppositionTeam?.id);
+            const resultMargin = item.result?.margin || "No Result";
+
             // Standard Free / Unlocked Card Layout
             return (
               <Pressable
@@ -406,6 +433,9 @@ export default function FixturesScreen() {
                     setShowSubscriptionModal(true);
                     return;
                   }
+                  // Do not open modal if it is a basic ball counter match
+                  if (isBallCounterFixture) return;
+
                   useFixtureStore.setState({ currentFixture: item });
                   setSelectedFixture(item);
                   setModalVisible(true);
@@ -414,7 +444,9 @@ export default function FixturesScreen() {
                 {/* Card Header */}
                 <View style={[styles.flexRowJustify, styles.mb4]}>
                   <Text style={styles.dateText}>
-                    {item.date || "15/06/2026"}
+                    {item.date
+                      ? new Date(item.date).toLocaleDateString("en-GB")
+                      : "15/06/2026"}
                   </Text>
                   <View style={styles.completedBadge}>
                     <Text style={styles.completedBadgeText}>COMPLETED</Text>
@@ -429,41 +461,52 @@ export default function FixturesScreen() {
                     styles.mb4,
                   ]}
                 >
-                  vs {item.awayTeamName || "Andrew UI Away"}
+                  vs {item.oppositionTeam?.name}
                 </Text>
 
-                {/* Innings Scores Rows */}
+                {/* 👇 New Addition: Shows a simple label if it is a Ball Counter game */}
+                {isBallCounterFixture && (
+                  <View
+                    style={[
+                      styles.capsBadge,
+                      styles.mb4,
+                      { alignSelf: "flex-start" },
+                    ]}
+                  >
+                    <Text style={styles.capsBadgeText}>BALL COUNTER MATCH</Text>
+                  </View>
+                )}
+
+                {/* Innings Scores Rows mapped cleanly from raw schema */}
                 <View style={styles.mb4}>
                   <View style={[styles.flexRowJustify, styles.py1]}>
                     <Text style={styles.textOnSurface}>
-                      {item.homeTeamName || "Andrew UI Home"}
+                      {item.yourTeam?.name || "Your Team"}
                     </Text>
-                    <Text style={styles.scoreTextWhite}>
-                      {item.homeScore || "20/2"}
-                    </Text>
+                    <Text style={styles.scoreTextWhite}>{homeSummary}</Text>
                   </View>
                   <View style={[styles.flexRowJustify, styles.py1]}>
                     <Text style={styles.textOnSurfaceVariant}>
-                      {item.awayTeamName || "Andrew UI Away"}
+                      {item.oppositionTeam?.name || "Opposition Team"}
                     </Text>
-                    <Text style={styles.scoreTextSurface}>
-                      {item.awayScore || "22/2"}
-                    </Text>
+                    <Text style={styles.scoreTextSurface}>{awaySummary}</Text>
                   </View>
                 </View>
 
                 {/* Dynamic Margin Alert Banner */}
                 <View style={styles.resultBanner}>
-                  <Text style={styles.resultBannerText}>
-                    {item.resultString || "Andrew UI Away won by 8 wickets"}
-                  </Text>
+                  <Text style={styles.resultBannerText}>{resultMargin}</Text>
                 </View>
 
-                {/* Footer Interaction Notice */}
-                <View style={styles.tapNoticeContainer}>
-                  <Text style={styles.tapNoticeIcon}>👆</Text>
-                  <Text style={styles.tapNoticeText}>(Tap for Scorecard)</Text>
-                </View>
+                {/* Conditional Notice: Hidden if it is a ball counter match */}
+                {!isBallCounterFixture && (
+                  <View style={styles.tapNoticeContainer}>
+                    <Text style={styles.tapNoticeIcon}>👆</Text>
+                    <Text style={styles.tapNoticeText}>
+                      (Tap for Scorecard)
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             );
           }}

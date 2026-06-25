@@ -48,7 +48,7 @@ describe("useBallReminder Custom Hook", () => {
 
     expect(result.current.timeSinceLastBall).toBe(0);
     expect(result.current.formattedTime).toBe("0:00");
-    expect(result.current.averageBallTime).toBe(30);
+    expect(result.current.averageBallTime).toBe(60);
     expect(result.current.paused).toBe(false);
   });
 

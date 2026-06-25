@@ -76,7 +76,7 @@ export default function RootLayout() {
           flex: 1,
           width: "100%",
           height: "100%",
-          backgroundColor: "#12c2e9",
+          backgroundColor: "#0b1326",
           justifyContent: "center",
           alignItems: "center",
         }}

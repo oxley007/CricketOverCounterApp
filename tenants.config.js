@@ -2,16 +2,17 @@
 module.exports = {
   umpire: {
     name: "Umpire 4dot6 Ball Counter",
+    displayName: "Cricket4dot6",
     bundleId: "com.4dot6.cricketballandovercounter",
     package: "com.cricketovercounterapp",
     scheme: "com.4dot6.cricketballandovercounter",
     color: "#12c2e9",
-    splashColor: "#12c2e9",
+    splashColor: "#0b1326",
     icon: "./assets/images/splash-icon-4dot6.png",
     iosIcon: "./assets/ios-icon.png",
-    androidIcon: "./assets/ic_launcher_round.png",
+    androidIcon: "./assets/android-foreground-umpire.png",
     splash: "./assets/images/splash-icon-4dot6.png",
-    splashAndroid: "./assets/ic_launcher_round.png",
+    splashAndroid: "./assets/android-splash-umpire.png",
     googleIos: "./config/umpire/GoogleService-Info.plist",
     googleAndroid: "./config/umpire/google-services.json",
     // --- UI & THEME STRATEGY ---
@@ -72,6 +73,7 @@ module.exports = {
   },
   littlewicket: {
     name: "LittleWicket Cricket Scorebook",
+    displayName: "LittleWicket",
     bundleId: "com.fourdootsix.cricketscorebookbyc",
     package: "com.cricketscorebookbyc",
     scheme: "com.fourdootsix.cricketscorebookbyc",
@@ -79,9 +81,8 @@ module.exports = {
     splashColor: "#ffffff",
     icon: "./assets/ios-icon-littlewicket.png",
     iosIcon: "./assets/ios-icon-littlewicket.png",
-    androidIcon: "./assets/ic_launcher_round_littlewicket.png",
-    splash: "./assets/images/splash-littlewicket.png",
-    splashAndroid: "./assets/ic_launcher_round_littlewicket.png",
+    androidIcon: "./assets/android-foreground-littlewicket.png",
+    splashAndroid: "./assets/android-splash-littlewicket.png",
     googleIos: "./config/littlewicket/GoogleService-Info.plist",
     googleAndroid: "./config/littlewicket/google-services.json",
     // --- UI & THEME STRATEGY ---
