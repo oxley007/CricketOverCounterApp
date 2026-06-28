@@ -49,13 +49,14 @@ export default function PlayerStatsModal({
         console.log("✅ RevenueCat says Scorebook is:", isScorebookActive);
 
         // DIRECT STORE UPDATE (Bypasses setter functions to rule out naming bugs)
-        useMatchStore.setState({ proScorebookUnlocked: isScorebookActive });
+        //useMatchStore.setState({ proScorebookUnlocked: isScorebookActive });
+        useMatchStore.getState().setProUnlockedScorebook(isScorebookActive);
 
         // LOG THE STORE STATE IMMEDIATELY AFTER
         const currentState = useMatchStore.getState();
         console.log("📦 Store State now:", {
           proUnlocked: currentState.proUnlocked,
-          proScorebookUnlocked: currentState.proScorebookUnlocked,
+          proScorebookUnlocked: currentState.proUnlockedScorebook,
         });
       } catch (error) {
         console.error("Fetch error:", error);
@@ -73,6 +74,13 @@ export default function PlayerStatsModal({
   // 🚀 Read individual and coach live streaming tiers from the live store
   const livePro = useLiveStore((s) => s.livePro);
   const liveProViewer = useLiveStore((s) => s.liveProViewer);
+
+  console.log("Unlock check", {
+    scorebookProUnlocked,
+    ballProUnlocked,
+    livePro,
+    liveProViewer,
+  });
 
   // 🚀 Logic: Stats reveal if Scorebook Pro is active OR if either live stream tier is true
   const proUnlocked =

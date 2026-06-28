@@ -25,7 +25,7 @@ import { useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useStartModalStore } from "../../state/startModalStore";
-import { useAuthModalStore } from "@/state/authModalStore";
+import { useAuthModalStore } from "../../state/authModalStore";
 import { resetGuestIfNeeded } from "../../utils/authHelpers";
 import { useTenantConfig } from "../../hooks/useTenantConfig";
 import { APP_LOGOS } from "../../constants/Assets";
@@ -57,13 +57,13 @@ function DrawerLayout() {
       if (user) {
         console.log("✅ Firebase session restored:", user.uid);
 
-        // Wrap state mutations cleanly to prevent context evaluation race conditions
-        useAuthModalStore.getState().setUser(user);
+        // Using ?. ensures that if the store instance is resolving, it won't crash the engine
+        useAuthModalStore.getState().setUser?.(user);
         Sentry.setUser({ id: user.uid });
       } else {
         console.log("👤 No logged in user");
 
-        useAuthModalStore.getState().setUser(null);
+        useAuthModalStore.getState().setUser?.(null);
         Sentry.setUser(null);
       }
     });

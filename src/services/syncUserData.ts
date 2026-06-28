@@ -20,7 +20,16 @@ export async function syncUserData() {
     // 1️⃣ Load remote data
     const remoteFixtures: Fixture[] = await loadFixtures();
     const remoteTeams: Team[] = await loadTeams();
-    const proUnlocked = await loadUserSubscription();
+    //const proUnlocked = await loadUserSubscription();
+    const subscription = await loadUserSubscription();
+
+    if (matchStore.proUnlocked !== subscription.ballPro) {
+      matchStore.setProUnlocked(subscription.ballPro);
+    }
+
+    if (matchStore.proUnlockedScorebook !== subscription.scorebookPro) {
+      matchStore.setProUnlockedScorebook(subscription.scorebookPro);
+    }
     const currentSeason = await loadSeason();
 
     // 2️⃣ Merge

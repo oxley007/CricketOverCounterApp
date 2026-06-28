@@ -190,6 +190,14 @@ export const matchStoreRef = create<MatchState>()(
       // Actions
       // -------------------------
       addEvent: (event) => {
+        // 👇 LOG 1: INPUT CHECK
+        console.log("=== 📥 addEvent Input ===", {
+          type: event.type,
+          kind: (event as any).kind,
+          runs: event.runs,
+          runBreakdown: event.runBreakdown,
+          isExtra: event.isExtra,
+        });
         const { wideIsExtraBall, wicketsAsNegativeRuns, wicketPenaltyRuns } =
           get();
 
@@ -241,6 +249,9 @@ export const matchStoreRef = create<MatchState>()(
         }
         */
 
+        // 👇 LOG 2: AFTER RUNBREAKDOWN CHECK
+        console.log("=== 🔢 After Breakdown Check ===", { batRuns, extraRuns });
+
         if (wicketsAsNegativeRuns) {
           const isNegativeWicket =
             event.type === "wicket" &&
@@ -251,6 +262,12 @@ export const matchStoreRef = create<MatchState>()(
             batRuns = -wicketPenaltyRuns;
           }
         }
+
+        // 👇 LOG 3: AFTER NEGATIVE WICKETS CHECK
+        console.log("=== 🛑 After Negative Wickets ===", {
+          batRuns,
+          wicketsAsNegativeRuns,
+        });
 
         if (
           event.type === "ball" &&
@@ -263,6 +280,14 @@ export const matchStoreRef = create<MatchState>()(
         ) {
           batRuns = Math.max(0, event.runs - extraRuns);
         }
+
+        // 👇 LOG 4: FINAL CALCULATION
+        console.log("=== 🧮 Pre-Snapshot Calculations ===", {
+          event_type: event.type,
+          batRuns,
+          extraRuns,
+          totalRuns: batRuns + extraRuns,
+        });
 
         const totalRuns = batRuns + extraRuns;
         const generateId = () => Math.random().toString(36).substring(2, 12);
@@ -283,6 +308,9 @@ export const matchStoreRef = create<MatchState>()(
             gameSnapshot?.activeBatters[0]?.playerId,
           ...(event.type === "wicket" && { kind: (event as WicketEvent).kind }),
         } as MatchEvent;
+
+        // 👇 LOG 5: OUTPUT OBJECT
+        console.log("=== 📤 Final Event Object ===", newEvent);
 
         set((state) => ({ events: [...state.events, newEvent] }));
 
@@ -415,12 +443,10 @@ export const matchStoreRef = create<MatchState>()(
           const lastEvent = state.events[state.events.length - 1];
 
           // 🚫 Block wicket undo
-          /*
           if (lastEvent.type === "wicket") {
             Alert.alert("Undo Not Allowed", "You cannot undo after a wicket.");
             return state;
           }
-            */
 
           const updatedEvents = state.events.slice(0, -1);
           const gameStore = useGameStore.getState();

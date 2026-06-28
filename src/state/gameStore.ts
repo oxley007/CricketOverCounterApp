@@ -67,6 +67,8 @@ export type CurrentGame = {
 
   currentStrikeId?: string;
 
+  originalStrikerId?: string;
+
   totalRuns: number;
   totalBalls: number;
   ballsThisOver: number;
@@ -137,6 +139,9 @@ interface GameState {
   setStrike: (playerId: string) => void;
 
   setBowlingTeam: (bowlingTeamId: string) => void;
+
+  setOriginalStrikerId: (playerId?: string) => void;
+
   addBowler: (playerId: string) => void;
   setCurrentBowler: (playerId: string) => void;
   updateBowlerStats: (
@@ -351,6 +356,16 @@ export const useGameStore = create<GameState>()(
             ? { currentGame: { ...state.currentGame, bowlingTeamId } }
             : state,
         ),
+
+      setOriginalStrikerId: (playerId) =>
+        set((state) => ({
+          currentGame: state.currentGame
+            ? {
+                ...state.currentGame,
+                originalStrikerId: playerId,
+              }
+            : undefined,
+        })),
 
       addBowler: (playerId) =>
         set((state) => {

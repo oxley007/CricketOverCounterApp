@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { router, Href } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   Image,
@@ -29,6 +29,8 @@ import { APP_LOGOS } from "../../constants/Assets";
 import { useLiveStore } from "@/src/state/liveStore";
 import { SVG_ASSETS } from "@/src/constants/Assets";
 import Cricket from "../../assets/svg/cricket.svg";
+import { auth } from "../../services/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
 
 type AppLogoKey = keyof typeof APP_LOGOS;
 
@@ -38,7 +40,8 @@ export default function StartModeModal() {
   const selectBallCounter = useStartModalStore((s) => s.selectBallCounter);
   const selectScorebook = useStartModalStore((s) => s.selectScorebook);
   const closeStartModal = useStartModalStore((s) => s.close);
-  const user = useAuthModalStore((s) => s.user);
+  //const user = useAuthModalStore((s) => s.user);
+  const user = auth.currentUser;
   const authModalOpen = useAuthModalStore((s) => s.isOpen);
   const openAuthModal = useAuthModalStore((s) => s.open);
   const hasSeenPrompt = useJuniorPromptStore((s) => s.hasSeenPrompt);
@@ -47,6 +50,7 @@ export default function StartModeModal() {
   const setReadOnly = useLiveStore.getState().setReadOnly;
 
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
   const fixtures = useFixtureStore((s) => s.fixtures, shallow);
@@ -61,6 +65,13 @@ export default function StartModeModal() {
   const logoSource = APP_LOGOS[theme.headerLogo as keyof typeof APP_LOGOS];
   const bgKey = theme.backgroundImage as keyof typeof APP_LOGOS | null;
   const bgSource = bgKey ? APP_LOGOS[bgKey] : null;
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleStart = (type: string) => {
     if (!hasSeenPrompt && features.showJuniorPrompt) {
@@ -307,7 +318,7 @@ export default function StartModeModal() {
                     </View>
 
                     {/* 2. Wrap your login button to only render if 'user' is null */}
-                    {!user && (
+                    {!currentUser && (
                       <>
                         <View
                           style={[
