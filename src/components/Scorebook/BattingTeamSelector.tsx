@@ -54,11 +54,11 @@ export default function BattingTeamSelector({
         />
 
         <View style={styles.contentContainer}>
-          <Text style={styles.title}>No teams selected</Text>
+          <Text style={styles.title}>Connection Lost!</Text>
 
           <Pressable onPress={handleSetup} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>
-              Select Teams & Setup Game
+              Back Home & Re-Select Game Mode
             </Text>
           </Pressable>
         </View>
