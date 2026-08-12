@@ -17,7 +17,6 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { shallow } from "zustand/shallow";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { useAuthModalStore } from "../../state/authModalStore";
 import { useFixtureStore } from "../../state/fixtureStore";
@@ -30,7 +29,8 @@ import { useLiveStore } from "@/src/state/liveStore";
 import { SVG_ASSETS } from "@/src/constants/Assets";
 import Cricket from "../../assets/svg/cricket.svg";
 import { auth } from "../../services/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
+import { getAllFixtures } from "../../services/sqliteService";
+import { onAuthStateChanged } from "firebase/auth"; // Adjust this path to your sqliteService location
 
 type AppLogoKey = keyof typeof APP_LOGOS;
 
@@ -53,7 +53,25 @@ export default function StartModeModal() {
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
   const clearAllFixtures = useFixtureStore((s) => s.clearAllFixtures);
-  const fixtures = useFixtureStore((s) => s.fixtures, shallow);
+  const fixturesRevision = useFixtureStore((s) => s.fixturesRevision);
+  const [fixturesCount, setFixturesCount] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const loadedFixtures = await getAllFixtures();
+        if (!cancelled) {
+          setFixturesCount(loadedFixtures.length);
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to load fixtures for count check:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fixturesRevision]);
 
   const { theme, modes, features, branding } = useTenantConfig();
   const Watermark = SVG_ASSETS.cricket;
@@ -257,7 +275,7 @@ export default function StartModeModal() {
                 />
 
                 {/* Secondary Utility Controls */}
-                {fixtures.length > 0 && (
+                {fixturesCount > 0 && (
                   <View style={styles.secondarySection}>
                     <Text
                       style={[

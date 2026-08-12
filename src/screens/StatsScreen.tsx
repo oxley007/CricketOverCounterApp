@@ -12,7 +12,10 @@ import {
 } from "react-native";
 import SubscriptionList from "../components/iap/SubscriptionList";
 import PlayerStatsModal from "../components/PlayerStatsModal";
-import { useFixtureStore } from "../state/fixtureStore";
+import { listenAndMergeFixture } from "../services/fixtureSyncService";
+import { getAllFixtures, initDB } from "../services/sqliteService";
+import { Fixture, useFixtureStore } from "../state/fixtureStore";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getSeasonPlayers,
   getSeasonPlayerStats,
@@ -21,13 +24,13 @@ import {
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore, Team } from "../state/teamStore";
 import { useLiveStore } from "../state/liveStore";
-import { listenAndMergeFixture } from "../services/fixtureSyncService";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const { teams } = useTeamStore();
-  const { fixtures } = useFixtureStore();
+  const fixturesRevision = useFixtureStore((s) => s.fixturesRevision);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [fixturesLoading, setFixturesLoading] = useState(true);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -35,6 +38,26 @@ export default function StatsScreen() {
   const [modalType, setModalType] = useState<"player" | "team">("player");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const startModal = useStartModalStore();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await initDB();
+        const loadedFixtures = await getAllFixtures();
+        if (!cancelled) setFixtures(loadedFixtures);
+      } catch (err) {
+        console.warn("⚠️ Failed to load fixtures from SQLite:", err);
+      } finally {
+        if (!cancelled) setFixturesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fixturesRevision]);
 
   useEffect(() => {
     if (!selectedTeamId) return;
@@ -323,9 +346,18 @@ export default function StatsScreen() {
   );
 
   console.log(
-    JSON.stringify(useFixtureStore.getState().fixtures),
+    JSON.stringify(fixtures),
     "fixtures need to check if it has player IDs.",
   );
+
+  if (fixturesLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Season Stats</Text>
+        <Text style={{ color: "#dae2fd" }}>Loading fixtures...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

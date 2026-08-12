@@ -7,6 +7,7 @@ import { useGameStore } from "./gameStore";
 import { useMatchStore } from "./matchStore";
 import { useStartModalStore } from "./startModalStore";
 import { useTeamStore } from "./teamStore";
+import { clearAllFixturesFromDB } from "../services/sqliteService";
 
 export const wipeAllStores = async () => {
   try {
@@ -26,6 +27,8 @@ export const wipeAllStores = async () => {
       "cricket-start-modal",
       "@teams",
     ]);
+
+    await clearAllFixturesFromDB();
 
     // 3️⃣ Clear SecureStore (match events)
     await SecureStore.deleteItemAsync("cricket-match-events");

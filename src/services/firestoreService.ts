@@ -477,23 +477,28 @@ export async function updatePublicTeamProStatus(
  * Saves a fixture snapshot into publicTeams/{teamCode}/fixtures/{fixtureId}
  */
 export async function saveLiveFixture(teamId: string, fixture: any) {
+  if (!teamId) {
+    console.warn("⚠️ Cannot sync live fixture — teamId is undefined or missing");
+    return;
+  }
+
+  const cleanTeamCode = teamId.replace("TEAM-", "").toLowerCase();
+
   if (!isLiveConfigured()) {
     console.log(
       `⚠️ Sync skipped for saveLiveFixture: liveConfigured is false.`,
     );
     return;
   }
-  //const teamCode = `TEAM-${teamId.toUpperCase()}`;
-  const teamCode = getTeamCode(teamId);
 
-  const ref = doc(db, "publicTeams", teamCode, "fixtures", fixture.id);
+  const ref = doc(db, "publicTeams", cleanTeamCode, "fixtures", fixture.id);
 
   await setDoc(ref, {
     ...cleanForFirestore(fixture),
     updatedAt: serverTimestamp(),
   });
 
-  console.log("📡 Live fixture saved:", teamCode, fixture.id);
+  console.log("📡 Live fixture saved:", cleanTeamCode, fixture.id);
 }
 
 export async function deletePublicFixture(teamId: string, fixtureId: string) {
@@ -626,8 +631,39 @@ export async function endFixtureCleanUp(teamCode: string): Promise<void> {
   await deleteDocumentsFromCollection(teamCode, "liveData", nodesToClear);
 }
 
-export const updateLiveData = (teamId: string, data: any) =>
-  writeLiveData(teamId, "currentFixture", data);
+export async function updateLiveData(teamId: string, data: any) {
+  if (!teamId) {
+    console.warn("⚠️ Cannot update live data — teamId is undefined or missing");
+    return;
+  }
+
+  const cleanTeamCode = teamId.replace("TEAM-", "").toLowerCase();
+
+  if (!isLiveConfigured()) {
+    console.log(`⚠️ Sync skipped for currentFixture: liveConfigured is false.`);
+    return;
+  }
+
+  if (!auth.currentUser?.uid) return;
+
+  if (!data || typeof data !== "object") {
+    console.warn("❌ updateLiveData expects an object, got:", data);
+    return;
+  }
+
+  const ref = doc(db, "publicTeams", cleanTeamCode, "liveData", "currentFixture");
+
+  await setDoc(
+    ref,
+    {
+      ...cleanForFirestore(data),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  console.log(`📡 Live data updated (currentFixture):`, cleanTeamCode);
+}
 
 export const updateCurrentGameData = (teamId: string, data: any) =>
   writeLiveData(teamId, "currentGame", data);
@@ -812,19 +848,21 @@ export async function updateSyncControl(
   // 🔐 Prevent logged-out users from hitting Firebase
   if (!auth.currentUser?.uid) return;
 
+  const teamCode = getTeamCode(teamId);
+  const ref = doc(db, "publicTeams", teamCode, "liveData", "syncControl");
+
+  // 1. Calculate valid legal balls bowled to determine current over count
+  const legalBallsCount = events.filter((e) => e.countsAsBall).length;
+  const completedOvers = Math.floor(legalBallsCount / 6);
+  const ballsInOver = legalBallsCount % 6;
+  const overString = `${completedOvers}.${ballsInOver}`; // e.g., 4.2 overs
+
+  // 2. Derive score calculations
+  // (Assuming simple total runs sum; adjust if you track multiple innings)
+  const totalRunsScored = events.reduce((sum, e) => sum + (e.runs || 0), 0);
+
   try {
-    const teamCode = getTeamCode(teamId);
-    const ref = doc(db, "publicTeams", teamCode, "liveData", "syncControl");
-
-    // 1. Calculate valid legal balls bowled to determine current over count
-    const legalBallsCount = events.filter((e) => e.countsAsBall).length;
-    const completedOvers = Math.floor(legalBallsCount / 6);
-    const ballsInOver = legalBallsCount % 6;
-    const overString = `${completedOvers}.${ballsInOver}`; // e.g., 4.2 overs
-
-    // 2. Derive score calculations
-    // (Assuming simple total runs sum; adjust if you track multiple innings)
-    const totalRunsScored = events.reduce((sum, e) => sum + (e.runs || 0), 0);
+    console.log("🔍 ATTEMPTING WRITES TO FIRESTORE PATH:", ref.path);
 
     await setDoc(
       ref,
@@ -843,6 +881,7 @@ export async function updateSyncControl(
     );
   } catch (error) {
     console.error("❌ Failed to update sync control document:", error);
+    return;
   }
 }
 

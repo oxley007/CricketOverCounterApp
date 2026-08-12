@@ -11,6 +11,14 @@ import { useMatchStore, type MatchEvent } from "./matchStore";
 import { useStartModalStore } from "./startModalStore";
 
 import { saveLiveFixture, updateLiveData } from "../services/firestoreService";
+import {
+  clearAllFixturesFromDB,
+  deleteFixtureFromDB,
+  getFixtureById,
+  initDB,
+  saveFixture as saveFixtureToDB,
+  saveMultipleFixtures,
+} from "../services/sqliteService";
 
 /* =========================================================
    Types
@@ -91,6 +99,7 @@ export type Fixture = {
 
 interface FixtureState {
   fixtures: Fixture[];
+  fixturesRevision: number;
 
   currentFixture?: Fixture;
 
@@ -124,7 +133,12 @@ interface FixtureState {
 
 const initialState = {
   fixtures: [],
+  fixturesRevision: 0,
   currentFixture: undefined,
+};
+
+const bumpFixturesRevision = (set: (fn: (state: FixtureState) => Partial<FixtureState>) => void) => {
+  set((state) => ({ fixturesRevision: state.fixturesRevision + 1 }));
 };
 
 /* =========================================================
@@ -135,6 +149,7 @@ export const useFixtureStore = create<FixtureState>()(
   persist(
     (set, get) => ({
       fixtures: [],
+      fixturesRevision: 0,
       currentFixture: undefined,
 
       setCurrentFixture: (fixture) => {
@@ -181,22 +196,27 @@ export const useFixtureStore = create<FixtureState>()(
 
         // ✅ OPTIONAL: create initial live fixture doc
         try {
-          await saveLiveFixture(gameConfig.yourTeam.id, {
+          const teamCode = gameConfig.yourTeam.id
+            .replace("TEAM-", "")
+            .toLowerCase();
+
+          await saveLiveFixture(teamCode, {
             ...newFixture,
             status: "live",
           });
 
           /*
-          await updateLiveData(gameConfig.yourTeam.id, {
+          await updateLiveData(teamCode, {
             fixtureId: newFixture.id,
             mode: selectedMode,
           });
           */
 
-          await updateLiveData(gameConfig.yourTeam.id, {
+          await updateLiveData(teamCode, {
             ...newFixture,
             fixtureId: newFixture.id,
             mode: selectedMode,
+            status: "live",
           });
         } catch (err) {
           console.warn("⚠️ Failed to create live fixture:", err);
@@ -421,10 +441,16 @@ export const useFixtureStore = create<FixtureState>()(
           result,
         };
 
-        set((state) => ({
-          fixtures: [...state.fixtures, updatedFixture],
-          currentFixture: undefined,
-        }));
+        set({ currentFixture: undefined });
+
+        void (async () => {
+          try {
+            await saveFixtureToDB(updatedFixture);
+            bumpFixturesRevision(set);
+          } catch (err) {
+            console.warn("⚠️ Failed to save abandoned fixture to SQLite:", err);
+          }
+        })();
       },
 
       /* ========================
@@ -443,12 +469,16 @@ export const useFixtureStore = create<FixtureState>()(
           result,
         };
 
-        set((state) => ({
-          fixtures: [...state.fixtures, completedFixture],
-          currentFixture: undefined,
-        }));
+        set({ currentFixture: undefined });
 
         console.log("🏁 Fixture completed:", completedFixture.id);
+
+        try {
+          await saveFixtureToDB(completedFixture);
+          bumpFixturesRevision(set);
+        } catch (err) {
+          console.warn("⚠️ Failed to save completed fixture to SQLite:", err);
+        }
 
         // ✅ NEW: save to public live collection
         try {
@@ -465,38 +495,35 @@ export const useFixtureStore = create<FixtureState>()(
 
       upsertFixture: (incoming: Fixture) => {
         set((state) => {
-          // 1. If it's the one we are currently scoring, only update that
           if (state.currentFixture?.id === incoming.id) {
             return { currentFixture: { ...state.currentFixture, ...incoming } };
           }
-
-          // 2. Otherwise, update or add to the history list
-          const index = state.fixtures.findIndex((f) => f.id === incoming.id);
-          if (index > -1) {
-            const updatedFixtures = [...state.fixtures];
-            updatedFixtures[index] = { ...updatedFixtures[index], ...incoming };
-            return { fixtures: updatedFixtures };
-          }
-
-          return { fixtures: [incoming, ...state.fixtures] };
+          return {};
         });
+
+        if (get().currentFixture?.id === incoming.id) return;
+
+        void (async () => {
+          try {
+            const existing = await getFixtureById(incoming.id);
+            const merged = existing ? { ...existing, ...incoming } : incoming;
+            await saveFixtureToDB(merged);
+            bumpFixturesRevision(set);
+          } catch (err) {
+            console.warn("⚠️ Failed to upsert fixture to SQLite:", err);
+          }
+        })();
       },
 
       upsertBulkFixtures: (incomingList) => {
-        set((state) => {
-          // 1. Load up existing items into a quick lookup Map configuration
-          const fixtureMap = new Map(state.fixtures.map((f) => [f.id, f]));
-
-          // 2. Overwrite old elements or append new ones instantly
-          incomingList.forEach((incoming) => {
-            fixtureMap.set(incoming.id, incoming);
-          });
-
-          // 3. Return a clean, brand new array reference wrapper
-          return {
-            fixtures: Array.from(fixtureMap.values()),
-          };
-        });
+        void (async () => {
+          try {
+            await saveMultipleFixtures(incomingList);
+            bumpFixturesRevision(set);
+          } catch (err) {
+            console.warn("⚠️ Failed to bulk upsert fixtures to SQLite:", err);
+          }
+        })();
       },
 
       /* ========================
@@ -516,6 +543,16 @@ export const useFixtureStore = create<FixtureState>()(
           fixtures: [],
           currentFixture: undefined,
         });
+
+        void (async () => {
+          try {
+            await clearAllFixturesFromDB();
+            bumpFixturesRevision(set);
+          } catch (err) {
+            console.warn("⚠️ Failed to clear fixtures from SQLite:", err);
+          }
+        })();
+
         console.log("🧨 All fixtures cleared");
       },
 
@@ -523,10 +560,16 @@ export const useFixtureStore = create<FixtureState>()(
          Delete Fixture
       ======================== */
 
-      deleteFixture: (fixtureId: string) =>
-        set((state) => ({
-          fixtures: state.fixtures.filter((f) => f.id !== fixtureId),
-        })),
+      deleteFixture: (fixtureId: string) => {
+        void (async () => {
+          try {
+            await deleteFixtureFromDB(fixtureId);
+            bumpFixturesRevision(set);
+          } catch (err) {
+            console.warn("⚠️ Failed to delete fixture from SQLite:", err);
+          }
+        })();
+      },
 
       reset: () => set(initialState),
     }),
@@ -553,10 +596,26 @@ export const useFixtureStore = create<FixtureState>()(
               : [],
           };
         }
+
+        void (async () => {
+          try {
+            await initDB();
+
+            if (state.fixtures?.length > 0) {
+              await saveMultipleFixtures(state.fixtures);
+              useFixtureStore.setState({ fixtures: [] });
+              bumpFixturesRevision(useFixtureStore.setState);
+              console.log(
+                `✅ Migrated ${state.fixtures.length} legacy fixtures to SQLite`,
+              );
+            }
+          } catch (err) {
+            console.warn("⚠️ Legacy fixture migration to SQLite failed:", err);
+          }
+        })();
       },
 
       partialize: (state) => ({
-        fixtures: state.fixtures,
         currentFixture: state.currentFixture,
       }),
       version: 1,

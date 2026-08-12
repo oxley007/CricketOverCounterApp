@@ -12,10 +12,11 @@ import {
   ScrollView,
 } from "react-native";
 import { listenAndMergeFixture } from "../services/fixtureSyncService";
+import { getAllFixtures } from "../services/sqliteService";
 
 import FixtureCard from "../components/FixtureCard";
 import SubscriptionList from "../components/iap/SubscriptionList";
-import { useFixtureStore } from "../state/fixtureStore";
+import { Fixture, useFixtureStore } from "../state/fixtureStore";
 import { useMatchStore } from "../state/matchStore";
 import { useStartModalStore } from "../state/startModalStore";
 import { useTeamStore } from "../state/teamStore";
@@ -28,7 +29,30 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function FixturesScreen() {
   const insets = useSafeAreaInsets();
   const { teams } = useTeamStore();
-  const { fixtures } = useFixtureStore();
+  const fixturesRevision = useFixtureStore((s) => s.fixturesRevision);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getAllFixtures();
+        console.log(`📦 SQLite fixtures count: ${data.length}`);
+        if (!cancelled) setFixtures(data);
+      } catch (err) {
+        console.warn(
+          "⚠️ Failed to load fixtures list from SQLite in FixturesScreen:",
+          err,
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fixturesRevision]);
 
   const teamCodesSupporter = useLiveStore((s) => s.teamCodesSupporter);
 
@@ -136,13 +160,11 @@ export default function FixturesScreen() {
 
     // 1. Add your managed teams ONLY if they have active fixtures/stats
     teams.forEach((t) => {
-      const normalizedTeamId = t.id.toLowerCase();
+      const normalizedTeamId = normalize(t.id);
 
-      // Check if this team exists in your fixtures/stats data
       const hasFixtures = fixtures.some(
         (f) =>
-          (f.yourTeam?.id || f.yourTeamId || "").toLowerCase() ===
-          normalizedTeamId,
+          normalize(f.yourTeam?.id || f.yourTeamId || "") === normalizedTeamId,
       );
 
       // Only add to the list if stats/fixtures exist for it
@@ -316,8 +338,9 @@ export default function FixturesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item, index }) => {
-            // Safe normalisation for innings since data shows it can be an Object OR an Array
-            const innings: any[] = Object.values(item.innings || {});
+            const innings: any[] = Array.isArray(item.innings)
+              ? item.innings
+              : Object.values(item.innings || {});
 
             // 1️⃣ ORIGINAL PRO LOGIC PRESERVED: Only index 0 is free, others require pro
             const isFreeFixture = index === 0;

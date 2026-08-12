@@ -15,13 +15,14 @@ import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { auth } from "../services/firebaseConfig";
 import {
-  saveFixture,
+  saveFixture as saveFixtureToFirestore,
   saveSubscription,
   saveTeamWithPlayers,
   clearLiveEvents,
   saveLiveFixture,
   deletePublicFixture,
 } from "../services/firestoreService";
+import { saveFixture as saveFixtureToDB } from "../services/sqliteService";
 import { useAuthStore } from "../state/authStore";
 import { useFixtureStore, type Fixture } from "../state/fixtureStore";
 import { useGameStore } from "../state/gameStore";
@@ -241,6 +242,8 @@ export default function EndInningsButton({
   const handleEndGame = async () => {
     if (endGameInProgressRef.current) return;
 
+    setSaving(true);
+    useStartModalStore.getState().setIsSaving(true);
     endGameInProgressRef.current = true;
     const wasGuest = useAuthStore.getState().isGuest;
 
@@ -275,34 +278,22 @@ export default function EndInningsButton({
       completedFixture.result = calculateFixtureResult(completedFixture);
       completedFixture.completed = true;
 
-      // 5️⃣ SAVE TO FIRESTORE + update local store safely
+      // 5️⃣ SAVE TO SQLITE + FIRESTORE
       try {
+        await saveFixtureToDB(completedFixture);
+        useFixtureStore.setState((state) => ({
+          fixturesRevision: state.fixturesRevision + 1,
+        }));
+
         if (wasGuest) {
           console.log(
-            "👤 Guest mode detected: Skipping remote Firestore sync, writing locally only.",
+            "👤 Guest mode detected: Skipping remote Firestore sync, saved to SQLite.",
           );
-
-          useFixtureStore.setState((state) => ({
-            fixtures: [
-              ...state.fixtures.filter((f) => f.id !== completedFixture.id),
-              completedFixture,
-            ],
-            currentFixture: completedFixture,
-          }));
         } else {
-          // Normal authenticated user flow
-          await saveFixture(completedFixture);
-
-          useFixtureStore.setState((state) => ({
-            fixtures: [
-              ...state.fixtures.filter((f) => f.id !== completedFixture.id),
-              completedFixture,
-            ],
-            currentFixture: completedFixture,
-          }));
+          await saveFixtureToFirestore(completedFixture);
 
           console.log(
-            "💾 Fixture saved and merged locally:",
+            "💾 Fixture saved to SQLite and Firestore:",
             completedFixture.id,
           );
 
@@ -352,7 +343,7 @@ export default function EndInningsButton({
               console.warn("⚠️ Failed to save public fixture:", e);
             }
           }
-        } // End of authenticate check branch block
+        }
       } catch (err) {
         console.error("❌ Error saving fixture to Firebase:", err);
         Alert.alert("Error", "Failed to save fixture. Try again.");
@@ -376,16 +367,7 @@ export default function EndInningsButton({
       closeModal();
       notifyComplete();
 
-      // Keep completed fixture in fixtures[] so match-summary can resolve it by id
-      useFixtureStore.setState({
-        currentFixture: undefined,
-        fixtures: [
-          ...useFixtureStore
-            .getState()
-            .fixtures.filter((f) => f.id !== completedFixture.id),
-          completedFixture,
-        ],
-      });
+      useFixtureStore.setState({ currentFixture: undefined });
 
       if (wasGuest) {
         useAuthStore.getState().incrementGuestMatches();
@@ -406,6 +388,7 @@ export default function EndInningsButton({
       console.error("❌ Error in handleEndGame:", err);
     } finally {
       endGameInProgressRef.current = false;
+      clearSavingState();
     }
   };
 
@@ -442,21 +425,17 @@ export default function EndInningsButton({
       });
       abandonedFixture.completed = true;
 
-      // 5️⃣ SAVE TO FIRESTORE + update local store safely
+      // 5️⃣ SAVE TO SQLITE + FIRESTORE
       try {
-        await saveFixture(abandonedFixture);
-
-        // Replace or append this fixture in local fixtures[]
+        await saveFixtureToDB(abandonedFixture);
         useFixtureStore.setState((state) => ({
-          fixtures: [
-            ...state.fixtures.filter((f) => f.id !== abandonedFixture.id),
-            abandonedFixture,
-          ],
-          currentFixture: abandonedFixture,
+          fixturesRevision: state.fixturesRevision + 1,
         }));
 
+        await saveFixtureToFirestore(abandonedFixture);
+
         console.log(
-          "💾 Abandoned fixture saved and merged locally:",
+          "💾 Abandoned fixture saved to SQLite and Firestore:",
           abandonedFixture.id,
         );
 
@@ -525,6 +504,8 @@ export default function EndInningsButton({
 
       closeModal();
       notifyComplete();
+
+      useFixtureStore.setState({ currentFixture: undefined });
 
       dismissAuthGate();
 

@@ -6,7 +6,7 @@ import type { MatchEvent } from "../../state/matchStore";
 import { useMatchStore } from "../../state/matchStore";
 import { useTeamStore } from "../../state/teamStore";
 import { useLiveStore } from "../../state/liveStore";
-import type { InningsSnapshot } from "../../state/fixtureStore";
+import type { Fixture, InningsSnapshot } from "../../state/fixtureStore";
 import { useIsLiveViewer } from "@/src/hooks/useIsLiveViewer";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 
@@ -14,6 +14,7 @@ type Props = {
   events?: MatchEvent[];
   /** Optional snapshot (e.g. when showing a saved innings); not required for rendering */
   inningsSnapshot?: InningsSnapshot | null;
+  fixture?: Fixture | null;
 };
 
 type BowlerScorecardRow = ReturnType<typeof calculateBowlerStats> & {
@@ -21,10 +22,19 @@ type BowlerScorecardRow = ReturnType<typeof calculateBowlerStats> & {
   name: string;
 };
 
-export default function BowlerScorecard({ events, inningsSnapshot }: Props) {
+export default function BowlerScorecard({
+  events,
+  inningsSnapshot,
+  fixture,
+}: Props) {
   const storeEvents = useMatchStore((s) => s.events);
-  const matchEvents: MatchEvent[] = events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
+  const isSavedInnings = Boolean(inningsSnapshot);
+
+  const matchEvents: MatchEvent[] = isSavedInnings
+    ? (inningsSnapshot?.matchEvents ?? events ?? [])
+    : (events ?? storeEvents);
+
   const localTeams = useTeamStore((s) => s.teams);
   const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
 
@@ -32,27 +42,73 @@ export default function BowlerScorecard({ events, inningsSnapshot }: Props) {
 
   const teams = isLiveViewer ? liveViewTeams : localTeams;
 
-  if (!currentGame && (!matchEvents || matchEvents.length === 0)) return null;
+  const hasSnapshotEvents = Boolean(inningsSnapshot?.matchEvents?.length);
+  const hasSnapshotBowlers = Boolean(inningsSnapshot?.bowlers?.length);
 
-  // Map player IDs to names
-  const playerNameMap = Object.fromEntries(
+  if (
+    !hasSnapshotEvents &&
+    !hasSnapshotBowlers &&
+    !currentGame &&
+    matchEvents.length === 0
+  ) {
+    return null;
+  }
+
+  const playerNameMap: Record<string, string> = Object.fromEntries(
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
-  ) as Record<string, string>;
-
-  // Get unique bowlers from events
-  const bowlerIds: string[] = Array.from(
-    new Set(
-      matchEvents
-        .map((e: MatchEvent) => e.bowlerId)
-        .filter((id): id is string => Boolean(id)),
-    ),
   );
 
-  const scorecard: BowlerScorecardRow[] = bowlerIds.map((id: string) => ({
-    playerId: id,
-    name: playerNameMap[id] ?? id,
-    ...calculateBowlerStats(matchEvents, id),
-  }));
+  matchEvents.forEach((event) => {
+    const namedEvent = event as MatchEvent & { bowlerName?: string };
+    if (namedEvent.bowlerId && namedEvent.bowlerName) {
+      playerNameMap[namedEvent.bowlerId] = namedEvent.bowlerName;
+    }
+  });
+
+  if (fixture) {
+    fixture.innings?.forEach((inn) => {
+      inn.battingEntries?.forEach((entry) => {
+        const namedEntry = entry as { playerId: string; playerName?: string };
+        if (namedEntry.playerName) {
+          playerNameMap[namedEntry.playerId] = namedEntry.playerName;
+        }
+      });
+    });
+  }
+
+  const scorecard: BowlerScorecardRow[] = hasSnapshotBowlers
+    ? inningsSnapshot!.bowlers.map((bowler) => {
+        const balls = bowler.ballsBowled ?? 0;
+        const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
+        const oversDecimal = balls / 6;
+        const economy =
+          oversDecimal > 0
+            ? (bowler.runsConceded / oversDecimal).toFixed(2)
+            : "0.00";
+
+        return {
+          playerId: bowler.playerId,
+          name: playerNameMap[bowler.playerId] ?? bowler.playerId,
+          overs,
+          maidens: 0,
+          runs: bowler.runsConceded,
+          wickets: bowler.wickets,
+          economy,
+          wides: bowler.wides,
+          noBalls: bowler.noBalls,
+        };
+      })
+    : Array.from(
+        new Set(
+          matchEvents
+            .map((e: MatchEvent) => e.bowlerId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ).map((id: string) => ({
+        playerId: id,
+        name: playerNameMap[id] ?? id,
+        ...calculateBowlerStats(matchEvents, id),
+      }));
 
   return (
     <View style={styles.cardContainer}>

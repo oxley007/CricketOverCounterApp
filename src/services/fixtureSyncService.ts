@@ -4,6 +4,7 @@ import { db } from "./firebaseConfig";
 import { useLiveStore } from "../state/liveStore";
 import { useFixtureStore } from "../state/fixtureStore";
 import { getTeamCode } from "../utils/liveHelpers";
+import { saveMultipleFixtures } from "./sqliteService";
 
 export function listenAndMergeFixture(teamIdOrCode: string) {
   const teamCode = getTeamCode(teamIdOrCode);
@@ -25,7 +26,7 @@ export function listenAndMergeFixture(teamIdOrCode: string) {
   })();
 
   // 🚀 REAL-TIME BUNDLED SNAPSHOT
-  return onSnapshot(fixturesRef, (querySnap) => {
+  return onSnapshot(fixturesRef, async (querySnap) => {
     if (querySnap.empty) {
       console.log(`No fixtures found in /fixtures for ${teamCode}`);
       return;
@@ -59,7 +60,13 @@ export function listenAndMergeFixture(teamIdOrCode: string) {
       `📡 [MERGE] Received ${updatedFixturesList.length} fixtures from live stream.`,
     );
 
-    // 2. Fire ONE single bulk action to update your state cleanly
-    useFixtureStore.getState().upsertBulkFixtures(updatedFixturesList);
+    try {
+      await saveMultipleFixtures(updatedFixturesList);
+      useFixtureStore.setState((state) => ({
+        fixturesRevision: state.fixturesRevision + 1,
+      }));
+    } catch (err) {
+      console.warn("⚠️ Failed to save live fixtures to SQLite:", err);
+    }
   });
 }

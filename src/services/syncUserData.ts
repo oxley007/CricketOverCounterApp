@@ -10,10 +10,10 @@ import {
   loadTeams,
   loadUserSubscription,
 } from "./firestoreService";
+import { getAllFixtures, initDB, saveMultipleFixtures } from "./sqliteService";
 
 export async function syncUserData() {
   try {
-    const fixtureStore = useFixtureStore.getState();
     const teamStore = useTeamStore.getState();
     const matchStore = useMatchStore.getState();
 
@@ -32,25 +32,27 @@ export async function syncUserData() {
     }
     const currentSeason = await loadSeason();
 
+    await initDB();
+    const localFixtures = await getAllFixtures();
+
     // 2️⃣ Merge
     const mergedFixtures: Fixture[] = deepMergeById(
-      fixtureStore.fixtures,
+      localFixtures,
       remoteFixtures,
     );
 
     const mergedTeams: Team[] = deepMergeById(teamStore.teams, remoteTeams);
 
     // 3️⃣ ONLY update if changed ✅
-    if (!isEqual(fixtureStore.fixtures, mergedFixtures)) {
-      useFixtureStore.setState({ fixtures: mergedFixtures });
+    if (!isEqual(localFixtures, mergedFixtures)) {
+      await saveMultipleFixtures(mergedFixtures);
+      useFixtureStore.setState((state) => ({
+        fixturesRevision: state.fixturesRevision + 1,
+      }));
     }
 
     if (!isEqual(teamStore.teams, mergedTeams)) {
       useTeamStore.setState({ teams: mergedTeams });
-    }
-
-    if (matchStore.proUnlocked !== proUnlocked) {
-      matchStore.setProUnlocked(proUnlocked);
     }
 
     if (currentSeason && matchStore.season !== currentSeason) {

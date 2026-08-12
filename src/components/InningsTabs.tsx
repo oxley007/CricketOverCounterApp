@@ -22,11 +22,7 @@ type InningsTabsProps = {
 export default function InningsTabs({ fixture }: InningsTabsProps) {
   const liveEvents = useMatchStore((s) => s.events);
   const [activeTab, setActiveTab] = useState(0);
-
-  //console.log("---- DEBUG INNINGS ----");
-  //console.log("fixture.innings:", JSON.stringify(fixture?.innings, null, 2));
-  //console.log("fixture.innings.length:", fixture?.innings?.length);
-  //console.log("liveEvents.length:", liveEvents?.length);
+  const isHistoricalFixture = Boolean(fixture);
 
   // Build innings list: from fixture when present, else single tab with live events
   const inningsArray: InningsSnapshot[] = fixture?.innings
@@ -57,6 +53,10 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
     const inn = innings[index];
     if (!inn) return [];
 
+    if (isHistoricalFixture) {
+      return Array.isArray(inn.matchEvents) ? inn.matchEvents : [];
+    }
+
     // ✅ Current innings → always use live events
     if (inn.isPlaceholder) return liveEvents;
 
@@ -70,7 +70,7 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
     index: number,
   ): InningsSnapshot | undefined => {
     const inn = innings[index];
-    if (!inn || !inn.battingTeamId) return undefined;
+    if (!inn) return undefined;
     return inn as InningsSnapshot;
   };
 
@@ -114,11 +114,14 @@ export default function InningsTabs({ fixture }: InningsTabsProps) {
           <>
             <Scorecard
               events={events}
-              inningsSnapshot={
-                snapshot?.battingEntries?.length ? snapshot : undefined
-              }
+              inningsSnapshot={snapshot}
+              fixture={fixture}
             />
-            <BowlerScorecard events={events} inningsSnapshot={snapshot} />
+            <BowlerScorecard
+              events={events}
+              inningsSnapshot={snapshot}
+              fixture={fixture}
+            />
           </>
         }
       />

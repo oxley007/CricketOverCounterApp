@@ -7,7 +7,7 @@ import {
   View,
   Pressable,
 } from "react-native";
-import type { InningsSnapshot } from "../../state/fixtureStore";
+import type { Fixture, InningsSnapshot } from "../../state/fixtureStore";
 import {
   calculateBatterStats,
   getDismissalText,
@@ -25,16 +25,28 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 type Props = {
   events?: MatchEvent[];
   /** When showing a saved innings, pass snapshot so we render without currentGame */
-  //inningsSnapshot?: Pick<InningsSnapshot, "battingEntries">;
-  inningsSnapshot?: Pick<InningsSnapshot, "battingEntries" | "matchEvents">;
+  inningsSnapshot?: Pick<
+    InningsSnapshot,
+    "battingEntries" | "matchEvents" | "bowlers"
+  >;
+  fixture?: Fixture | null;
 };
 
-export default function Scorecard({ events, inningsSnapshot }: Props) {
+export default function Scorecard({ events, inningsSnapshot, fixture }: Props) {
   const storeEvents = useMatchStore((s) => s.events);
-  //const matchEvents = events ?? storeEvents;
-  const matchEvents = inningsSnapshot?.matchEvents ?? events ?? storeEvents;
   const currentGame = useGameStore((s) => s.currentGame);
-  //const teams = useTeamStore((s) => s.teams);
+  const isSavedInnings = Boolean(inningsSnapshot);
+
+  const matchEvents = isSavedInnings
+    ? (inningsSnapshot?.matchEvents ?? events ?? [])
+    : (inningsSnapshot?.matchEvents ?? events ?? storeEvents);
+
+  const battingEntries = isSavedInnings
+    ? (inningsSnapshot?.battingEntries ?? [])
+    : (inningsSnapshot?.battingEntries ?? currentGame?.battingEntries);
+
+  const activeBatters = isSavedInnings ? [] : (currentGame?.activeBatters ?? []);
+  const activeRetired = isSavedInnings ? [] : (currentGame?.activeRetired ?? []);
 
   const localTeams = useTeamStore((s) => s.teams);
   const liveViewTeams = useLiveStore((s) => s.liveViewTeams);
@@ -43,16 +55,42 @@ export default function Scorecard({ events, inningsSnapshot }: Props) {
 
   const teams = isLiveViewer ? liveViewTeams : localTeams;
 
-  const battingEntries =
-    inningsSnapshot?.battingEntries ?? currentGame?.battingEntries;
-  const activeBatters = currentGame?.activeBatters ?? [];
-  const activeRetired = currentGame?.activeRetired ?? [];
-
   if (!battingEntries?.length) return null;
 
-  const playerNameMap = Object.fromEntries(
+  const playerNameMap: Record<string, string> = Object.fromEntries(
     teams.flatMap((team) => team.players.map((p) => [p.id, p.name])),
   );
+
+  battingEntries.forEach((entry) => {
+    const namedEntry = entry as { playerId: string; playerName?: string };
+    if (namedEntry.playerName) {
+      playerNameMap[namedEntry.playerId] = namedEntry.playerName;
+    }
+  });
+
+  matchEvents.forEach((event) => {
+    const namedEvent = event as MatchEvent & {
+      batterName?: string;
+      bowlerName?: string;
+    };
+    if (namedEvent.batterId && namedEvent.batterName) {
+      playerNameMap[namedEvent.batterId] = namedEvent.batterName;
+    }
+    if (namedEvent.bowlerId && namedEvent.bowlerName) {
+      playerNameMap[namedEvent.bowlerId] = namedEvent.bowlerName;
+    }
+  });
+
+  if (fixture) {
+    fixture.innings?.forEach((inn) => {
+      inn.battingEntries?.forEach((entry) => {
+        const namedEntry = entry as { playerId: string; playerName?: string };
+        if (namedEntry.playerName) {
+          playerNameMap[namedEntry.playerId] = namedEntry.playerName;
+        }
+      });
+    });
+  }
 
   const scorecard = battingEntries.map((entry) => {
     const stats = calculateBatterStats(

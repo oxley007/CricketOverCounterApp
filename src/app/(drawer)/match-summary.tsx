@@ -1,12 +1,13 @@
 // app/match-summary.tsx
 
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button } from "react-native-paper";
 
 import InningsTabs from "../../components/InningsTabs";
-import { useFixtureStore } from "../../state/fixtureStore";
+import { getFixtureById } from "../../services/sqliteService";
+import { Fixture, useFixtureStore } from "../../state/fixtureStore";
 import { useGameStore } from "../../state/gameStore";
 import { useStartModalStore } from "../../state/startModalStore";
 import { useUIStore } from "../../state/uiStore";
@@ -19,28 +20,36 @@ export default function MatchSummaryScreen() {
   }>();
   const setSaving = useUIStore((s) => s.setSaving);
   const fixtureIdStr = Array.isArray(fixtureId) ? fixtureId[0] : fixtureId;
+  const currentFixture = useFixtureStore((s) => s.currentFixture);
+  const [fixture, setFixture] = useState<Fixture | null | undefined>(undefined);
 
-  // 🚀 THE FIX: Make the fixture resolver strict so a brand new match cannot pass here!
-  const fixture = useFixtureStore((s) => {
-    // 1. If an ID was explicitly passed via the URL route param, search for it
-    if (fixtureIdStr) {
-      if (s.currentFixture && s.currentFixture.id === fixtureIdStr) {
-        return s.currentFixture;
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (fixtureIdStr) {
+        if (currentFixture?.id === fixtureIdStr) {
+          if (!cancelled) setFixture(currentFixture);
+          return;
+        }
+
+        const fromDb = await getFixtureById(fixtureIdStr);
+        if (!cancelled) setFixture(fromDb);
+        return;
       }
-      const found = s.fixtures.find((f) => f.id === fixtureIdStr);
-      if (found) return found;
 
-      return null; // Don't fall back to an unrelated currentFixture if ID doesn't match
-    }
+      if (currentFixture?.completed) {
+        if (!cancelled) setFixture(currentFixture);
+        return;
+      }
 
-    // 2. If NO ID was passed via route parameters, check if the current active fixture is completed
-    if (s.currentFixture && s.currentFixture.completed) {
-      return s.currentFixture;
-    }
+      if (!cancelled) setFixture(null);
+    })();
 
-    // 3. Otherwise, explicitly return null to force the page to safe-exit
-    return null;
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [fixtureIdStr, currentFixture]);
 
   // This ensures isResetView is only true if we EXPLICITLY pass
   // something that isn't "scorebook" (like "quick" or "reset")
@@ -49,6 +58,17 @@ export default function MatchSummaryScreen() {
   useEffect(() => {
     setSaving(false);
   }, [setSaving]);
+
+  if (fixture === undefined && !isResetView) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Match Summary</Text>
+        </View>
+        <Text style={{ color: "#fff", textAlign: "center" }}>Loading...</Text>
+      </View>
+    );
+  }
 
   if (!fixture && !isResetView) {
     return (

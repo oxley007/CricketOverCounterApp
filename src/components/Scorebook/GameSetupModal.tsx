@@ -1,6 +1,8 @@
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -8,8 +10,8 @@ import {
   Switch,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -208,9 +210,13 @@ export default function GameSetupModal({ visible, onClose }: Props) {
       transparent
       statusBarTranslucent
     >
-      <SafeAreaView style={{ flex: 1 }}>
-        {/* 2. pointerEvents="box-none" ensures the overlay itself doesn't catch touches */}
-        <View style={styles.overlay} pointerEvents="box-none">
+      <TouchableWithoutFeedback
+        onPress={Keyboard.dismiss}
+        accessible={false}
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* 2. pointerEvents="box-none" ensures the overlay itself doesn't catch touches */}
+          <View style={styles.overlay} pointerEvents="box-none">
           <View
             style={styles.container}
             pointerEvents="auto" // Ensures the actual UI box catches touches
@@ -281,7 +287,8 @@ export default function GameSetupModal({ visible, onClose }: Props) {
               placeholder="Enter overs (1-100 or Unlimited)"
               value={overs}
               onChangeText={setOvers}
-              keyboardType="numeric"
+              keyboardType="number-pad"
+              returnKeyType="done"
               editable={!isUnlimited}
             />
             <View style={styles.switchRow}>
@@ -352,7 +359,8 @@ export default function GameSetupModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }
